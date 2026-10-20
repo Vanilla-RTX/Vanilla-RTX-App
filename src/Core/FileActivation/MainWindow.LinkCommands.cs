@@ -150,6 +150,7 @@ public sealed partial class MainWindow
         // Neither covers a module in normal use - the settings scrim makes the module buttons
         // unreachable, and a document drawn over a freshly opened module hides it - so both
         // make way first, as they would for the user's own click.
+        ChessViewer.Close();
         if (SettingsPanel.IsOpen) SettingsPanel.Hide();
         if (DocsOverlay.IsOpen) DocsOverlay.Close();
 
@@ -173,6 +174,7 @@ public sealed partial class MainWindow
         var url = section is null ? pageUrl : $"{pageUrl.Split('#')[0]}#{section}";
         if (string.Equals(DocsOverlay.ShowingUrl, url, StringComparison.Ordinal)) return;
 
+        ChessViewer.Close();
         if (SettingsPanel.IsOpen) SettingsPanel.Hide();
         DocsOverlay.Show(url: url, title: button == BugButton ? BugTrackerTitle : DocumentationTitle, glyph: "");
     }

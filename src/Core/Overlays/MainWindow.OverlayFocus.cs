@@ -57,6 +57,7 @@ public sealed partial class MainWindow
     /// </summary>
     private UIElement? TopmostOpenOverlay()
     {
+        if (ChessViewer.IsOpen) return ChessViewer;
         if (SettingsPanel.IsOpen) return SettingsPanel;
         if (DocsOverlay.IsOpen) return DocsOverlay;
         if (_openModules.Count > 0) return ModuleOverlayHost;

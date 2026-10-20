@@ -171,7 +171,6 @@ public sealed partial class SettingsOverlay : UserControl
         if (!_isOpen) return;
         _isOpen = false;
 
-        ChessViewer.CloseIfOpen();
         SaveSettings();
 
         IsHitTestVisible = false;
@@ -1411,27 +1410,11 @@ public sealed partial class SettingsOverlay : UserControl
         finally { WebsiteLink.IsEnabled = true; }
     }
 
-    /// <summary>
-    /// Vanilla RTX Chess in the in-app browser, on the site's minimal <c>?app</c> layout. Nothing
-    /// is downloaded there, so the viewer watches no extensions and its button reads Return.
-    /// </summary>
+    /// <summary>Opens over the panel, so Return lands back here - see <see cref="MainWindow.OpenVanillaRtxChessAsync"/>.</summary>
     private async void ChessLink_Click(object sender, RoutedEventArgs e)
     {
         ChessLink.IsEnabled = false;
-        try
-        {
-            var url = await Helpers.ResolveVanillaRtxSiteUrlAsync("/chess?app");
-            if (!_isOpen) return;
-
-            ChessViewer.Show(
-                url: url,
-                title: "Vanilla RTX Chess",
-                glyph: "",
-                guideText: "",
-                stagingTag: "Chess",
-                watchedExtensions: Array.Empty<string>(),
-                onFilesReady: _ => Task.CompletedTask);
-        }
+        try { if (_host is not null) await _host.OpenVanillaRtxChessAsync(); }
         finally { ChessLink.IsEnabled = true; }
     }
 }

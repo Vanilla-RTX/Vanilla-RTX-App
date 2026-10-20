@@ -162,7 +162,12 @@ public sealed partial class WebImportOverlay : UserControl
         _ = LoadAsync(url, stagingTag);
     }
 
-    private void Close()
+    /// <summary>
+    /// Fades the page out and hands back whatever finished downloading - the same as the user
+    /// clicking Done or Return. A no-op when it isn't open, so a host can call it to clear the
+    /// way without checking first.
+    /// </summary>
+    public void Close()
     {
         if (!_isOpen) return;
         _isOpen = false;
@@ -182,9 +187,8 @@ public sealed partial class WebImportOverlay : UserControl
     /// mid-browse. Without this, a download that landed
     /// seconds before that would sit in the staging folder forever, never imported and never
     /// cleaned up - silently losing exactly the file the user just fetched. No fade-out here; the
-    /// host is already on its way down. The overlay still goes back to its hidden state, because a
-    /// host that is only hidden rather than torn down (the settings panel) shows it again on its
-    /// next open otherwise.
+    /// host is already on its way down. The overlay still goes back to its hidden state, so a
+    /// host that outlives the call never finds it still drawn.
     /// </summary>
     public void CloseIfOpen()
     {

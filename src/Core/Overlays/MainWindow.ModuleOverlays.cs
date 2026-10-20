@@ -182,7 +182,7 @@ public sealed partial class MainWindow
     private void ModuleEscape_KeyDown(object sender, KeyRoutedEventArgs e)
     {
         if (e.Key != VirtualKey.Escape) return;
-        if (_openModules.Count == 0 || DocsOverlay.IsOpen) return;
+        if (_openModules.Count == 0 || DocsOverlay.IsOpen || ChessViewer.IsOpen) return;
 
         e.Handled = true;
         _openModules.LastOrDefault()?.Close();

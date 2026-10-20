@@ -1513,5 +1513,14 @@
                               Grid.ColumnSpan="2"
                               Canvas.ZIndex="998" />
 
+        <!-- Vanilla RTX Chess, in the in-app browser - reached from the settings panel's footer
+             and by shift-clicking the lamp. Declared last at the overlays' z so it draws over
+             Settings, the documents and any module, and still under the titlebar; closing it
+             puts back whatever was underneath. See OpenVanillaRtxChessAsync. -->
+        <core:WebImportOverlay x:Name="ChessViewer"
+                               Grid.ColumnSpan="2"
+                               Margin="0,36,0,0"
+                               Canvas.ZIndex="998" />
+
     </Grid>
 </Window>

@@ -845,9 +845,49 @@ public sealed partial class MainWindow : Window
 
     #region Titlebar Features -------------------------------
     private static int lampSecretMessageCounter = 0;
+
+    /// <summary>
+    /// Opens Vanilla RTX Chess - ray-traced voxel chess on vanillartx.net, on its minimal
+    /// <c>?app</c> layout - in the in-app browser, over whatever is showing. Closing it puts that
+    /// back. The origin is resolved first, so a domain that isn't answering falls through to its
+    /// workers.dev twin (<see cref="Helpers.ResolveVanillaRtxSiteUrlAsync"/>). Nothing is
+    /// downloaded there, so the viewer watches no extensions and its button reads Return.
+    /// </summary>
+    public async Task OpenVanillaRtxChessAsync()
+    {
+        if (ChessViewer.IsOpen) return;
+        var url = await Helpers.ResolveVanillaRtxSiteUrlAsync("/chess?app");
+
+        ChessViewer.Show(
+            url: url,
+            title: "Vanilla RTX Chess",
+            glyph: "",
+            guideText: "",
+            stagingTag: "Chess",
+            watchedExtensions: Array.Empty<string>(),
+            onFilesReady: _ => Task.CompletedTask);
+    }
+
+    /// <summary>
+    /// The lamp hides two things. Shift-click opens Vanilla RTX Chess, and the first plain click
+    /// of a session says so - a curious click is exactly who it is for. Plain clicks also count
+    /// toward the older secret below.
+    /// </summary>
     private void LampInteraction_Click(object sender, RoutedEventArgs e)
     {
         _ = BlinkingLamp(true, true, 1.0, 0.1);
+
+        var shiftHeld = Microsoft.UI.Input.InputKeyboardSource
+            .GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift)
+            .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+        if (shiftHeld)
+        {
+            _ = OpenVanillaRtxChessAsync();
+            return;
+        }
+
+        if (RuntimeFlags.Set("Lamp_Chess_Hint"))
+            Log("Hold shift and click again to launch Vanilla RTX Chess!", LogLevel.VanillaRTX);
 
         lampSecretMessageCounter++;
         if (lampSecretMessageCounter > (DateTime.Now.Year - 2005)) // it amounts to having to click 1 more time every year, starting in 2026, 21 times
@@ -934,6 +974,10 @@ public sealed partial class MainWindow : Window
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e)
     {
+        // Chess draws over all three, so a titlebar button that would otherwise open beneath it
+        // clears it first.
+        ChessViewer.Close();
+
         if (SettingsPanel.IsOpen)
         {
             SettingsPanel.Hide();
@@ -963,6 +1007,7 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private void HelpButton_Click(object sender, RoutedEventArgs e)
     {
+        ChessViewer.Close();
         if (SettingsPanel.IsOpen)
             SettingsPanel.Hide();
 
@@ -972,6 +1017,7 @@ public sealed partial class MainWindow : Window
     }
     private void BugButton_Click(object sender, RoutedEventArgs e)
     {
+        ChessViewer.Close();
         if (SettingsPanel.IsOpen)
             SettingsPanel.Hide();
 

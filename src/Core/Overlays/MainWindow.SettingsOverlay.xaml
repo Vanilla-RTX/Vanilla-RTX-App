@@ -835,10 +835,5 @@
 
             </Grid>
         </Border>
-
-        <!-- The in-app browser for Vanilla RTX Chess. Spans both columns, over the panel and the
-             scrim, so it takes the window's whole body; closing it returns to the panel. -->
-        <local:WebImportOverlay x:Name="ChessViewer"
-                                Grid.ColumnSpan="2" />
     </Grid>
 </UserControl>
