@@ -13020,11 +13020,12 @@
     },
     "smithing_table_top": {
         "mer": {
-            "metal_min": 180,
-            "metal_max": 120,
-            "roughness_min": 92,
-            "roughness_max": 75,
-            "invert_metal": true
+            "metal_min": 120,
+            "metal_max": 180,
+            "roughness_min": 75,
+            "roughness_max": 92,
+            "invert_metal": false,
+            "invert_roughness": true
         }
     },
     "smoker_bottom": {
