@@ -729,11 +729,19 @@ public sealed class MarkdownRenderer
         }
     }
 
+    /// <summary>
+    /// The face italic text is drawn in. The app's text font, Segoe UI Variable, ships no italic,
+    /// so asking it for one gets DirectWrite's synthetic oblique - a steep skew of the upright
+    /// glyphs that reads far heavier than italic should. Classic Segoe UI has a real italic face
+    /// with the same proportions, so emphasis switches to it.
+    /// </summary>
+    private static readonly FontFamily ItalicFontFamily = new("Segoe UI");
+
     private void AppendEmphasis(InlineCollection target, MI.EmphasisInline emphasis)
     {
         Span span = emphasis.DelimiterChar == '~'
             ? new Span { TextDecorations = Windows.UI.Text.TextDecorations.Strikethrough }
-            : emphasis.DelimiterCount >= 2 ? new Bold() : new Italic();
+            : emphasis.DelimiterCount >= 2 ? new Bold() : new Italic { FontFamily = ItalicFontFamily };
 
         // Nested content can never itself hold an InlineUIContainer - see the class doc.
         AppendInlines(span.Inlines, emphasis, allowInlineUI: false);
@@ -868,6 +876,7 @@ public sealed class MarkdownRenderer
             {
                 Text = string.IsNullOrEmpty(altText) ? "Image failed to load" : altText,
                 FontSize = 12,
+                FontFamily = ItalicFontFamily,
                 FontStyle = Windows.UI.Text.FontStyle.Italic
             }
         }
