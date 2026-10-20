@@ -734,8 +734,14 @@ public sealed class MarkdownRenderer
     /// so asking it for one gets DirectWrite's synthetic oblique - a steep skew of the upright
     /// glyphs that reads far heavier than italic should. Classic Segoe UI has a real italic face
     /// with the same proportions, so emphasis switches to it.
+    ///
+    /// <para>Built per renderer, on first use, never in a static initializer: a FontFamily is a
+    /// XAML object, and the class's statics also run when <see cref="ToPlainText"/> is reached
+    /// first from a background thread. A throw there fails the whole type, and every later
+    /// render falls back to raw markdown.</para>
     /// </summary>
-    private static readonly FontFamily ItalicFontFamily = new("Segoe UI");
+    private FontFamily ItalicFontFamily => _italicFontFamily ??= new FontFamily("Segoe UI");
+    private FontFamily? _italicFontFamily;
 
     private void AppendEmphasis(InlineCollection target, MI.EmphasisInline emphasis)
     {
@@ -876,7 +882,7 @@ public sealed class MarkdownRenderer
             {
                 Text = string.IsNullOrEmpty(altText) ? "Image failed to load" : altText,
                 FontSize = 12,
-                FontFamily = ItalicFontFamily,
+                FontFamily = new FontFamily("Segoe UI"),
                 FontStyle = Windows.UI.Text.FontStyle.Italic
             }
         }
