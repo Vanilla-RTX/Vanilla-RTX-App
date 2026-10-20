@@ -33,7 +33,8 @@ public sealed partial class TeletextCard : UserControl
     }
 
     /// <summary>
-    /// Shown in place of a module's announcements when we couldn't get any. Pinned, so it
+    /// Shown in place of a module's announcements when no copy of the .md, fresh or cached, could
+    /// be read. Pinned, so it
     /// carries no dismiss button - there is nothing for the user to dismiss, it goes away on
     /// its own the next time the fetch works.
     /// </summary>
@@ -44,20 +45,33 @@ public sealed partial class TeletextCard : UserControl
         Glyph: "EB5E");
 
     /// <summary>
+    /// Shown in place of a module's announcements when the .md was read but has no section for
+    /// this module. Either this build is older than the file (a section it reads was renamed or
+    /// retired) or the section was never written - updating fixes the first, a report the second.
+    /// </summary>
+    private static readonly TeletextItem SectionMissingNotice = new(
+        "No announcements were found for this module. Updating the app from the Microsoft Store " +
+        "should fix this; if it doesn't, please report it to the developer.",
+        TeletextKind.Pinned,
+        Glyph: "EB5E");
+
+    /// <summary>
     /// Fills a module's announcement panel, falling back to a single notice card when there
     /// was nothing to fill it with.
     ///
     /// Several windows carve out a fixed space for these, and an empty one reads as a broken
-    /// layout rather than as "no news" - which is what the user sees whenever the .md fetch
-    /// fails outright.
+    /// layout rather than as "no news" - which is what the user would see whenever the .md
+    /// fetch fails outright.
     ///
     /// The fallback keys off the **source** array, not the filtered result, and that
     /// distinction is the whole rule:
     ///
-    ///   - source null or empty  - the .md never arrived, or arrived without a section for
-    ///                             this module. Both are our failure, so: notice card.
-    ///   - source has items but GetFiltered returns null - the user dismissed them all.
-    ///     That's their choice and an empty panel is the correct answer.
+    ///   - source null, no .md read - <see cref="RetrievalFailedNotice"/>.
+    ///   - source null, .md read    - the file has no section for this module:
+    ///                                <see cref="SectionMissingNotice"/>.
+    ///   - source empty             - the section is there with nothing in it, or every item in it
+    ///   - or GetFiltered gives null  is dismissed or outside this version. Nothing to say, and an
+    ///                                empty panel is the correct answer.
     ///
     /// Deliberately lives here rather than on Teletext: this is a card, and the log-facing
     /// Teletext feed reads Teletext directly, so it can't pick this up by accident.
@@ -68,8 +82,8 @@ public sealed partial class TeletextCard : UserControl
 
         host.Children.Clear();
 
-        var items = source is null || source.Length == 0
-            ? new[] { RetrievalFailedNotice }
+        var items = source is null
+            ? new[] { Teletext.HasContent ? SectionMissingNotice : RetrievalFailedNotice }
             : Teletext.GetFiltered(source);
 
         if (items is null) return;

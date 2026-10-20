@@ -46,12 +46,13 @@ public record TeletextItem(
 //   2. Add a matching # Section to TELETEXT.md.
 //      The section name must match the property name exactly (trimmed, case-insensitive).
 //
-// null always means "nothing to show" — absent section, empty content, or fetch failed.
+// null means the .md has no section for it (or no .md has been read yet); an empty array means
+// the section is there with nothing in it. The two differ on purpose - see TeletextCard.Populate.
 //
 // READING VALUES:
 //   For a TeletextCard panel, call TeletextCard.Populate(panel, TeletextContent.YourProperty) - it
-//   filters, and shows a "couldn't retrieve" notice rather than leaving the panel empty when
-//   the fetch failed or the .md has no section for that module.
+//   filters, and shows a notice rather than leaving the panel empty when the .md couldn't be read
+//   or has no section for that module.
 //   Anywhere else, call Teletext.GetFiltered(TeletextContent.YourProperty), which
 //   strips dismissed entries according to each item's TeletextKind.
 //
@@ -134,7 +135,8 @@ internal partial class TeletextJsonContext : JsonSerializerContext
 //   • Separators are checked ### first, then ## to avoid misclassification.
 //   • Text before the first separator in a section = Pinned.
 //   • Empty / whitespace-only blocks are discarded.
-//   • Properties whose # header is absent from the file are set to null.
+//   • Properties whose # header is absent from the file are set to null; a header with nothing
+//     under it gives an empty array - "no announcements", not "missing".
 //
 // ── MODIFIER FIELDS ─────────────────────────────────────────────────────────────────────────────────────────────────
 //
@@ -309,6 +311,14 @@ public static class Teletext
     /// fresh content has landed. Completed-false until the first trigger.
     /// </summary>
     public static Task<bool> LatestUpdate { get; private set; } = Task.FromResult(false);
+
+    /// <summary>
+    /// Whether a copy of the .md - cached or fresh - has been parsed this session. Once true it
+    /// stays true: a later failed fetch leaves the content it parsed in place. It is what lets a
+    /// null <see cref="TeletextContent"/> property be told apart as "the file has no such section"
+    /// rather than "there is no file".
+    /// </summary>
+    public static bool HasContent { get; private set; }
 
     private static async Task<bool> RunUpdateAsync(bool force)
     {
@@ -735,7 +745,7 @@ public static class Teletext
 
     /// <summary>
     /// Nullifies all TeletextContent properties, parses the raw .md,
-    /// and writes results via reflection. Missing sections stay null.
+    /// and writes results via reflection. Missing sections stay null; empty ones get an empty array.
     /// </summary>
     private static void ParseAndApply(string raw)
     {
@@ -770,12 +780,14 @@ public static class Teletext
                         MaxVersion: b.Modifiers.MaxVersion))
                     .ToArray();
 
-                prop.SetValue(null, items.Length > 0 ? items : null);
+                prop.SetValue(null, items);
                 Trace.WriteLine($"[Teletext] '{key}' → {items.Length} item(s) " +
                     $"(pinned={items.Count(i => i.Kind == TeletextKind.Pinned)}, " +
                     $"timed={items.Count(i => i.Kind == TeletextKind.Timed)}, " +
                     $"permanent={items.Count(i => i.Kind == TeletextKind.Permanent)})");
             }
+
+            HasContent = true;
         }
         catch (Exception ex)
         {
