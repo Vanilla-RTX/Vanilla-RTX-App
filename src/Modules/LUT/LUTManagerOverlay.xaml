@@ -147,7 +147,7 @@
                 <!-- ═══════════════════════════════════════════════
                  ROW 1 — No usable Default backup
 
-                 A static Pinned-TeletextCard lookalike, same as BetterRTX's: same corner radius,
+                 A static Pinned-TeletextCard lookalike, same as the shader mod manager's: same corner radius,
                  padding, translation, shadow and accent glyph as Core\TeletextCard.xaml, minus the
                  dismiss button, because there is nothing here for the user to dismiss. Filled
                  and shown by ApplyDefaultsNotice(), which also takes the dropdown and the

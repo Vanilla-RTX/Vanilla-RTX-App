@@ -909,7 +909,7 @@ public class PackUpdater
     // Every manifest this class reads now goes through PackManifest.cs - one tolerant parser
     // (comments, trailing commas, duplicate keys, raw control characters in strings) and one
     // definition of "header UUID", "module UUID" and "version", shared with PackLocator,
-    // PackBrowser, ExpImpDel, BetterRTXManager and Alchitex. What this class vets is unchanged
+    // PackBrowser, ExpImpDel, ShaderModManager and Alchitex. What this class vets is unchanged
     // and is now stated in one place: header.uuid + modules[0].uuid for identity,
     // header.version for freshness.
     //

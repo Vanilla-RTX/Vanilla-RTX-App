@@ -773,7 +773,7 @@ public sealed partial class SettingsOverlay : UserControl
             new UrlField
             {
                 Box = BetterRtxCreatorBox, ResetButton = BetterRtxCreatorResetButton, Hint = BetterRtxCreatorHint,
-                Description = "The page the BetterRTX manager's \"Create preset\" button browses to. Feel free to change to any other website that you can download `.rtpack` files from.",
+                Description = "The page the shader mod manager's \"Create your own preset\" button browses to. Feel free to change to any other website that you can download `.rtpack` files from.",
                 Fallback = Defaults.BetterRtxCreatorUrl, Kind = LinkKind.WebPage,
                 Read = () => Persistent.BetterRtxCreatorUrl, Write = v => Persistent.BetterRtxCreatorUrl = v
             },
@@ -1061,10 +1061,10 @@ public sealed partial class SettingsOverlay : UserControl
 
         async Task GuardActivePresetsBeforeWipeAsync()
         {
-            MainWindow.Log("Checking for active custom presets that need to be reverted first...", MainWindow.LogLevel.BetterRTX);
+            MainWindow.Log("Checking for active custom presets that need to be reverted first...", MainWindow.LogLevel.ShaderMods);
 
-            await RunGuard("BetterRTX",
-                DefaultsGuard.RestoreBetterRTXDefaultIfNeededAsync(
+            await RunGuard("Shader mods",
+                DefaultsGuard.RestoreShaderModDefaultIfNeededAsync(
                     msg => MainWindow.Log(msg, MainWindow.LogLevel.Informational)));
 
             await RunGuard("RTX LUT (Release)",
@@ -1360,7 +1360,7 @@ public sealed partial class SettingsOverlay : UserControl
                 }
                 catch { /* non-critical */ }
 
-                // The DLSS and BetterRTX import flows are the only WebView2 users and degrade to an
+                // The DLSS and shader mod import flows are the only WebView2 users and degrade to an
                 // error card without it, so a report from either wants to know what is installed.
                 try { sb.AppendLine($"WebView2 Runtime: {Microsoft.Web.WebView2.Core.CoreWebView2Environment.GetAvailableBrowserVersionString()}"); }
                 catch (Exception ex) { sb.AppendLine($"WebView2 Runtime: unavailable ({ex.GetType().Name})"); }

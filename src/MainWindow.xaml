@@ -1228,9 +1228,9 @@
                         </StackPanel>
                     </Button>
 
-                    <!-- Better RTX -->
-                    <Button x:Name="LaunchBetterRTXManagerButton"
-                            Click="LaunchBetterRTXManagerButton_Click"
+                    <!-- Shader mod manager -->
+                    <Button x:Name="LaunchShaderModManagerButton"
+                            Click="LaunchShaderModManagerButton_Click"
                             Grid.Row="0"
                             Grid.Column="2"
                             FontWeight="SemiBold"
@@ -1239,14 +1239,14 @@
                             CornerRadius="0, 6, 0, 0"
                             BorderThickness="0"
                             IsTextScaleFactorEnabled="False"
-                            ToolTipService.ToolTip="Manage and install BetterRTX presets.">
+                            ToolTipService.ToolTip="Install Supervanilla RTX and BetterRTX shader presets, and roll back to your game's own shaders at any time.">
                         <StackPanel Orientation="Horizontal"
                                     HorizontalAlignment="Center">
                             <FontIcon Glyph="&#xEABC;"
                                       FontSize="18"
                                       Margin="0,0,8,0"
                                       VerticalAlignment="Center" />
-                            <TextBlock Text="BetterRTX manager"
+                            <TextBlock Text="Shader mod manager"
                                        VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>

@@ -8,7 +8,7 @@ namespace Vanilla_RTX_App.Core.FileActivation;
 /// A feature window that can take a file activation itself, instead of it being imported
 /// through MainWindow.
 ///
-/// <para><b>What it is for:</b> a user who opens the BetterRTX manager or the pack browser
+/// <para><b>What it is for:</b> a user who opens the shader mod manager or the pack browser
 /// and <i>then</i> double-clicks a file has told us where they expect the result to appear.
 /// Importing through MainWindow answers by pulling MainWindow in front of the window they
 /// were just looking at, and putting the confirmation dialogs there too. When a window

@@ -38,7 +38,7 @@ public sealed partial class MainWindow
         _openModules.FirstOrDefault(m => m.GetType() == moduleType);
 
     /// <summary>
-    /// Serializes .mcpack imports specifically - see ImportBetterRTXPresetFilesAsync's own
+    /// Serializes .mcpack imports specifically - see ImportShaderModPresetFilesAsync's own
     /// RtpackImportLock for why .rtpack gets a separate one rather than sharing this: they
     /// deploy to completely unrelated folders (Minecraft's resource_packs vs. this app's own
     /// RTX_Cache) and share no state, so there's no reason a slow .rtpack import should make
@@ -167,17 +167,17 @@ public sealed partial class MainWindow
     private static readonly SemaphoreSlim RtpackImportLock = new(1, 1);
 
     /// <summary>
-    /// Entry point for .rtpack file activation when the BetterRTX manager isn't open - same
-    /// idea as ImportPackFilesAsync, just for BetterRTX custom presets. When the manager is
+    /// Entry point for .rtpack file activation when the shader mod manager isn't open - same
+    /// idea as ImportPackFilesAsync, just for .rtpack shader mod presets. When the manager is
     /// open, <see cref="Core.FileActivation.FileActivationRouter"/> hands the files to it
     /// instead (§2g). Does not open the manager: importing into the app's preset cache is
-    /// <see cref="Modules.BetterRTX.BetterRTXManager.ImportPresetFilesHeadlessAsync"/>, which
+    /// <see cref="Modules.ShaderMods.ShaderModManager.ImportPresetFilesHeadlessAsync"/>, which
     /// needs no UI at all. Installing a preset into the game still only ever happens from the
     /// manager itself - this only puts the preset in its list, ready for the next time it opens.
     /// </summary>
-    public async Task ImportBetterRTXPresetFilesAsync(IReadOnlyList<string> filePaths)
+    public async Task ImportShaderModPresetFilesAsync(IReadOnlyList<string> filePaths)
     {
-        string[] ToDisable = ["LaunchBetterRTXManagerButton"];
+        string[] ToDisable = ["LaunchShaderModManagerButton"];
 
         var paths = filePaths.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         if (paths.Count == 0) return;
@@ -191,10 +191,10 @@ public sealed partial class MainWindow
             WindowControlsManager.ToggleSpecificControls(this, false, ToDisable);
 
             var names = paths.Select(p => Path.GetFileNameWithoutExtension(p) ?? p).ToList();
-            Log($"Importing {paths.Count} BetterRTX preset{(paths.Count == 1 ? "" : "s")}:\n{string.Join(Environment.NewLine, names)}", LogLevel.BetterRTX);
+            Log($"Importing {paths.Count} shader mod preset{(paths.Count == 1 ? "" : "s")}:\n{string.Join(Environment.NewLine, names)}", LogLevel.ShaderMods);
 
-            var (succeeded, total) = await Modules.BetterRTX.BetterRTXManager.ImportPresetFilesHeadlessAsync(
-                paths, message => Log(message, LogLevel.BetterRTX));
+            var (succeeded, total) = await Modules.ShaderMods.ShaderModManager.ImportPresetFilesHeadlessAsync(
+                paths, message => Log(message, LogLevel.ShaderMods));
 
             if (total == 0)
             {
@@ -204,13 +204,13 @@ public sealed partial class MainWindow
 
             Log(succeeded == total
                 ? $"Finished importing {succeeded} BetterRTX preset{(succeeded == 1 ? "" : "s")}.\nOpen BetterRTX Manager to install {(succeeded == 1 ? "it" : "one")}."
-                : $"Imported {succeeded} out of {total} BetterRTX preset{(total == 1 ? "" : "s")} - Use BetterRTX Manager's own Add button to import manually instead.",
+                : $"Imported {succeeded} out of {total} shader mod preset{(total == 1 ? "" : "s")} - Use Shader mod manager's own Add button to import manually instead.",
                 succeeded == total ? LogLevel.Success : LogLevel.Warning);
 
-            // If the user already has BetterRTXManagerOverlay open, its list was built before
+            // If the user already has ShaderModManagerOverlay open, its list was built before
             // this import landed - refresh it so it isn't left showing stale contents.
             if (succeeded > 0)
-                foreach (var manager in _openModules.OfType<Modules.BetterRTX.BetterRTXManagerOverlay>())
+                foreach (var manager in _openModules.OfType<Modules.ShaderMods.ShaderModManagerOverlay>())
                     await manager.RefreshLocalPresetsAsync();
         }
         finally

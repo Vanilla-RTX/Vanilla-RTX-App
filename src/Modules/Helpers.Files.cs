@@ -90,7 +90,7 @@ public static partial class Helpers
     /// finally - so a declined prompt, a failed copy or a thrown exception all clear it.</para>
     /// </summary>
     /// <param name="filesToReplace">List of (sourcePath, destPath) pairs to copy.</param>
-    /// <param name="logPrefix">Tag used in Trace output, e.g. "[BetterRTX]", "[DLSS]", "[LUTManager]".</param>
+    /// <param name="logPrefix">Tag used in Trace output, e.g. "[ShaderMods]", "[DLSS]", "[LUTManager]".</param>
     /// <param name="tempFilePrefix">Prefix for the temp batch file name, to keep temp files identifiable per-feature.</param>
     public static async Task<bool> ReplaceFilesWithElevation(List<(string sourcePath, string destPath)> filesToReplace,
         string logPrefix = "[Helpers]", string tempFilePrefix = "file_replace")

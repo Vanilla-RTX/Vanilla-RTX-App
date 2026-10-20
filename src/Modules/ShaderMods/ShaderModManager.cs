@@ -11,7 +11,7 @@ using Microsoft.UI.Xaml.Media.Imaging;
 using Vanilla_RTX_App.Modules.Json;
 using Windows.Storage;
 
-namespace Vanilla_RTX_App.Modules.BetterRTX;
+namespace Vanilla_RTX_App.Modules.ShaderMods;
 
 // the whole code path related to backing up defaults can be pruned.
 // instead, adapt another approach that redirects mat.bin files via materials.index.json in the materials folder?
@@ -19,17 +19,11 @@ namespace Vanilla_RTX_App.Modules.BetterRTX;
 // think it through later. for now, things are tesetd and good, no reason to change the approach, it is robust, it works, it backs up the files literally!
 
 
-internal class ApiPresetData
-{
-    public ApiPresetData() { }
-
-    public string? Uuid { get; set; }
-    public string? Slug { get; set; }
-    public string? Name { get; set; }
-    public string? Stub { get; set; }
-    public string? Tonemapping { get; set; }
-    public string? Bloom { get; set; }
-}
+/// <summary>
+/// Who a preset in the cache belongs to. Decides both which section of the list it is drawn in
+/// and which provider's wipes may delete it - see <see cref="ShaderModManager.ClassifyFolder"/>.
+/// </summary>
+internal enum PresetSource { BetterRTX, Supervanilla }
 
 internal class LocalPresetData
 {
@@ -41,6 +35,9 @@ internal class LocalPresetData
     public BitmapImage? Icon { get; set; }
     public List<string>? BinFiles { get; set; }
     public Dictionary<string, string>? FileHashes { get; set; }
+
+    /// <summary>What a Supervanilla RTX folder's sidecar says about it. Null for BetterRTX's.</summary>
+    public SupervanillaOrigin? Supervanilla { get; set; }
 }
 
 internal class DisplayPresetData
@@ -55,25 +52,43 @@ internal class DisplayPresetData
     public string? PresetPath { get; set; }
     public List<string>? BinFiles { get; set; }
     public Dictionary<string, string>? FileHashes { get; set; }
+
+    /// <summary>
+    /// Key into the window's download queue for a row that is not downloaded yet. BetterRTX rows
+    /// use their UUID; Supervanilla RTX rows use the <c>svrtx:</c> keys
+    /// <see cref="ShaderModManager"/> hands out, which cannot collide with one.
+    /// </summary>
+    public string? DownloadKey { get; set; }
+
+    /// <summary>What the queue runs to download this row, when it is not downloaded yet.</summary>
+    public Func<System.Threading.CancellationToken, Task<bool>>? DownloadAction { get; set; }
+
+    /// <summary>The second line under the name while the row is not the installed preset. Null keeps the default wording.</summary>
+    public string? Subtitle { get; set; }
 }
 
 /// <summary>
-/// Everything the BetterRTX preset manager does that isn't drawing: the local preset cache
-/// and its layout, the bedrock.graphics API and its staleness rules, reading presets off
-/// disk, downloading and importing them, hashing to work out which one the game is actually
-/// running, and the elevated write that installs one.
+/// Everything the shader mod manager does that isn't drawing: the local preset cache and its
+/// layout, reading presets off disk, importing them, hashing to work out which one the game is
+/// actually running, and the elevated write that installs one. The two providers that fill the
+/// cache are partials beside this file - ShaderModManager.BetterRTX.cs (bedrock.graphics) and
+/// ShaderModManager.Supervanilla.cs (vanillartx.net).
+///
+/// <para><b>Both providers deliver the same thing</b> - an .rtpack carrying some of the four
+/// <see cref="RTXFiles"/> - so everything from the cache inwards is provider-neutral: backup,
+/// install, detection and rollback do not know or care where a preset came from. What differs is
+/// how presets arrive and what invalidates them, and that is why ownership is tracked per folder
+/// (<see cref="ClassifyFolder"/>) rather than being a matter of which section draws it.</para>
 ///
 /// <para><b>Why it's separate from the window.</b> The proof is
 /// <see cref="ImportPresetFilesHeadlessAsync"/>: a .rtpack double-clicked in Explorer has to
-/// land in the cache with no UI involved at all, and while this logic lived on the window
-/// that meant constructing a Window and then defusing its own startup by hand. None of this
-/// ever needed a window; it needed a folder. Split the same way Alchitex keeps its pipeline
-/// out of AlchitexOverlay.</para>
+/// land in the cache with no UI involved at all. None of this ever needed a window; it needed a
+/// folder.</para>
 ///
-/// <para>Bound to one Minecraft install by <see cref="TryAttach"/>. The import path is the
+/// <para>Bound to one Minecraft install by <see cref="TryAttachAsync"/>. The import path is the
 /// one exception - it sets <see cref="CacheFolder"/> alone and uses nothing else.</para>
 /// </summary>
-internal sealed class BetterRTXManager
+internal sealed partial class ShaderModManager
 {
     #region Identity and cache layout
 
@@ -108,9 +123,8 @@ internal sealed class BetterRTXManager
     /// The Release backup folder. Its Preview counterpart is
     /// <see cref="DEFAULT_PREVIEW_PRESET_FOLDER_NAME"/>.
     ///
-    /// <para><b>The two are never shared.</b> The rest of the cache - API JSON, downloaded
-    /// presets, imported .rtpacks - is the same third party's files whichever edition
-    /// installs them. A Default backup is a copy of <i>this</i> install's own shipped .bin
+    /// <para><b>The two are never shared.</b> Most of the cache - BetterRTX's API JSON and
+    /// downloads, imported .rtpacks - is the same files whichever edition installs them. A Default backup is a copy of <i>this</i> install's own shipped .bin
     /// files, and Preview is routinely a different build from Release, so one folder for both
     /// would let whichever edition reaches <see cref="ApplyPresetAsync"/> first define
     /// "default" for the other and make a rollback install the wrong game's shaders.</para>
@@ -121,52 +135,9 @@ internal sealed class BetterRTXManager
     public const string DEFAULT_PREVIEW_PRESET_FOLDER_NAME = "__DEFAULT_PREVIEW";
 
     private const string CacheFolderName = "RTX_Cache";
-    private const string ApiCacheFileName = "betterrtx_api_cache.json";
 
-    public const string BETTERRTX_DISCLAIMER_KEY = $"BetterRTXDisclaimerAgreed_Key";
+    public const string DISCLAIMER_KEY = $"BetterRTXDisclaimerAgreed_Key";
 
-    private const string API_LAST_FETCH_KEY = "BetterRTXManager_ApiLastFetchTimestamp";
-    private const int API_REFETCH_INTERVAL_HOURS = 1;
-    private static readonly TimeSpan ApiRequestTimeout = TimeSpan.FromSeconds(15);
-
-    /// <summary>
-    /// What the refresh button asks for: a cold start. Fetches the index, and <b>only if that
-    /// worked</b> clears the downloaded and imported presets and stores the new index, so the
-    /// next read comes off disk rather than making a second identical request.
-    ///
-    /// <para><b>The order is the whole point.</b> Wiping first and fetching afterwards is how a
-    /// user with no connection loses every preset they had and cannot download any of them back.
-    /// Fetching first means a failed refresh costs nothing: false comes back, nothing was
-    /// touched, and the caller leaves the button live to try again.</para>
-    ///
-    /// <para>This deliberately wipes whatever the index says, where the hourly check only wipes
-    /// when the index's hash moved - the API can ship new files without its payload changing,
-    /// and forcing that case is the only reason this button exists.</para>
-    /// </summary>
-    public async Task<bool> RebuildFromApiAsync()
-    {
-        var fresh = await FetchApiDataAsync();
-        if (string.IsNullOrWhiteSpace(fresh))
-        {
-            Trace.WriteLine("[BetterRTX] [Refresh] API unreachable - nothing cleared");
-            return false;
-        }
-
-        await WipeNonDefaultPresetsCacheAsync();
-        await SaveApiCacheAsync(fresh, ComputeApiHash(fresh));
-
-        // It is a successful check as much as a rebuild, so the hourly window starts again.
-        try { ApplicationData.Current.LocalSettings.Values[API_LAST_FETCH_KEY] = DateTime.UtcNow.Ticks; }
-        catch { }
-
-        return true;
-    }
-
-    private static string ComputeApiHash(string json)
-    {
-        using var sha256 = SHA256.Create();
-        return Convert.ToHexString(sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(json))).ToLowerInvariant();
-    }
 
     /// <summary>
     /// Which edition this instance is attached to, as decided by <see cref="TryAttachAsync"/>.
@@ -221,17 +192,14 @@ internal sealed class BetterRTXManager
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"[BetterRTX] Could not resolve default folder path: {ex.Message}");
+            Trace.WriteLine($"[ShaderMods] Could not resolve default folder path: {ex.Message}");
             return null;
         }
     }
 
-    public string ApiCachePath { get; private set; } = string.Empty;
 
-    public List<ApiPresetData>? ApiPresets { get; private set; }
     public Dictionary<string, LocalPresetData>? LocalPresets { get; private set; }
 
-    private string? _cachedApiHash = null;
 
     /// <summary>
     /// Raised after a soft wipe. The download queue and its status map live on the window,
@@ -300,6 +268,11 @@ internal sealed class BetterRTXManager
 
         DefaultFolder = Path.Combine(CacheFolder, DefaultFolderName);
         ApiCachePath = Path.Combine(CacheFolder, ApiCacheFileName);
+        SupervanillaIndexCachePath = Path.Combine(CacheFolder, SupervanillaIndexCacheFileName(isPreview));
+
+        // Before any wipe: every wipe below decides what to delete by folder name, so a
+        // Supervanilla RTX import still sitting under a bare UUID would be taken for BetterRTX's.
+        AdoptLegacySupervanillaImports(CacheFolder);
 
         bool versionChanged = await GameVersionDetector.HasGameVersionChanged(minecraftPath, isPreview);
 
@@ -309,27 +282,33 @@ internal sealed class BetterRTXManager
         //   which the update just replaced. The other edition's copy stays: that game did not
         //   change, and deleting its backup strands it on whatever preset it is running.
         //
-        //   The shared cache (downloads, imports, API JSON) and the disclaimer acknowledgement -
-        //   Release only. The cache comes from bedrock.graphics, which builds against stable
-        //   Minecraft, so a Release update is grounds to suspect it is now for the wrong game,
-        //   and a cold start is the occasion to show the third-party notice again. A Preview
-        //   update is neither: Preview support is best-effort, it ships weekly, and all it may
-        //   cost is keeping its own backup current - never a re-download or a re-prompt.
+        //   This edition's Supervanilla RTX downloads (Get latest, and anything from its index) -
+        //   always. They were built for the game that just changed, and the latest one is exactly
+        //   what the user is about to want again.
+        //
+        //   Everything shared (BetterRTX's downloads and API JSON, every import) and the disclaimer
+        //   acknowledgement - Release only. bedrock.graphics builds against stable Minecraft, so a
+        //   Release update is grounds to suspect all of it is now for the wrong game, and a cold
+        //   start is the occasion to show the notice again. A Preview update is neither: Preview
+        //   ships weekly, and wiping on it would mean re-downloading every preset most weeks.
+        //   Preview's Supervanilla RTX downloads are never collateral of a Release update - they
+        //   are that other game's, and its own updates are what clear them.
         bool sharedCacheWiped = false;
 
         if (versionChanged)
         {
-            Trace.WriteLine($"[BetterRTX] ⚠🔥 GAME VERSION CHANGED ({(isPreview ? "Preview" : "Release")}) 🔥⚠");
+            Trace.WriteLine($"[ShaderMods] ⚠🔥 GAME VERSION CHANGED ({(isPreview ? "Preview" : "Release")}) 🔥⚠");
             WipeDefaultPresetCache();
+            WipeSupervanillaPresets(isPreview, includeImports: !isPreview);
 
             if (!isPreview)
             {
-                await WipeNonDefaultPresetsCacheAsync();
+                await WipeBetterRTXPresetsAsync();
                 sharedCacheWiped = true;
 
-                try { ApplicationData.Current.LocalSettings.Values.Remove(BETTERRTX_DISCLAIMER_KEY); }
+                try { ApplicationData.Current.LocalSettings.Values.Remove(DISCLAIMER_KEY); }
                 catch { }
-                Trace.WriteLine("[BetterRTX] Cleared disclaimer acknowledgement - will re-prompt this open");
+                Trace.WriteLine("[ShaderMods] Cleared disclaimer acknowledgement - will re-prompt this open");
             }
         }
 
@@ -338,6 +317,11 @@ internal sealed class BetterRTXManager
         // Preview update, which leaves the cache in place.
         if (!sharedCacheWiped)
             await CheckApiStalenessOnStartupAsync();
+
+        // Never skipped: its cache describes the server rather than the game, so no update makes
+        // it stale, and the reconcile at its end is what retires a Get latest download the index
+        // has moved past.
+        await RefreshSupervanillaIndexAsync(force: false);
 
         Directory.CreateDirectory(DefaultFolder);
 
@@ -349,6 +333,7 @@ internal sealed class BetterRTXManager
     {
         ApiPresets = null;
         LocalPresets = null;
+        SupervanillaPresets = null;
     }
 
     /// <summary>
@@ -362,15 +347,15 @@ internal sealed class BetterRTXManager
             var localFolder = ApplicationData.Current.LocalFolder.Path;
             var cacheLocation = Path.Combine(localFolder, CacheFolderName);
 
-            Trace.WriteLine($"[BetterRTX] Cache location: {cacheLocation}");
+            Trace.WriteLine($"[ShaderMods] Cache location: {cacheLocation}");
             Directory.CreateDirectory(cacheLocation);
-            Trace.WriteLine($"[BetterRTX] ✓ Cache established");
+            Trace.WriteLine($"[ShaderMods] ✓ Cache established");
 
             return cacheLocation;
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"[BetterRTX] ✗ Failed to create cache: {ex.Message}");
+            Trace.WriteLine($"[ShaderMods] ✗ Failed to create cache: {ex.Message}");
             return null;
         }
     }
@@ -391,55 +376,36 @@ internal sealed class BetterRTXManager
         {
             if (Directory.Exists(DefaultFolder))
             {
-                Trace.WriteLine($"[BetterRTX] Deleting {DefaultFolderName} backup: {DefaultFolder}");
+                Trace.WriteLine($"[ShaderMods] Deleting {DefaultFolderName} backup: {DefaultFolder}");
                 Directory.Delete(DefaultFolder, true);
-                Trace.WriteLine("[BetterRTX] ✓ Default backup cleared - it will be re-taken from the updated game files");
+                Trace.WriteLine("[ShaderMods] ✓ Default backup cleared - it will be re-taken from the updated game files");
             }
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"[BetterRTX] Error clearing default backup: {ex.Message}");
+            Trace.WriteLine($"[ShaderMods] Error clearing default backup: {ex.Message}");
         }
     }
     /// <summary>
-    /// Soft wipe: deletes every downloaded and custom-imported preset folder and the API cache
-    /// JSON. <b>Both</b> editions' Default folders are preserved - only a game version change
-    /// clears one, and only for the edition that changed (see <see cref="IsDefaultFolderName"/>).
+    /// BetterRTX's soft wipe: deletes every folder BetterRTX owns - its downloads and every import
+    /// not recognised as Supervanilla RTX - and the API cache JSON. <b>Both</b> editions' Default
+    /// folders are preserved (see <see cref="IsDefaultFolderName"/>), and so is everything of
+    /// Supervanilla RTX's: the API changing says nothing about a different provider's files.
     /// </summary>
-    public async Task WipeNonDefaultPresetsCacheAsync()
+    public async Task WipeBetterRTXPresetsAsync()
     {
-        Trace.WriteLine("[BetterRTX] [SoftWipe] Starting soft cache wipe...");
+        Trace.WriteLine("[ShaderMods] [SoftWipe] Starting BetterRTX soft cache wipe...");
 
-        int deletedCount = 0;
+        int deletedCount = DeleteCacheFolders(name =>
+            !IsDefaultFolderName(name) && !IsSupervanillaFolderName(name), "[SoftWipe]");
 
-        if (Directory.Exists(CacheFolder))
-        {
-            var allFolders = Directory.GetDirectories(CacheFolder)
-                .Where(d => !IsDefaultFolderName(Path.GetFileName(d)))
-                .ToList();
-
-            foreach (var folder in allFolders)
-            {
-                try
-                {
-                    Directory.Delete(folder, true);
-                    deletedCount++;
-                    Trace.WriteLine($"[BetterRTX] [SoftWipe] Deleted: {Path.GetFileName(folder)}");
-                }
-                catch (Exception ex)
-                {
-                    Trace.WriteLine($"[BetterRTX] [SoftWipe] Error deleting {Path.GetFileName(folder)}: {ex.Message}");
-                }
-            }
-        }
-
-        Trace.WriteLine($"[BetterRTX] [SoftWipe] Deleted {deletedCount} preset folder(s) (downloaded + custom-imported alike)");
+        Trace.WriteLine($"[ShaderMods] [SoftWipe] Deleted {deletedCount} BetterRTX preset folder(s) (downloaded + custom-imported alike)");
 
         // Delete API cache JSON itself
         if (File.Exists(ApiCachePath))
         {
             File.Delete(ApiCachePath);
-            Trace.WriteLine("[BetterRTX] [SoftWipe] API cache deleted");
+            Trace.WriteLine("[ShaderMods] [SoftWipe] API cache deleted");
         }
 
         // Clear in-memory tracking. The download queue itself lives on the window, so it
@@ -447,318 +413,65 @@ internal sealed class BetterRTXManager
         _cachedApiHash = null;
         DownloadTrackingReset?.Invoke();
 
-        Trace.WriteLine($"[BetterRTX] [SoftWipe] ✓ Done — {DEFAULT_PRESET_FOLDER_NAME} and {DEFAULT_PREVIEW_PRESET_FOLDER_NAME} preserved");
-    }
-
-    #endregion
-
-    #region BetterRTX API
-
-    /// <summary>
-    /// Called once per window open. If an hour has elapsed since the last API fetch,
-    /// fetches fresh JSON and compares its hash to what we last cached.
-    ///  Same hash? nothing, LoadApiDataAsync will load the cache normally
-    ///  Different hash? soft wipe so stale downloaded presets are cleared
-    ///  Fetch failed? defer silently to next launch (do not wipe)
-    ///  Undetermined? soft wipe (safe default)
-    ///
-    /// <para><b>The JSON it fetched is what gets cached</b>, written back after the wipe that
-    /// deleted the previous copy. The wipe is what makes this necessary - it clears the API
-    /// cache along with the presets - and without the write-back <see cref="LoadApiDataAsync"/>
-    /// finds no cache a moment later and fetches the identical file a second time, on every
-    /// change and on every first run.</para>
-    /// </summary>
-    private async Task CheckApiStalenessOnStartupAsync()
-    {
-        try
-        {
-            var settings = ApplicationData.Current.LocalSettings;
-
-            // Check if an hour has elapsed since last fetch
-            if (settings.Values.TryGetValue(API_LAST_FETCH_KEY, out var raw) && raw is long ticks)
-            {
-                var lastFetch = new DateTime(ticks, DateTimeKind.Utc);
-                if ((DateTime.UtcNow - lastFetch).TotalHours < API_REFETCH_INTERVAL_HOURS)
-                {
-                    Trace.WriteLine("[BetterRTX] [StalenessCheck] Within hour window — skipping API check");
-                    return;
-                }
-            }
-
-            Trace.WriteLine("[BetterRTX] [StalenessCheck] Hour elapsed — fetching latest API JSON for comparison...");
-
-            var freshJson = await FetchApiDataAsync();
-
-            // Fetch failed entirely — defer, do NOT wipe
-            if (string.IsNullOrWhiteSpace(freshJson))
-            {
-                Trace.WriteLine("[BetterRTX] [StalenessCheck] API unreachable — deferring to next launch");
-                return;
-            }
-
-            // Stamp the successful fetch time now
-            settings.Values[API_LAST_FETCH_KEY] = DateTime.UtcNow.Ticks;
-
-            var freshHash = ComputeApiHash(freshJson);
-
-            Trace.WriteLine($"[BetterRTX] [StalenessCheck] Fresh hash : {freshHash[..16]}...");
-            Trace.WriteLine($"[BetterRTX] [StalenessCheck] Cached hash: {(_cachedApiHash != null ? _cachedApiHash[..16] + "..." : "none yet")}");
-
-            // Load existing cache hash if we don't have it in memory yet
-            // (e.g. first run of this method before LoadApiDataAsync has set _cachedApiHash)
-            if (_cachedApiHash == null && File.Exists(ApiCachePath))
-            {
-                try
-                {
-                    var existingJson = await File.ReadAllTextAsync(ApiCachePath);
-                    _cachedApiHash = ComputeApiHash(existingJson);
-                    Trace.WriteLine($"[BetterRTX] [StalenessCheck] Loaded cache hash from disk: {_cachedApiHash[..16]}...");
-                }
-                catch (Exception ex)
-                {
-                    Trace.WriteLine($"[BetterRTX] [StalenessCheck] Couldn't read existing cache for comparison: {ex.Message}");
-                    // _cachedApiHash stays null — falls through to undetermined → wipe
-                }
-            }
-
-            if (_cachedApiHash == null)
-            {
-                // No prior cache to compare against — undetermined, wipe to be safe
-                Trace.WriteLine("[BetterRTX] [StalenessCheck] No prior cache hash — undetermined, soft wipe (safe default)");
-                await WipeNonDefaultPresetsCacheAsync();
-                await SaveApiCacheAsync(freshJson, freshHash);
-                return;
-            }
-
-            if (freshHash == _cachedApiHash)
-            {
-                Trace.WriteLine("[BetterRTX] [StalenessCheck] ✓ API unchanged — no wipe needed");
-                return;
-            }
-
-            // Content changed — wipe downloaded presets so stale files don't linger
-            Trace.WriteLine("[BetterRTX] [StalenessCheck] ⚠ API changed — soft wiping downloaded presets");
-            await WipeNonDefaultPresetsCacheAsync();
-            await SaveApiCacheAsync(freshJson, freshHash);
-        }
-        catch (Exception ex)
-        {
-            Trace.WriteLine($"[BetterRTX] [StalenessCheck] ✗ Unexpected error: {ex.Message} — soft wipe (safe default)");
-            try { await WipeNonDefaultPresetsCacheAsync(); } catch { }
-        }
+        Trace.WriteLine($"[ShaderMods] [SoftWipe] ✓ Done — Default backups and Supervanilla RTX preserved");
     }
 
     /// <summary>
-    /// Writes API JSON already in hand to the cache and remembers its hash, so the next read
-    /// comes off disk. Failing to write is not worth failing the open over - the next read
-    /// fetches, which is what would have happened anyway.
+    /// Deletes every top-level folder of the cache whose name <paramref name="shouldDelete"/>
+    /// accepts, and returns how many went. A folder that can't be deleted is logged and skipped:
+    /// one locked file is not a reason to keep the rest.
     /// </summary>
-    private async Task SaveApiCacheAsync(string json, string hash)
+    private int DeleteCacheFolders(Func<string, bool> shouldDelete, string logTag)
     {
-        try
-        {
-            await File.WriteAllTextAsync(ApiCachePath, json);
-            _cachedApiHash = hash;
-            Trace.WriteLine("[BetterRTX] [StalenessCheck] Cached the JSON this check fetched");
-        }
-        catch (Exception ex)
-        {
-            Trace.WriteLine($"[BetterRTX] [StalenessCheck] Couldn't cache fetched JSON: {ex.Message}");
-        }
-    }
+        if (!Directory.Exists(CacheFolder)) return 0;
 
-    public async Task LoadApiDataAsync()
-    {
-        try
+        int deletedCount = 0;
+        foreach (var folder in Directory.GetDirectories(CacheFolder))
         {
-            string? jsonData = null;
-            bool loadedFromCache = false;
+            var name = Path.GetFileName(folder);
+            if (!shouldDelete(name)) continue;
 
-            // Check if cache exists and is valid
-            if (File.Exists(ApiCachePath))
+            try
             {
-                Trace.WriteLine("[BetterRTX] ✓ Loading API data from cache...");
-                try
-                {
-                    jsonData = await File.ReadAllTextAsync(ApiCachePath);
-
-                    if (!string.IsNullOrWhiteSpace(jsonData))
-                    {
-                        // Parse ONCE and validate
-                        var parsedPresets = ParseApiData(jsonData);
-                        if (parsedPresets != null && parsedPresets.Count > 0)
-                        {
-                            ApiPresets = parsedPresets;
-                            loadedFromCache = true;
-                            Trace.WriteLine($"[BetterRTX] ✓ Cache is valid with {ApiPresets.Count} presets");
-                        }
-                        else
-                        {
-                            Trace.WriteLine("[BetterRTX] ⚠ Cache exists but is empty or invalid - will fetch fresh data");
-                            jsonData = null;
-                        }
-                    }
-                    else
-                    {
-                        Trace.WriteLine("[BetterRTX] ⚠ Cache file is empty - will fetch fresh data");
-                        jsonData = null;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Trace.WriteLine($"[BetterRTX] ⚠ Error reading/parsing cache: {ex.Message} - will fetch fresh data");
-                    jsonData = null;
-                    loadedFromCache = false;
-                }
+                Directory.Delete(folder, true);
+                deletedCount++;
+                Trace.WriteLine($"[ShaderMods] {logTag} Deleted: {name}");
             }
-
-            // If no valid cache, fetch from API
-            if (!loadedFromCache)
+            catch (Exception ex)
             {
-                Trace.WriteLine("[BetterRTX] Fetching API data from server...");
-                jsonData = await FetchApiDataAsync();
-
-                if (jsonData != null && !string.IsNullOrWhiteSpace(jsonData))
-                {
-                    // Parse ONCE and validate
-                    var parsedPresets = ParseApiData(jsonData);
-                    if (parsedPresets != null && parsedPresets.Count > 0)
-                    {
-                        ApiPresets = parsedPresets;
-
-                        // Save to cache
-                        try
-                        {
-                            await File.WriteAllTextAsync(ApiCachePath, jsonData);
-                            Trace.WriteLine("[BetterRTX] ✓ API data cached successfully");
-                        }
-                        catch (Exception ex)
-                        {
-                            Trace.WriteLine($"[BetterRTX] ⚠ Failed to save cache: {ex.Message}");
-                        }
-                    }
-                    else
-                    {
-                        Trace.WriteLine("[BetterRTX] ⚠ Fetched data is empty or invalid - not caching");
-                        ApiPresets = new List<ApiPresetData>();
-                    }
-                }
-                else
-                {
-                    Trace.WriteLine("[BetterRTX] ⚠ Failed to fetch API data and no valid cache available");
-                    ApiPresets = new List<ApiPresetData>();
-                }
+                Trace.WriteLine($"[ShaderMods] {logTag} Error deleting {name}: {ex.Message}");
             }
-
-            Trace.WriteLine($"[BetterRTX] ✓ Loaded {ApiPresets?.Count ?? 0} presets total");
         }
-        catch (Exception ex)
-        {
-            Trace.WriteLine($"[BetterRTX] Error in LoadApiDataAsync: {ex.Message}");
-            ApiPresets = new List<ApiPresetData>();
-        }
-    }
-
-    private async Task<string?> FetchApiDataAsync()
-    {
-        try
-        {
-            var client = Helpers.SharedHttpClient;
-
-            // Both shared clients have their own timeout disabled, so a deadline has to come from
-            // the caller - without one a server that accepts the connection and then says nothing
-            // leaves the manager on its loading screen for as long as the window is open.
-            using var cts = new CancellationTokenSource(ApiRequestTimeout);
-            var response = await client.GetAsync("https://bedrock.graphics/api", cts.Token);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                Trace.WriteLine($"[BetterRTX] ⚠ API returned status code: {response.StatusCode}");
-                return null;
-            }
-
-            var content = await response.Content.ReadAsStringAsync();
-
-            if (string.IsNullOrWhiteSpace(content))
-            {
-                Trace.WriteLine("[BetterRTX] ⚠ API returned empty response");
-                return null;
-            }
-
-            return content;
-        }
-        catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
-        {
-            Trace.WriteLine("[BetterRTX] ⚠ API request timed out");
-            return null;
-        }
-        catch (Exception ex)
-        {
-            Trace.WriteLine($"[BetterRTX] ⚠ Error fetching API data: {ex.Message}");
-            return null;
-        }
-    }
-
-    private List<ApiPresetData> ParseApiData(string jsonData)
-    {
-        try
-        {
-            if (string.IsNullOrWhiteSpace(jsonData))
-            {
-                Trace.WriteLine("[BetterRTX] ⚠ Cannot parse null or empty JSON data");
-                return new List<ApiPresetData>();
-            }
-
-            var presets = new List<ApiPresetData>();
-
-            // Walked as nodes rather than deserialized into ApiPresetData: the DTO's setters are
-            // only ever called reflectively, which a trimmed Release build strips, and the API is
-            // a third party's - an entry of an unexpected shape should cost that entry, not the
-            // whole list.
-            var jsonArray = MinecraftJson.ParseArray(jsonData);
-            if (jsonArray == null)
-            {
-                Trace.WriteLine("[BetterRTX] ⚠ API response was not a JSON array");
-                return presets;
-            }
-
-            foreach (var item in jsonArray)
-            {
-                if (item is not System.Text.Json.Nodes.JsonObject entry) continue;
-
-                presets.Add(new ApiPresetData
-                {
-                    Uuid = MinecraftJson.GetString(entry["uuid"]),
-                    Slug = MinecraftJson.GetString(entry["slug"]),
-                    Name = MinecraftJson.GetString(entry["name"]),
-                    Stub = MinecraftJson.GetString(entry["stub"]),
-                    Tonemapping = MinecraftJson.GetString(entry["tonemapping"]),
-                    Bloom = MinecraftJson.GetString(entry["bloom"])
-                });
-            }
-
-            return presets;
-        }
-        catch (Exception ex)
-        {
-            Trace.WriteLine($"[BetterRTX] Error parsing API data: {ex.Message}");
-            return new List<ApiPresetData>();
-        }
+        return deletedCount;
     }
 
     #endregion
 
     #region Presets on disk
 
+    /// <summary>
+    /// Reads every preset folder in the cache into one of two collections, by owner:
+    /// <see cref="LocalPresets"/> for BetterRTX's, keyed by manifest UUID because that is what the
+    /// API's entries are matched against, and <see cref="SupervanillaPresets"/> for Supervanilla
+    /// RTX's, kept per folder.
+    ///
+    /// <para><b>Supervanilla RTX cannot be keyed by UUID.</b> Its builds are one preset moving
+    /// forward with the game, so successive versions are free to share a manifest UUID - keyed by
+    /// it, importing an older build would silently hide the newer one.</para>
+    ///
+    /// <para>Both editions' Supervanilla RTX downloads are loaded; which of them belong in the
+    /// list is the window's call, through <see cref="SupervanillaOrigin.IsPreview"/>.</para>
+    /// </summary>
     public async Task LoadLocalPresetsAsync()
     {
         LocalPresets = new Dictionary<string, LocalPresetData>(StringComparer.OrdinalIgnoreCase);
+        SupervanillaPresets = new List<LocalPresetData>();
 
         try
         {
             if (!Directory.Exists(CacheFolder))
             {
-                Trace.WriteLine("[BetterRTX] ⚠ Cache folder doesn't exist - no local presets");
+                Trace.WriteLine("[ShaderMods] ⚠ Cache folder doesn't exist - no local presets");
                 return;
             }
 
@@ -772,18 +485,26 @@ internal sealed class BetterRTXManager
             foreach (var folder in presetFolders)
             {
                 var localPreset = await ParseLocalPresetAsync(folder);
-                if (localPreset != null && !string.IsNullOrEmpty(localPreset.Uuid))
+                if (localPreset == null || string.IsNullOrEmpty(localPreset.Uuid)) continue;
+
+                if (IsSupervanillaFolderName(Path.GetFileName(folder)))
+                {
+                    localPreset.Supervanilla = ReadSupervanillaOrigin(folder) ?? InferSupervanillaOrigin(Path.GetFileName(folder));
+                    SupervanillaPresets.Add(localPreset);
+                    Trace.WriteLine($"[ShaderMods] ✓ Loaded Supervanilla RTX preset: {localPreset.Name} ({Path.GetFileName(folder)})");
+                }
+                else
                 {
                     LocalPresets[localPreset.Uuid] = localPreset;
-                    Trace.WriteLine($"[BetterRTX] ✓ Loaded local preset: {localPreset.Name} (UUID: {localPreset.Uuid})");
+                    Trace.WriteLine($"[ShaderMods] ✓ Loaded local preset: {localPreset.Name} (UUID: {localPreset.Uuid})");
                 }
             }
 
-            Trace.WriteLine($"[BetterRTX] ✓ Loaded {LocalPresets.Count} local presets");
+            Trace.WriteLine($"[ShaderMods] ✓ Loaded {LocalPresets.Count} BetterRTX and {SupervanillaPresets.Count} Supervanilla RTX local presets");
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"[BetterRTX] Error loading local presets: {ex.Message}");
+            Trace.WriteLine($"[ShaderMods] Error loading local presets: {ex.Message}");
         }
     }
 
@@ -795,7 +516,7 @@ internal sealed class BetterRTXManager
 
             if (manifestFiles.Length == 0)
             {
-                Trace.WriteLine($"[BetterRTX] No manifest found in: {presetFolder}");
+                Trace.WriteLine($"[ShaderMods] No manifest found in: {presetFolder}");
                 return null;
             }
 
@@ -805,7 +526,7 @@ internal sealed class BetterRTXManager
             var manifest = await PackManifest.FromFileAsync(manifestPath);
             if (manifest == null)
             {
-                Trace.WriteLine($"[BetterRTX] ⚠ Unreadable manifest: {manifestPath}");
+                Trace.WriteLine($"[ShaderMods] ⚠ Unreadable manifest: {manifestPath}");
                 return null;
             }
 
@@ -817,7 +538,7 @@ internal sealed class BetterRTXManager
 
             if (string.IsNullOrEmpty(uuid))
             {
-                Trace.WriteLine($"[BetterRTX] ⚠ No UUID in manifest: {presetFolder}");
+                Trace.WriteLine($"[ShaderMods] ⚠ No UUID in manifest: {presetFolder}");
                 return null;
             }
 
@@ -840,7 +561,7 @@ internal sealed class BetterRTXManager
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"[BetterRTX] Error parsing local preset {presetFolder}: {ex.Message}");
+            Trace.WriteLine($"[ShaderMods] Error parsing local preset {presetFolder}: {ex.Message}");
             return null;
         }
     }
@@ -890,7 +611,7 @@ internal sealed class BetterRTXManager
             }
             catch (Exception ex)
             {
-                Trace.WriteLine($"[BetterRTX] Error loading icon {iconPath}: {ex.Message}");
+                Trace.WriteLine($"[ShaderMods] Error loading icon {iconPath}: {ex.Message}");
             }
         }
 
@@ -927,7 +648,7 @@ internal sealed class BetterRTXManager
 
             if (alreadyBackedUp.Count == RTXFiles.Length)
             {
-                Trace.WriteLine($"[BetterRTX] [Default] ✓ {DefaultFolderName} already holds all {RTXFiles.Length} RTX files");
+                Trace.WriteLine($"[ShaderMods] [Default] ✓ {DefaultFolderName} already holds all {RTXFiles.Length} RTX files");
                 return DefaultBackup = DefaultBackupState.Ready;
             }
 
@@ -937,7 +658,7 @@ internal sealed class BetterRTXManager
 
             if (missingFromGame.Count > 0)
             {
-                Trace.WriteLine($"[BetterRTX] [Default] ✗ Game is missing {missingFromGame.Count} RTX file(s): {string.Join(", ", missingFromGame)}");
+                Trace.WriteLine($"[ShaderMods] [Default] ✗ Game is missing {missingFromGame.Count} RTX file(s): {string.Join(", ", missingFromGame)}");
                 return DefaultBackup = DefaultBackupState.GameFilesIncomplete;
             }
 
@@ -950,7 +671,7 @@ internal sealed class BetterRTXManager
 
                 if (backedUpHash == null || gameHash == null || backedUpHash != gameHash)
                 {
-                    Trace.WriteLine($"[BetterRTX] [Default] ✗ Partial backup disagrees with the game on {fileName} - refusing to complete it from files that aren't default");
+                    Trace.WriteLine($"[ShaderMods] [Default] ✗ Partial backup disagrees with the game on {fileName} - refusing to complete it from files that aren't default");
                     return DefaultBackup = DefaultBackupState.BackupUnverifiable;
                 }
             }
@@ -961,15 +682,15 @@ internal sealed class BetterRTXManager
                 if (File.Exists(destination)) continue;
 
                 File.Copy(Path.Combine(GameMaterialsPath, fileName), destination, false);
-                Trace.WriteLine($"[BetterRTX] [Default]   ✓ Backed up: {fileName}");
+                Trace.WriteLine($"[ShaderMods] [Default]   ✓ Backed up: {fileName}");
             }
 
-            Trace.WriteLine($"[BetterRTX] [Default] ✓ {DefaultFolderName} complete");
+            Trace.WriteLine($"[ShaderMods] [Default] ✓ {DefaultFolderName} complete");
             return DefaultBackup = DefaultBackupState.Ready;
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"[BetterRTX] [Default] ✗ Could not back up default files: {ex.Message}");
+            Trace.WriteLine($"[ShaderMods] [Default] ✗ Could not back up default files: {ex.Message}");
             return DefaultBackup = DefaultBackupState.BackupFailed;
         }
     }
@@ -1006,14 +727,14 @@ internal sealed class BetterRTXManager
     {
         try
         {
-            Trace.WriteLine($"[BetterRTX] [Delete] Deleting custom preset \"{displayName}\" at: {presetPath}");
+            Trace.WriteLine($"[ShaderMods] [Delete] Deleting custom preset \"{displayName}\" at: {presetPath}");
             await Task.Run(() => Directory.Delete(presetPath, true));
-            Trace.WriteLine($"[BetterRTX] [Delete] ✓ Deleted \"{displayName}\"");
+            Trace.WriteLine($"[ShaderMods] [Delete] ✓ Deleted \"{displayName}\"");
             return true;
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"[BetterRTX] [Delete] ✗ Error deleting \"{displayName}\": {ex.Message}");
+            Trace.WriteLine($"[ShaderMods] [Delete] ✗ Error deleting \"{displayName}\": {ex.Message}");
             return false;
         }
     }
@@ -1023,96 +744,21 @@ internal sealed class BetterRTXManager
     #region Downloading and importing
 
     /// <summary>
-    /// Fetches one preset from the API and unpacks it into its own folder in the cache,
-    /// named after its UUID so re-downloading replaces it in place.
+    /// Imports one .rtpack from disk into the cache - the path drag-and-drop, the Add button, both
+    /// in-app browsers and a double-click in Explorer all end up on.
+    ///
+    /// <para><b>Who it belongs to is decided here, once</b>, and recorded in the folder name it
+    /// lands under (<see cref="ClassifyImport"/>). <paramref name="forceSupervanilla"/> is for the
+    /// callers that know where the file came from - the Supervanilla RTX downloads page - and
+    /// skips the name test, which is only a guess for a file whose origin is unknown.</para>
+    ///
+    /// <para>Only ever touches <see cref="CacheFolder"/>, which is why the headless import path
+    /// can run this on an instance that was never attached to a Minecraft install at all.
+    /// Returns a message alongside success/failure because the headless caller has no window UI
+    /// to fall back on, so this is the only way it can tell the user <i>why</i> something failed
+    /// rather than just that it did.</para>
     /// </summary>
-    /// <param name="cancellationToken">
-    /// The caller's lifetime, not ours - a three-minute download has to stop when the
-    /// window it was started from closes.
-    /// </param>
-    public async Task<bool> DownloadPresetAsync(string uuid, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var url = $"https://bedrock.graphics/pack/{uuid}/release";
-            Trace.WriteLine($"[BetterRTX] Downloading from: {url}");
-
-            var (success, downloadedPath) = await Helpers.Download(url, cancellationToken: cancellationToken, timeout: TimeSpan.FromMinutes(3));
-
-            if (!success || string.IsNullOrEmpty(downloadedPath))
-            {
-                Trace.WriteLine($"[BetterRTX] ✗ Download failed");
-                return false;
-            }
-
-            Trace.WriteLine($"[BetterRTX] ✓ Downloaded to: {downloadedPath}");
-
-            // Extract to RTX_Cache
-            var sanitizedName = SanitizePresetName(uuid);
-            var destinationFolder = Path.Combine(CacheFolder, sanitizedName);
-
-            // Delete existing folder if present
-            if (Directory.Exists(destinationFolder))
-            {
-                Directory.Delete(destinationFolder, true);
-            }
-
-            Directory.CreateDirectory(destinationFolder);
-
-            // Extract the archive
-            await Task.Run(() =>
-            {
-                using (var archive = ZipFile.OpenRead(downloadedPath))
-                {
-                    foreach (var entry in archive.Entries)
-                    {
-                        try
-                        {
-                            if (string.IsNullOrEmpty(entry.Name)) continue;
-
-                            var destPath = Path.Combine(destinationFolder, entry.FullName);
-                            var destDir = Path.GetDirectoryName(destPath);
-
-                            if (!string.IsNullOrEmpty(destDir))
-                            {
-                                Directory.CreateDirectory(destDir);
-                            }
-
-                            entry.ExtractToFile(destPath, true);
-                        }
-                        catch (Exception ex)
-                        {
-                            Trace.WriteLine($"[BetterRTX] Error extracting {entry.FullName}: {ex.Message}");
-                        }
-                    }
-                }
-            });
-
-            Trace.WriteLine($"[BetterRTX] ✓ Extracted to: {destinationFolder}");
-
-            // Clean up downloaded file
-            try
-            {
-                File.Delete(downloadedPath);
-            }
-            catch { }
-
-            return true;
-        }
-        catch (Exception ex)
-        {
-            Trace.WriteLine($"[BetterRTX] ✗ Error downloading {uuid}: {ex.Message}");
-            return false;
-        }
-    }
-    // Only ever touches CacheFolder, which is why the headless import path can run this
-    // on an instance that was never attached to a Minecraft install at all.
-    //
-    // Returns a message alongside success/failure - unlike ExpImpDel this has no
-    // ImportStatusChanged event of its own to relay, and the headless caller has no window
-    // UI to fall back on, so this is the only way it can tell the user *why* something
-    // failed rather than just that it did.
-    public async Task<(bool Success, string Message)> ImportCustomPresetAsync(string archivePath)
+    public async Task<(bool Success, string Message)> ImportCustomPresetAsync(string archivePath, bool forceSupervanilla = false)
     {
         var fileName = Path.GetFileName(archivePath);
         string? stagingFolder = null;
@@ -1120,49 +766,29 @@ internal sealed class BetterRTXManager
         {
             if (!File.Exists(archivePath))
             {
-                Trace.WriteLine($"[BetterRTX] [CustomImport] ✗ File not found: {archivePath}");
+                Trace.WriteLine($"[ShaderMods] [CustomImport] ✗ File not found: {archivePath}");
                 return (false, $"'{fileName}' not found.");
             }
 
-            Trace.WriteLine($"[BetterRTX] [CustomImport] Importing: {archivePath}");
+            Trace.WriteLine($"[ShaderMods] [CustomImport] Importing: {archivePath}");
 
-            stagingFolder = Path.Combine(CacheFolder, $"__staging_{Guid.NewGuid():N}");
-            Directory.CreateDirectory(stagingFolder);
-
-            await Task.Run(() =>
-            {
-                using var archive = ZipFile.OpenRead(archivePath);
-                foreach (var entry in archive.Entries)
-                {
-                    try
-                    {
-                        if (string.IsNullOrEmpty(entry.Name)) continue;
-
-                        var destPath = Path.Combine(stagingFolder, entry.FullName);
-                        var destDir = Path.GetDirectoryName(destPath);
-
-                        if (!string.IsNullOrEmpty(destDir))
-                            Directory.CreateDirectory(destDir);
-
-                        entry.ExtractToFile(destPath, true);
-                    }
-                    catch (Exception ex)
-                    {
-                        Trace.WriteLine($"[BetterRTX] [CustomImport] Error extracting {entry.FullName}: {ex.Message}");
-                    }
-                }
-            });
+            stagingFolder = await ExtractToStagingAsync(archivePath, "[CustomImport]");
 
             var parsed = await ParseLocalPresetAsync(stagingFolder);
             if (parsed == null || string.IsNullOrEmpty(parsed.Uuid))
             {
-                Trace.WriteLine($"[BetterRTX] [CustomImport] ✗ Not a valid BetterRTX preset: {archivePath}");
-                return (false, $"'{fileName}' is not a valid BetterRTX preset (no readable manifest).");
+                Trace.WriteLine($"[ShaderMods] [CustomImport] ✗ Not a valid shader mod preset: {archivePath}");
+                return (false, $"'{fileName}' is not a valid shader mod preset (no readable manifest).");
             }
 
-            // Same convention downloaded presets use: folder named after the pack's
-            // own UUID, so re-importing the same file just replaces it in place.
-            var destinationFolder = Path.Combine(CacheFolder, SanitizePresetName(parsed.Uuid));
+            var source = forceSupervanilla ? PresetSource.Supervanilla : ClassifyImport(fileName, parsed.Name);
+
+            // BetterRTX: named after the pack's own UUID, the convention its downloads use, so
+            // re-importing the same file replaces it in place. Supervanilla RTX: named after the
+            // file, since its builds can share a UUID - see SupervanillaImportFolderName.
+            var destinationFolder = Path.Combine(CacheFolder, source == PresetSource.Supervanilla
+                ? SupervanillaImportFolderName(fileName)
+                : SanitizePresetName(parsed.Uuid));
 
             if (Directory.Exists(destinationFolder))
                 Directory.Delete(destinationFolder, true);
@@ -1170,12 +796,18 @@ internal sealed class BetterRTXManager
             Directory.Move(stagingFolder, destinationFolder);
             stagingFolder = null; // moved successfully, nothing left to clean up
 
-            Trace.WriteLine($"[BetterRTX] [CustomImport] ✓ Imported \"{parsed.Name}\" to: {destinationFolder}");
+            if (source == PresetSource.Supervanilla)
+                WriteSupervanillaOrigin(destinationFolder, new SupervanillaOrigin(
+                    SupervanillaKind.Import, IsPreview: null,
+                    Version: VersionFromFileName(fileName) ?? ManifestVersion(destinationFolder),
+                    FileName: fileName, Size: null, Date: null));
+
+            Trace.WriteLine($"[ShaderMods] [CustomImport] ✓ Imported \"{parsed.Name}\" ({source}) to: {destinationFolder}");
             return (true, $"Imported \"{parsed.Name}\".");
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"[BetterRTX] [CustomImport] ✗ Error importing {archivePath}: {ex.Message}");
+            Trace.WriteLine($"[ShaderMods] [CustomImport] ✗ Error importing {archivePath}: {ex.Message}");
             return (false, $"'{fileName}' failed to import: {ex.Message}");
         }
         finally
@@ -1188,8 +820,58 @@ internal sealed class BetterRTXManager
     }
 
     /// <summary>
+    /// Unpacks an archive into a fresh <c>__staging_</c> folder inside the cache and returns it.
+    /// The caller moves it into place once it has been checked, or deletes it - a staging folder
+    /// is by construction either mid-flight or abandoned, which is what lets the headless importer
+    /// sweep any it finds on entry. A single entry that fails to extract is logged and skipped.
+    /// </summary>
+    private async Task<string> ExtractToStagingAsync(string archivePath, string logTag)
+    {
+        var stagingFolder = Path.Combine(CacheFolder, $"__staging_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(stagingFolder);
+
+        try
+        {
+            await ExtractAsync();
+        }
+        catch
+        {
+            // Not an archive at all, most often. The caller never learns the path in that case,
+            // so cleaning up is this method's job or nobody's.
+            try { Directory.Delete(stagingFolder, true); } catch { }
+            throw;
+        }
+
+        return stagingFolder;
+
+        Task ExtractAsync() => Task.Run(() =>
+        {
+            using var archive = ZipFile.OpenRead(archivePath);
+            foreach (var entry in archive.Entries)
+            {
+                try
+                {
+                    if (string.IsNullOrEmpty(entry.Name)) continue;
+
+                    var destPath = Path.Combine(stagingFolder, entry.FullName);
+                    var destDir = Path.GetDirectoryName(destPath);
+
+                    if (!string.IsNullOrEmpty(destDir))
+                        Directory.CreateDirectory(destDir);
+
+                    entry.ExtractToFile(destPath, true);
+                }
+                catch (Exception ex)
+                {
+                    Trace.WriteLine($"[ShaderMods] {logTag} Error extracting {entry.FullName}: {ex.Message}");
+                }
+            }
+        });
+    }
+
+    /// <summary>
     /// Headless entry point for .rtpack file-type-association activation (see App.xaml.cs /
-    /// MainWindow.ImportBetterRTXPresetFilesAsync). Imports straight into the app's local
+    /// MainWindow.ImportShaderModPresetFilesAsync). Imports straight into the app's local
     /// preset cache without ever showing a window - not a "patch it to work anyway", but
     /// because importing a custom preset genuinely never needed anything beyond
     /// <see cref="CacheFolder"/> (see <see cref="ImportCustomPresetAsync"/>): no Minecraft
@@ -1198,14 +880,14 @@ internal sealed class BetterRTXManager
     /// still only happens through the window itself, disclaimer and all, completely
     /// unaffected by this method.
     ///
-    /// <para><b>Never route this through the window.</b> A <c>BetterRTXManagerOverlay</c> runs
+    /// <para><b>Never route this through the window.</b> A <c>ShaderModManagerOverlay</c> runs
     /// its Loaded handler even on an instance that is never Activate()d, which starts the full
     /// startup pipeline - including a scan of this very cache folder - concurrently with the
     /// import loop below. That race surfaces as "pack_icon.png is being used by another
     /// process" and "could not find a part of the path ...__staging_...". Keeping the import
     /// here means there is no window to construct and no pipeline that could run.</para>
     ///
-    /// <para>Files are processed strictly one at a time - MainWindow.ImportBetterRTXPresetFilesAsync
+    /// <para>Files are processed strictly one at a time - MainWindow.ImportShaderModPresetFilesAsync
     /// already serializes calls to this method globally, but the loop below is what makes a
     /// single call importing several presets itself patient rather than firing every
     /// extraction into the cache folder at once. <paramref name="onStatus"/>, if given, is
@@ -1226,7 +908,7 @@ internal sealed class BetterRTXManager
         var cacheFolder = EstablishCacheFolder();
         if (cacheFolder == null)
         {
-            Trace.WriteLine("[BetterRTX] [CustomImport] Headless import aborted - could not establish cache folder.");
+            Trace.WriteLine("[ShaderMods] [CustomImport] Headless import aborted - could not establish cache folder.");
             onStatus?.Invoke("Could not locate the preset cache folder - import aborted.");
             return (0, candidates.Count);
         }
@@ -1240,17 +922,17 @@ internal sealed class BetterRTXManager
             foreach (var stale in Directory.EnumerateDirectories(cacheFolder, "__staging_*"))
             {
                 try { Directory.Delete(stale, true); }
-                catch (Exception ex) { Trace.WriteLine($"[BetterRTX] [CustomImport] Couldn't sweep stale staging folder '{stale}': {ex.Message}"); }
+                catch (Exception ex) { Trace.WriteLine($"[ShaderMods] [CustomImport] Couldn't sweep stale staging folder '{stale}': {ex.Message}"); }
             }
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"[BetterRTX] [CustomImport] Staging sweep failed: {ex.Message}");
+            Trace.WriteLine($"[ShaderMods] [CustomImport] Staging sweep failed: {ex.Message}");
         }
 
         // Nothing but the cache folder is needed, so this instance is deliberately never
         // attached to a Minecraft install.
-        var manager = new BetterRTXManager();
+        var manager = new ShaderModManager();
         manager.CacheFolder = cacheFolder;
 
         var succeeded = 0;
@@ -1262,7 +944,7 @@ internal sealed class BetterRTXManager
             onStatus?.Invoke(message);
         }
 
-        Trace.WriteLine($"[BetterRTX] [CustomImport] Headless import: {succeeded}/{candidates.Count} preset(s) imported.");
+        Trace.WriteLine($"[ShaderMods] [CustomImport] Headless import: {succeeded}/{candidates.Count} preset(s) imported.");
         return (succeeded, candidates.Count);
     }
     public static string SanitizePresetName(string name)
@@ -1323,7 +1005,7 @@ internal sealed class BetterRTXManager
     {
         try
         {
-            Trace.WriteLine($"[BetterRTX] === APPLYING PRESET: {preset.Name} ===");
+            Trace.WriteLine($"[ShaderMods] === APPLYING PRESET: {preset.Name} ===");
 
             // Enforces the invariant at the point of the write rather than only where the
             // button is drawn: nothing reaches the game without a verified way back. Cheap to
@@ -1334,18 +1016,18 @@ internal sealed class BetterRTXManager
             var backup = EnsureDefaultBackedUp();
             if (backup != DefaultBackupState.Ready)
             {
-                Trace.WriteLine($"[BetterRTX] ✗ Refusing to install - default backup is not usable ({backup})");
+                Trace.WriteLine($"[ShaderMods] ✗ Refusing to install - default backup is not usable ({backup})");
                 return false;
             }
 
             var filesToApply = BuildInstallSet(preset);
 
-            var success = await Helpers.ReplaceFilesWithElevation(filesToApply, "[BetterRTX]", "betterrtx_install");
+            var success = await Helpers.ReplaceFilesWithElevation(filesToApply, "[ShaderMods]", "betterrtx_install");
             return success;
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"[BetterRTX] Error in ApplyPresetAsync: {ex.Message}");
+            Trace.WriteLine($"[ShaderMods] Error in ApplyPresetAsync: {ex.Message}");
             return false;
         }
     }
@@ -1387,7 +1069,7 @@ internal sealed class BetterRTXManager
             if (!File.Exists(source)) continue;
 
             if (fromPreset == null)
-                Trace.WriteLine($"[BetterRTX]   {fileName} <- {DefaultFolderName} (preset does not ship it)");
+                Trace.WriteLine($"[ShaderMods]   {fileName} <- {DefaultFolderName} (preset does not ship it)");
 
             filesToApply.Add((source, Path.Combine(GameMaterialsPath, fileName)));
         }
@@ -1397,7 +1079,7 @@ internal sealed class BetterRTXManager
             var binFileName = Path.GetFileName(binFilePath);
             if (RTXFiles.Contains(binFileName, StringComparer.OrdinalIgnoreCase)) continue;
 
-            Trace.WriteLine($"[BetterRTX]   ⚠ Ignoring {binFileName}: outside the four RTX files, so it could never be undone");
+            Trace.WriteLine($"[ShaderMods]   ⚠ Ignoring {binFileName}: outside the four RTX files, so it could never be undone");
         }
 
         return filesToApply;
@@ -1424,7 +1106,7 @@ internal sealed class BetterRTXManager
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"[BetterRTX] Error computing hash: {ex.Message}");
+            Trace.WriteLine($"[ShaderMods] Error computing hash: {ex.Message}");
             return null;
         }
     }
@@ -1444,12 +1126,12 @@ internal sealed class BetterRTXManager
                 if (!string.IsNullOrEmpty(hash))
                 {
                     hashes[fileName] = hash;
-                    Trace.WriteLine($"[BetterRTX]   📊 {fileName}: {hash.Substring(0, 8)}...");
+                    Trace.WriteLine($"[ShaderMods]   📊 {fileName}: {hash.Substring(0, 8)}...");
                 }
             }
         }
 
-        Trace.WriteLine($"[BetterRTX] 📊 Current game has {hashes.Count}/{RTXFiles.Length} RTX files");
+        Trace.WriteLine($"[ShaderMods] 📊 Current game has {hashes.Count}/{RTXFiles.Length} RTX files");
         return hashes;
     }
 
@@ -1522,17 +1204,17 @@ internal sealed class BetterRTXManager
     {
         if (currentHashes == null || presetHashes == null)
         {
-            Trace.WriteLine("[BetterRTX] ⚠ Cannot compare - one or both hash sets are null");
+            Trace.WriteLine("[ShaderMods] ⚠ Cannot compare - one or both hash sets are null");
             return false;
         }
 
         if (currentHashes.Count == 0 || presetHashes.Count == 0)
         {
-            Trace.WriteLine("[BetterRTX] ⚠ Cannot compare - one or both hash sets are empty");
+            Trace.WriteLine("[ShaderMods] ⚠ Cannot compare - one or both hash sets are empty");
             return false;
         }
 
-        Trace.WriteLine($"[BetterRTX] 🔍 Comparing {presetHashes.Count} expected file(s) against the game:");
+        Trace.WriteLine($"[ShaderMods] 🔍 Comparing {presetHashes.Count} expected file(s) against the game:");
 
         foreach (var (fileName, expectedHash) in presetHashes)
         {
@@ -1541,20 +1223,20 @@ internal sealed class BetterRTXManager
             // produces.
             if (!currentHashes.TryGetValue(fileName, out var currentHash))
             {
-                Trace.WriteLine($"[BetterRTX]   ✗ {fileName}: not in the game");
+                Trace.WriteLine($"[ShaderMods]   ✗ {fileName}: not in the game");
                 return false;
             }
 
             if (currentHash != expectedHash)
             {
-                Trace.WriteLine($"[BetterRTX]   ✗ {fileName}: MISMATCH");
+                Trace.WriteLine($"[ShaderMods]   ✗ {fileName}: MISMATCH");
                 return false;
             }
 
-            Trace.WriteLine($"[BetterRTX]   ✓ {fileName}: Match");
+            Trace.WriteLine($"[ShaderMods]   ✓ {fileName}: Match");
         }
 
-        Trace.WriteLine("[BetterRTX]   ✓✓✓ Game matches this preset exactly");
+        Trace.WriteLine("[ShaderMods]   ✓✓✓ Game matches this preset exactly");
         return true;
     }
 
@@ -1592,7 +1274,7 @@ public static class SmartPresetSorter
         }
         catch (InvalidOperationException ex)
         {
-            Trace.WriteLine($"[BetterRTX] ⚠ SmartPresetSorter ordering failed, falling back to simple alphabetical order: {ex.Message}");
+            Trace.WriteLine($"[ShaderMods] ⚠ SmartPresetSorter ordering failed, falling back to simple alphabetical order: {ex.Message}");
             return list.OrderBy(nameSelector, StringComparer.OrdinalIgnoreCase).ToList();
         }
     }
@@ -1708,7 +1390,7 @@ public static class SmartPresetSorter
         catch (Exception ex)
         {
             // If anything goes wrong during parsing/comparison, fall back to simple ordinal comparison
-            Trace.WriteLine($"[BetterRTX] ⚠ SmartPresetSorter error, falling back to simple sort: {ex.Message}");
+            Trace.WriteLine($"[ShaderMods] ⚠ SmartPresetSorter error, falling back to simple sort: {ex.Message}");
             return string.Compare(name1, name2, StringComparison.OrdinalIgnoreCase);
         }
     }
@@ -1804,7 +1486,7 @@ public static class SmartPresetSorter
         }
 
         // Number too large to parse - treat as 0 (rare edge case)
-        Trace.WriteLine($"[BetterRTX] ⚠ Number too large to parse, treating as 0: {numberText}");
+        Trace.WriteLine($"[ShaderMods] ⚠ Number too large to parse, treating as 0: {numberText}");
         return 0m;
     }
 
@@ -1881,9 +1563,9 @@ public static class SmartPresetSorter
 /// change whenever the game updates, and treats "the hash differs" as a proxy for "the game version changed."
 ///
 /// Elsewhere, a detected change drives that edition's Default backup being dropped (see
-/// <see cref="BetterRTXManager.WipeDefaultPresetCache"/>), so it is rebuilt from the post-update game files;
+/// <see cref="ShaderModManager.WipeDefaultPresetCache"/>), so it is rebuilt from the post-update game files;
 /// for Release it additionally soft-wipes the shared cache
-/// (<see cref="BetterRTXManager.WipeNonDefaultPresetsCacheAsync"/>) so possibly update-incompatible downloads
+/// (<see cref="ShaderModManager.WipeNonDefaultPresetsCacheAsync"/>) so possibly update-incompatible downloads
 /// are re-fetched rather than reused - see TryAttachAsync for why Preview does not. This class only reports;
 /// every consequence of a change, the disclaimer re-prompt included, is decided there.
 ///
@@ -1920,12 +1602,12 @@ public static class GameVersionDetector
 
         try
         {
-            Trace.WriteLine($"[BetterRTX] === GAME VERSION DETECTION START ({(isPreview ? "Preview" : "Release")}) ===");
+            Trace.WriteLine($"[ShaderMods] === GAME VERSION DETECTION START ({(isPreview ? "Preview" : "Release")}) ===");
 
             if (string.IsNullOrEmpty(minecraftInstallPath) || !Directory.Exists(minecraftInstallPath))
             {
-                Trace.WriteLine("[BetterRTX] ⚠ Invalid Minecraft install path - INVALIDATING CACHE (safe default)");
-                Trace.WriteLine("[BetterRTX] === GAME VERSION DETECTION END (invalid path) ===");
+                Trace.WriteLine("[ShaderMods] ⚠ Invalid Minecraft install path - INVALIDATING CACHE (safe default)");
+                Trace.WriteLine("[ShaderMods] === GAME VERSION DETECTION END (invalid path) ===");
                 return true; // Invalidate cache when uncertain
             }
 
@@ -1936,40 +1618,40 @@ public static class GameVersionDetector
             var settings = ApplicationData.Current.LocalSettings;
             var storedConfigHash = settings.Values[configHashKey] as string;
 
-            Trace.WriteLine($"[BetterRTX] 💾 Stored Config hash: {storedConfigHash ?? "NULL (first run or cleared)"}");
+            Trace.WriteLine($"[ShaderMods] 💾 Stored Config hash: {storedConfigHash ?? "NULL (first run or cleared)"}");
 
             // CASE 1: Config file not found
             if (string.IsNullOrEmpty(configPath))
             {
-                Trace.WriteLine("[BetterRTX] ⚠ MicrosoftGame.Config not found in game directory");
+                Trace.WriteLine("[ShaderMods] ⚠ MicrosoftGame.Config not found in game directory");
 
                 if (!string.IsNullOrEmpty(storedConfigHash))
                 {
                     // Had hash before, file now missing - INVALIDATE
-                    Trace.WriteLine("[BetterRTX] 🔥 CONFIG FILE DISAPPEARED - CACHE INVALIDATION!");
+                    Trace.WriteLine("[ShaderMods] 🔥 CONFIG FILE DISAPPEARED - CACHE INVALIDATION!");
                     settings.Values.Remove(configHashKey);
-                    Trace.WriteLine("[BetterRTX] 💾 Cleared stored config hash");
-                    Trace.WriteLine("[BetterRTX] === GAME VERSION DETECTION END (file disappeared) ===");
+                    Trace.WriteLine("[ShaderMods] 💾 Cleared stored config hash");
+                    Trace.WriteLine("[ShaderMods] === GAME VERSION DETECTION END (file disappeared) ===");
                     return true;
                 }
                 else
                 {
                     // Never had hash, still can't find file - INVALIDATE (safe default)
-                    Trace.WriteLine("[BetterRTX] 🔥 Unable to locate config file - CACHE INVALIDATION (safe default)");
-                    Trace.WriteLine("[BetterRTX] === GAME VERSION DETECTION END (unable to determine) ===");
+                    Trace.WriteLine("[ShaderMods] 🔥 Unable to locate config file - CACHE INVALIDATION (safe default)");
+                    Trace.WriteLine("[ShaderMods] === GAME VERSION DETECTION END (unable to determine) ===");
                     return true;
                 }
             }
 
             // CASE 2: Config file exists - compute its hash
             var currentConfigHash = ComputeFileHash(configPath);
-            Trace.WriteLine($"[BetterRTX] 📊 Current Config hash: {currentConfigHash ?? "NULL (computation failed)"}");
+            Trace.WriteLine($"[ShaderMods] 📊 Current Config hash: {currentConfigHash ?? "NULL (computation failed)"}");
 
             if (string.IsNullOrEmpty(currentConfigHash))
             {
                 // File exists but can't compute hash - INVALIDATE (safe default)
-                Trace.WriteLine("[BetterRTX] 🔥 Failed to compute config hash - CACHE INVALIDATION (safe default)");
-                Trace.WriteLine("[BetterRTX] === GAME VERSION DETECTION END (hash computation failed) ===");
+                Trace.WriteLine("[ShaderMods] 🔥 Failed to compute config hash - CACHE INVALIDATION (safe default)");
+                Trace.WriteLine("[ShaderMods] === GAME VERSION DETECTION END (hash computation failed) ===");
                 return true;
             }
 
@@ -1979,36 +1661,36 @@ public static class GameVersionDetector
             if (string.IsNullOrEmpty(storedConfigHash))
             {
                 // First run - no stored hash yet
-                Trace.WriteLine("[BetterRTX] ✓ First run - storing initial config hash (not a version change)");
+                Trace.WriteLine("[ShaderMods] ✓ First run - storing initial config hash (not a version change)");
                 versionChanged = false;
             }
             else if (currentConfigHash != storedConfigHash)
             {
                 // Hash changed - version updated
-                Trace.WriteLine("[BetterRTX] 🔥 CONFIG HASH CHANGED - GAME VERSION UPDATED!");
-                Trace.WriteLine($"[BetterRTX]    Old: {storedConfigHash.Substring(0, 16)}...");
-                Trace.WriteLine($"[BetterRTX]    New: {currentConfigHash.Substring(0, 16)}...");
+                Trace.WriteLine("[ShaderMods] 🔥 CONFIG HASH CHANGED - GAME VERSION UPDATED!");
+                Trace.WriteLine($"[ShaderMods]    Old: {storedConfigHash.Substring(0, 16)}...");
+                Trace.WriteLine($"[ShaderMods]    New: {currentConfigHash.Substring(0, 16)}...");
                 versionChanged = true;
             }
             else
             {
                 // Hash matches - no change
-                Trace.WriteLine("[BetterRTX] ✓ Config hash matches - no version change");
+                Trace.WriteLine("[ShaderMods] ✓ Config hash matches - no version change");
                 versionChanged = false;
             }
 
             // Always update stored hash with current value
             settings.Values[configHashKey] = currentConfigHash;
-            Trace.WriteLine("[BetterRTX] 💾 Saved current config hash");
+            Trace.WriteLine("[ShaderMods] 💾 Saved current config hash");
 
-            Trace.WriteLine($"[BetterRTX] === GAME VERSION DETECTION END (changed: {versionChanged}) ===");
+            Trace.WriteLine($"[ShaderMods] === GAME VERSION DETECTION END (changed: {versionChanged}) ===");
             return versionChanged;
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"[BetterRTX] ✗ EXCEPTION in version detection: {ex.Message}");
-            Trace.WriteLine("[BetterRTX] 🔥 Exception occurred - CACHE INVALIDATION (safe default)");
-            Trace.WriteLine("[BetterRTX] === GAME VERSION DETECTION END (exception) ===");
+            Trace.WriteLine($"[ShaderMods] ✗ EXCEPTION in version detection: {ex.Message}");
+            Trace.WriteLine("[ShaderMods] 🔥 Exception occurred - CACHE INVALIDATION (safe default)");
+            Trace.WriteLine("[ShaderMods] === GAME VERSION DETECTION END (exception) ===");
             return true; // Invalidate cache on any error (safe default)
         }
     }
@@ -2021,7 +1703,7 @@ public static class GameVersionDetector
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"[BetterRTX] Error searching for {fileName}: {ex.Message}");
+            Trace.WriteLine($"[ShaderMods] Error searching for {fileName}: {ex.Message}");
             return null;
         }
     }
@@ -2034,7 +1716,7 @@ public static class GameVersionDetector
         var targetPath = Path.Combine(currentPath, fileName);
         if (File.Exists(targetPath))
         {
-            Trace.WriteLine($"[BetterRTX] ✓ Found {fileName} at: {targetPath}");
+            Trace.WriteLine($"[ShaderMods] ✓ Found {fileName} at: {targetPath}");
             return targetPath;
         }
 
@@ -2052,7 +1734,7 @@ public static class GameVersionDetector
             catch (UnauthorizedAccessException) { }
             catch (Exception ex)
             {
-                Trace.WriteLine($"[BetterRTX] Error accessing subdirectory: {ex.Message}");
+                Trace.WriteLine($"[ShaderMods] Error accessing subdirectory: {ex.Message}");
             }
         }
 
@@ -2075,7 +1757,7 @@ public static class GameVersionDetector
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"[BetterRTX] Error computing hash for {filePath}: {ex.Message}");
+            Trace.WriteLine($"[ShaderMods] Error computing hash for {filePath}: {ex.Message}");
             return null;
         }
     }

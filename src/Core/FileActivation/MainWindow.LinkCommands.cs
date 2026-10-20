@@ -56,7 +56,10 @@ public sealed partial class MainWindow
         ["packupdater"] = new("Get latest RTX packs", w => w.LaunchPackUpdateButton, typeof(Modules.PackUpdater.PackUpdaterOverlay)),
         ["packbrowser"] = new("Select other packs", w => w.BrowsePacksButton, typeof(Modules.PackBrowser.PackBrowserOverlay)),
         ["rtxreactor"] = new("RTX Reactor", w => w.LaunchAlchitexButton, typeof(Modules.Alchitex.Alchitex)),
-        ["betterrtx"] = new("BetterRTX manager", w => w.LaunchBetterRTXManagerButton, typeof(Modules.BetterRTX.BetterRTXManagerOverlay)),
+        ["shadermods"] = new("Shader mod manager", w => w.LaunchShaderModManagerButton, typeof(Modules.ShaderMods.ShaderModManagerOverlay)),
+        // The module's name before it took a second provider. Kept because links already
+        // published on web pages and in announcements still say it.
+        ["betterrtx"] = new("Shader mod manager", w => w.LaunchShaderModManagerButton, typeof(Modules.ShaderMods.ShaderModManagerOverlay)),
         ["dlss"] = new("DLSS swapper", w => w.LaunchDLSSSwapperButton, typeof(Modules.DLSS.DLSSSwapperOverlay)),
         ["lut"] = new("RTX LUT manager", w => w.LaunchLUTManagerButton, typeof(Modules.LUT.LUTManagerOverlay)),
     };

@@ -265,7 +265,7 @@ public sealed partial class MainWindow : Window
             "ms-appx:///Assets/previews/table.reset.png"
         );
 
-        Previewer.Instance.InitializeButton(LaunchBetterRTXManagerButton,
+        Previewer.Instance.InitializeButton(LaunchShaderModManagerButton,
             "ms-appx:///Assets/previews/brtx.png"
         );
 
@@ -1886,13 +1886,13 @@ public sealed partial class MainWindow : Window
             _ = LocatePacksTask(true); // Trigger an auto pack location check after, only time we log statuses for user to see what's installed
         });
     }
-    private void LaunchBetterRTXManagerButton_Click(object sender, RoutedEventArgs e)
+    private void LaunchShaderModManagerButton_Click(object sender, RoutedEventArgs e)
     {
-        string[] ToDisable = ["LaunchMinecraftButton", "TargetPreviewToggle", "LaunchBetterRTXManagerButton", "ResetButton"];
+        string[] ToDisable = ["LaunchMinecraftButton", "TargetPreviewToggle", "LaunchShaderModManagerButton", "ResetButton"];
 
-        OpenModule(() => new Modules.BetterRTX.BetterRTXManagerOverlay(), ToDisable, overlay =>
+        OpenModule(() => new Modules.ShaderMods.ShaderModManagerOverlay(), ToDisable, overlay =>
         {
-            LogModuleResult(overlay, LogLevel.BetterRTX);
+            LogModuleResult(overlay, LogLevel.ShaderMods);
             _ = BlinkingLamp(true, true, overlay.OperationSuccessful ? 1.0 : 0.0);
         });
     }
@@ -2113,7 +2113,7 @@ public sealed partial class MainWindow : Window
     public enum LogLevel
     {
         Success, Informational, Warning, Error, Network, Lengthy, Misc, Teletext, Alchitex, Cache, Package,
-        DLSS, BetterRTX, LUT, VanillaRTX, Selected, MCPreview, MCRelease, Cleaning, Reset, Import
+        DLSS, ShaderMods, LUT, VanillaRTX, Selected, MCPreview, MCRelease, Cleaning, Reset, Import
     }
 
     // The single source of truth, Log() only ever writes here
@@ -2184,7 +2184,7 @@ public sealed partial class MainWindow : Window
             LogLevel.Alchitex => "🟦 ",
             LogLevel.Cache => "💾 ",
             LogLevel.DLSS => "🫧 ",
-            LogLevel.BetterRTX => "🧈 ",
+            LogLevel.ShaderMods => "🧈 ",
             LogLevel.LUT => "🎨 ",
             LogLevel.VanillaRTX => "⛏️ ",
             LogLevel.Package => "📦 ",

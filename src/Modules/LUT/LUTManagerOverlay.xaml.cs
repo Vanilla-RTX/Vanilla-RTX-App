@@ -204,7 +204,7 @@ public sealed partial class LUTManagerOverlay : ModuleOverlay
     /// <summary>
     /// Shows the blocked-state card when there is no usable backup, and takes the dropdown
     /// down with it - the card explains, the disabled controls enforce. A static
-    /// Pinned-TeletextCard lookalike in the XAML, same as BetterRTX's two: this isn't news and
+    /// Pinned-TeletextCard lookalike in the XAML, same as the shader mod manager's two: this isn't news and
     /// there is nothing to dismiss.
     /// </summary>
     private void ApplyDefaultsNotice()
@@ -526,7 +526,7 @@ public sealed partial class LUTManagerOverlay : ModuleOverlay
             bool success = await _manager.InstallAsync(preset);
 
             // The elevated replace has been through either way by here - see the same call in
-            // the BetterRTX and DLSS installs.
+            // the shader mod and DLSS installs.
             _ = Host.BlinkingLamp(true, true, success ? 1.0 : 0.0, 1.0);
 
             if (success)

@@ -112,7 +112,7 @@ public sealed partial class Alchitex : ModuleOverlay
     public bool IsTargetingPreview { get; set; } = EnvironmentVariables.Persistent.IsTargetingPreview;
 
     /// <summary>
-    /// Mirrors the sibling modules' report-on-close convention (BetterRTX/DLSS/LUT
+    /// Mirrors the sibling modules' report-on-close convention (shader mod/DLSS/LUT
     /// managers): MainWindow reads <see cref="ModuleOverlay.OperationSuccessful"/> and
     /// <see cref="ModuleOverlay.StatusMessage"/> once this closes and logs accordingly. True
     /// only if at least one pack succeeded across the whole session (every Generate click,
@@ -1580,7 +1580,7 @@ public sealed partial class Alchitex : ModuleOverlay
     /// Rebuilds StatusMessage/OperationSuccessful from every pack this module session has
     /// touched so far (see _succeededPackNames/_failedPackNames) - MainWindow's Closed
     /// handler for this module reads these once the module actually closes, mirroring how
-    /// the BetterRTX/DLSS/LUT managers report their own outcome.
+    /// the shader mod/DLSS/LUT managers report their own outcome.
     /// </summary>
     private void UpdateSessionSummary()
     {

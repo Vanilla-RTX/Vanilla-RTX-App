@@ -327,7 +327,7 @@
                         <TextBlock Text="Game installations"
                                    Style="{StaticResource SettingsSectionHeaderStyle}" />
 
-                        <TextBlock Text="Where Minecraft itself is installed. The RTX LUT manager, BetterRTX manager and DLSS swapper write into these folders. The app may have found the default locations automatically.
+                        <TextBlock Text="Where Minecraft itself is installed. The RTX LUT manager, shader mod manager and DLSS swapper write into these folders. The app may have found the default locations automatically.
                                    &#x0a;The app automatically verifies the path you select and rejects it if it is not a real Minecraft installation directory. Only change if you know what you're doing."
                                    Style="{StaticResource SettingsHintTextStyle}" />
 

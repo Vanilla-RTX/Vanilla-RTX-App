@@ -1,7 +1,7 @@
-<overlays:ModuleOverlay x:Class="Vanilla_RTX_App.Modules.BetterRTX.BetterRTXManagerOverlay"
+<overlays:ModuleOverlay x:Class="Vanilla_RTX_App.Modules.ShaderMods.ShaderModManagerOverlay"
                         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                        xmlns:local="using:Vanilla_RTX_App.Modules.BetterRTX"
+                        xmlns:local="using:Vanilla_RTX_App.Modules.ShaderMods"
                         xmlns:core="using:Vanilla_RTX_App.Core.Overlays"
                         xmlns:overlays="using:Vanilla_RTX_App.Core.Overlays"
                         IsTextScaleFactorEnabled="False">
@@ -20,7 +20,7 @@
                               Height="100" />
 
                 <!-- What the wait is for. Set from code at each stage - locating the game,
-                     asking bedrock.graphics, reading presets off disk - because every one of
+                     asking the preset sources, reading presets off disk - because every one of
                      them can be the slow one depending on the machine and the connection. -->
                 <TextBlock x:Name="LoadingStatusText"
                            Text="Getting things ready..."
@@ -167,7 +167,7 @@
                                        Opacity="0.95"
                                        VerticalAlignment="Center"
                                        IsTextScaleFactorEnabled="False"
-                                       Text="BetterRTX presets are built for and tested against stable Minecraft Release. Unless you know what you're doing, close this module, switch the app back to targeting Minecraft Release, and reopen it.&#x0a;&#x0a;You can carry on and install presets into MC Preview regardless - but Preview moves ahead of Release, so the game may refuse to start or crash. If that happens, come back here and roll back to &quot;Default RTX (Preview)&quot; preset, they're your backed up defaults." />
+                                       Text="Supervanilla RTX publishes builds made for Minecraft Preview - &quot;Get latest Supervanilla RTX (Preview)&quot; below fetches the newest one.&#x0a;&#x0a;BetterRTX presets are built for and tested against stable Minecraft Release only. You can install them into MC Preview regardless, but Preview moves ahead of Release, so the game may refuse to start or crash. If that happens, come back here and roll back to the &quot;Default RTX (Preview)&quot; preset, your backed up defaults." />
                         </Grid>
                     </Border>
 
@@ -185,26 +185,8 @@
                 </StackPanel>
             </ScrollViewer>
 
-            <!-- Empty State -->
-            <StackPanel x:Name="EmptyStatePanel"
-                        Grid.Row="1"
-                        VerticalAlignment="Center"
-                        HorizontalAlignment="Center"
-                        Visibility="Collapsed"
-                        Spacing="12">
-                <FontIcon Glyph="&#xEABC;"
-                          FontSize="50"
-                          IsTextScaleFactorEnabled="False"
-                          Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-                <TextBlock x:Name="EmptyStateText"
-                           Text="No BetterRTX presets cached"
-                           FontSize="14"
-                           IsTextScaleFactorEnabled="False"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-            </StackPanel>
-
             <!-- ══════════════════════════════════════════
-                Add customized preset (.rtpack)
+                Add customized preset | Supervanilla RTX downloads | Create your own preset
             ═══════════════════════════════════════════ -->
             <Border Grid.Row="2"
                     Margin="0"
@@ -221,7 +203,11 @@
                       VerticalAlignment="Bottom">
                     <Grid.ColumnDefinitions>
                         <!-- Add customized preset -->
-                        <ColumnDefinition Width="2.25*" />
+                        <ColumnDefinition Width="1.5*" />
+                        <!-- Gap 6 px -->
+                        <ColumnDefinition Width="6" />
+                        <!-- Supervanilla RTX downloads -->
+                        <ColumnDefinition Width="1.15*" />
                         <!-- Gap 6 px -->
                         <ColumnDefinition Width="6" />
                         <!-- Create your own preset -->
@@ -244,7 +230,7 @@
                             DragEnter="AddPresetButton_DragEnter"
                             DragLeave="AddPresetButton_DragLeave"
                             Drop="AddPresetButton_Drop"
-                            ToolTipService.ToolTip="Drag and drop or browse for the .rtpack preset files exported from the BetterRTX website">
+                            ToolTipService.ToolTip="Drag and drop or browse for .rtpack preset files - Supervanilla RTX builds or presets exported from the BetterRTX website">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="96" />
@@ -272,7 +258,7 @@
                                            TextWrapping="NoWrap"
                                            TextTrimming="CharacterEllipsis"
                                            IsTextScaleFactorEnabled="False" />
-                                <TextBlock Text="Drag and drop or browse for the .rtpack preset files exported from the BetterRTX website"
+                                <TextBlock Text="Drag and drop or browse for .rtpack files - Supervanilla RTX builds or BetterRTX presets"
                                            FontSize="12"
                                            Opacity="0.75"
                                            Margin="0,2,0,0"
@@ -283,20 +269,65 @@
                         </Grid>
                     </Button>
 
+                    <!-- ── SUPERVANILLA RTX DOWNLOADS ─────────── -->
+                    <!-- The one accented control in the bar, deliberately: it is the way to every
+                         Supervanilla RTX build the Get latest row doesn't cover. Its two bevels are
+                         accented too and painted from code, because their colour follows the
+                         button's enabled state - see ApplySupervanillaButtonBevels. -->
+                    <Button x:Name="SupervanillaDownloadsButton"
+                            Grid.Column="2"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            Padding="12,0,12,0"
+                            CornerRadius="0"
+                            BorderThickness="0"
+                            Style="{ThemeResource AccentButtonStyle}"
+                            IsTextScaleFactorEnabled="False"
+                            Click="SupervanillaDownloadsButton_Click">
+                        <StackPanel HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Spacing="4">
+                            <StackPanel Orientation="Horizontal"
+                                        HorizontalAlignment="Center"
+                                        Spacing="8">
+                                <FontIcon Glyph="&#xE81C;"
+                                          FontSize="18"
+                                          Margin="0,2,0,0"
+                                          VerticalAlignment="Center"
+                                          IsTextScaleFactorEnabled="False" />
+                                <TextBlock Text="Supervanilla RTX for other versions"
+                                           FontWeight="SemiBold"
+                                           FontSize="14"
+                                           TextWrapping="Wrap"
+                                           TextAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           IsTextScaleFactorEnabled="False" />
+                            </StackPanel>
+                            <TextBlock x:Name="SupervanillaDownloadsTargetText"
+                                       FontSize="11"
+                                       Opacity="0.8"
+                                       FontWeight="Medium"
+                                       TextWrapping="Wrap"
+                                       TextAlignment="Center"
+                                       IsTextScaleFactorEnabled="False" />
+                        </StackPanel>
+                    </Button>
+
                     <!-- ── CREATE YOUR OWN PRESET ─────────────── -->
                     <!-- Solid backdrop behind the hyperlink button: HyperlinkButton's own
                          background is too translucent against the window now that it's
                          not sitting on top of the Add button anymore. This mimics a
                          regular button's background while leaving hover/pressed states
                          to the hyperlink itself. -->
-                    <Rectangle Grid.Column="2"
+                    <Rectangle Grid.Column="4"
                                Fill="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                IsHitTestVisible="False" />
 
                     <!-- Both the label and the tooltip name the address this actually opens,
-                         which is a setting - see BetterRTXManagerOverlay's constructor. -->
+                         which is a setting - see ShaderModManagerOverlay.ShowBrowseTargets. -->
                     <HyperlinkButton x:Name="CreatePresetLink"
-                                     Grid.Column="2"
+                                     Grid.Column="4"
                                      HorizontalAlignment="Stretch"
                                      VerticalAlignment="Stretch"
                                      HorizontalContentAlignment="Center"
@@ -332,7 +363,9 @@
                         </StackPanel>
                     </HyperlinkButton>
 
-                    <!-- ── BEVELLED SPLIT SEAM ──────────────────── -->
+                    <!-- ── BEVELLED SPLIT SEAMS ─────────────────── -->
+                    <!-- Add | Supervanilla: Add's resting dark edge meets the accented
+                         button's bright one. -->
                     <Grid Grid.Column="0"
                           HorizontalAlignment="Right"
                           Width="3"
@@ -344,6 +377,28 @@
                     </Grid>
 
                     <Grid Grid.Column="2"
+                          HorizontalAlignment="Left"
+                          Width="3"
+                          Margin="-3,0,0,0"
+                          IsHitTestVisible="False">
+                        <Rectangle Fill="{ThemeResource ButtonBackgroundThemeBrush}" />
+                        <Border x:Name="SupervanillaLeftBevel"
+                                BorderThickness="3,0,0,0" />
+                    </Grid>
+
+                    <!-- Supervanilla | Create: the accented button's dark edge meets Create's
+                         resting bright one. -->
+                    <Grid Grid.Column="2"
+                          HorizontalAlignment="Right"
+                          Width="3"
+                          Margin="0,0,-3,0"
+                          IsHitTestVisible="False">
+                        <Rectangle Fill="{ThemeResource ButtonBackgroundThemeBrush}" />
+                        <Border x:Name="SupervanillaRightBevel"
+                                BorderThickness="3,0,0,0" />
+                    </Grid>
+
+                    <Grid Grid.Column="4"
                           HorizontalAlignment="Left"
                           Width="3"
                           Margin="-3,0,0,0"
@@ -378,8 +433,8 @@
                         BorderBrush="Transparent"
                         Click="RefreshButton_Click"
                         IsTextScaleFactorEnabled="False"
-                        ToolTipService.ToolTip="Resets cache, clearing all imported presets and downloaded files from BetterRTX API, forcing a refetch.
-                        &#x0a;&#x0a;Note: This happens automatically whenever Minecraft is updated (always) or periodically whenever changes in the API are detected (possibly, but not guaranteed), hence this button exists for you to trigger a manual refresh in case BetterRTX delivers its updates with a delay or the API pretends to remain the same after rolling out updates.
+                        ToolTipService.ToolTip="Resets the preset cache: clears every downloaded and imported preset and fetches the Supervanilla RTX and BetterRTX lists again. A source that can't be reached is left exactly as it was.
+                        &#x0a;&#x0a;Note: This happens automatically whenever Minecraft is updated, and whenever the app notices either source has published something new - hence this button exists for when an update hasn't been picked up yet, such as BetterRTX shipping new files without its list changing.
                         &#x0a;&#x0a;Note 2: This button won't clear your Default RTX preset, which is backed up the first time you open this manager. Only game updates can trigger a reset of Default preset, so ultimately the app can pick up the new defaults fresh from the new update of your game.">
                     <Grid>
                         <FontIcon x:Name="RefreshIcon"

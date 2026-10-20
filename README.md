@@ -1,7 +1,7 @@
 # Vanilla RTX App
 Everything you need to play Minecraft with ray tracing at its best and unlock its full potential, in one place.
 
-Install and update the Vanilla RTX resource packs, give ordinary texture packs RTX support with RTX Reactor, tune any ray-traced pack to your taste, manage BetterRTX presets, swap DLSS versions, launch the game with ray tracing already switched on, and much more...  
+Install and update the Vanilla RTX resource packs, give ordinary texture packs RTX support with RTX Reactor, tune any ray-traced pack to your taste, install shader mods like Supervanilla RTX and BetterRTX, swap DLSS versions, launch the game with ray tracing already switched on, and much more...  
 The Vanilla RTX App ensures ray tracing is accessible and frictionless to new and experienced players.
 
 <!-- Microsoft Store badge -->
@@ -36,7 +36,7 @@ The Vanilla RTX App ensures ray tracing is accessible and frictionless to new an
 - [Select other packs](#select-other-packs)
 - [Tuning packs](#tuning-packs)
 - [RTX Reactor](#rtx-reactor)
-- [BetterRTX manager](#betterrtx-manager)
+- [Shader mod manager](#shader-mod-manager)
 - [DLSS swapper](#dlss-swapper)
 - [RTX LUT manager](#rtx-lut-manager)
 - [Launch Minecraft RTX](#launch-minecraft-rtx)
@@ -68,7 +68,7 @@ You now have ray tracing set up properly, with the latest [Vanilla RTX](https://
 Features split into two main groups by what they touch:
 
 - **Your packs and user data** - installing Vanilla RTX, importing or choosing packs to tuning them, RTX Reactor, and launching the game. These work on the resource packs in Minecraft's user data folder.
-- **Your game installations** - BetterRTX, the RTX LUT manager and the DLSS swapper. These replace files inside Minecraft itself, and each keeps a backup of your original files so you can always go back.
+- **Your game installations** - the shader mod manager, the RTX LUT manager and the DLSS swapper. These replace files inside Minecraft itself, and each keeps a backup of your original files so you can always go back.
 
 > The app detects both Minecraft installations and their user data locations automatically. If it ever fails to, see [Troubleshooting](#troubleshooting). You may also manually select other paths through [Settings](#settings).
 
@@ -92,7 +92,7 @@ Three buttons sit next to the app's name. Each opens a page:
 
 ## Preview
 
-The **Preview** toggle points the whole app at Minecraft Preview instead of the regular release: installs, tuning, launching, BetterRTX, LUTs and DLSS all target Preview while it's on. The cached files related to the two games are kept completely separate, including each one's backups of its original files.
+The **Preview** toggle points the whole app at Minecraft Preview instead of the regular release: installs, tuning, launching, shader mods, LUTs and DLSS all target Preview while it's on. The cached files related to the two games are kept completely separate, including each one's backups of its original files.
 
 ## Log area, the lamp and the preview images
 
@@ -241,24 +241,33 @@ The packs you selected wait in a queue on the top and move across to the right a
 
 RTX Reactor used to be an independent premium project, but it is now free to use. The output is covered by its own license: **you can use them yourself and share them for free, but you can't sell them** or put them behind any paywall (e.g. Marketplace, ad-gated downloads, paid communities). For commercial use, you must contact Cubeir first. The full license is shown and you must accept it before using RTX Reactor, it is also in the [repository](https://github.com/vanilla-rtx/Vanilla-RTX-App/blob/main/src/Modules/Alchitex/ALCHITEX_LICENSE.txt) for you to read it at any time.
 
-# BetterRTX manager
+# Shader mod manager
 
-Installs presets of [BetterRTX](https://bedrock.graphics), an unofficial mod to Minecraft RTX's shaders that changes how ray tracing looks. The first time you open it you'll see a notice about the third-party service it uses; accept it to continue.
+Installs shader mods - replacements for Minecraft RTX's own shaders that change how ray tracing looks. It offers two: **Supervanilla RTX**, and presets of [BetterRTX](https://bedrock.graphics), an unofficial third-party mod. The first time you open it you'll see a notice about where these files come from; accept it to continue.
 
 <img alt="Vanilla RTX App UI Images" src="https://github.com/user-attachments/assets/022acfe7-6b5e-4135-a11d-acfaea4d9f11" />
 
-- **The preset list** is an up-to-date list of pre-made presets provided by the BetterRTX website. Click a preset to download it (several can queue up), then click again to install it. The installed preset is highlighted.
-- **Default RTX** is pinned at the top: a backup of your game's own shader files, taken the first time you open this manager. Click it to roll back to the unmodded look at any time.
-- **Add customized preset** - import `.rtpack` files, by browsing, dragging them onto the page, or opening them with the app from File Explorer. Imported presets can be deleted with the button (bin icon) beside them.
+The list is split into three sections:
+
+- **Default** - **Default RTX**, a backup of your game's own shader files, taken the first time you open this manager. Click it to roll back to the unmodded look at any time.
+- **Supervanilla RTX** - **Get latest Supervanilla RTX** downloads the newest build made for the game you're targeting (Release or Preview). Once downloaded, it shows that build's version; click it again to install it. Supervanilla RTX builds you import yourself are listed here too.
+- **BetterRTX** - an up-to-date list of pre-made presets from the BetterRTX website, followed by any BetterRTX presets you imported. Click a preset to download it (several can queue up), then click again to install it.
+
+The installed preset is highlighted, whichever section it's in. Along the bottom:
+
+- **Add customized preset** - import `.rtpack` files, by browsing, dragging them onto the button, or opening them with the app from File Explorer. Each lands in the section it belongs to - a file with Supervanilla RTX (or SVRTX) in its name goes under Supervanilla RTX, anything else under BetterRTX. Imported presets can be deleted with the button (bin icon) beside them.
+- **Supervanilla RTX for other versions** - opens the Supervanilla RTX downloads page inside the app, where you can pick a build for any game version. Download one, click **Done**, and it's imported automatically.
 - **Create your own preset** - opens the BetterRTX preset creator inside the app. Customize a preset, export it as `.rtpack`, then click **Done** and it will be imported automatically!
-- **Refresh** (title bar) - clears downloaded and imported presets and fetches the list again from the BetterRTX website. It never clears the Default RTX preset. It can be used once a minute, and shows a countdown for that minute after the list has just been fetched - so a live button means the list you're looking at came from the app's own cache.
+- **Refresh** (title bar) - clears downloaded and imported presets and fetches both lists again. If one of the two sites can't be reached, its presets are left as they were. It never clears the Default RTX preset. It can be used once a minute, and shows a countdown for that minute after it has been used.
 
 The app goes to great lengths to make sure you never install stale files, and that your Default backup always matches your game - mostly without you having to do anything:
 
-- **When Minecraft updates**, downloaded presets are cleared and Default RTX is re-taken from the updated game, so you can't accidentally install shaders built for an older version. You'll need to download presets again, which also depends on BetterRTX itself having caught up.
-- The app also checks the BetterRTX API for changes every so often and clears the downloaded preset cache. Use Refresh when it's slow to notice an update that may have dropped moments ago.
+- **When Minecraft updates**, Default RTX is re-taken from the updated game, and the Supervanilla RTX build you got with Get latest is cleared, so you can fetch the one made for the new version.
+- **When Minecraft (Release) updates**, every downloaded and imported preset is cleared as well, so you can't accidentally install shaders built for an older version. You'll need to download presets again, which for BetterRTX also depends on BetterRTX itself having caught up. A **Preview** update clears only Preview's own Default RTX and Supervanilla RTX build.
+- The app checks for a newer Supervanilla RTX build every so often, and when one is out, Get latest goes back to offering it.
+- The app also checks the BetterRTX API for changes every so often and clears the downloaded BetterRTX presets. Use Refresh when it's slow to notice an update that may have dropped moments ago.
 
-On **Minecraft Preview**, BetterRTX works but isn't recommended: presets provided by the site/API are built for the regular release, and Preview can refuse to start with them. If that happens, roll back to **Default RTX (Preview)**.
+On **Minecraft Preview**, use Get latest Supervanilla RTX (Preview): it fetches a build made for Preview. BetterRTX works there too but isn't recommended: its presets are built for the regular release, and Preview can refuse to start with them. If that happens, roll back to **Default RTX (Preview)**.
 
 If a preset makes the game crash, roll back to Default RTX. You can use the [RTX LUT manager](#rtx-lut-manager) to give Minecraft RTX a different look in the meantime.
 
@@ -310,7 +319,7 @@ Which settings it writes is up to you; to change them, see **Launch options** in
 The app can open two kinds of file straight from File Explorer (right-click -> **Import into Vanilla RTX App** or **Open with**, or set it as the default):
 
 - **`.mcpack`** - imported as a resource pack, install into Minecraft, hence appearing in [Select other packs](#select-other-packs) menu too.
-- **`.rtpack`** - imported as a BetterRTX preset into [BetterRTX manager](#betterrtx-manager). Ready to install!
+- **`.rtpack`** - imported as a shader preset into the [Shader mod manager](#shader-mod-manager), under Supervanilla RTX or BetterRTX. Ready to install!
 
 If the app isn't running, it starts. Imports aren't silent, because some may need your confirmation.
 
@@ -325,7 +334,7 @@ Type **`vanillartx`** into Win+R or a terminal to start the app.
 | `vanillartx://packupdater` | Get latest RTX packs |
 | `vanillartx://packbrowser` | Select other packs |
 | `vanillartx://rtxreactor` | RTX Reactor |
-| `vanillartx://betterrtx` | BetterRTX manager |
+| `vanillartx://shadermods` | Shader mod manager (`vanillartx://betterrtx` still works too) |
 | `vanillartx://dlss` | DLSS swapper |
 | `vanillartx://lut` | RTX LUT manager |
 | `vanillartx://settings` | Settings |
@@ -371,7 +380,7 @@ The addresses the app uses for things it doesn't ship itself: the **Documentatio
 #### Maintenance
 
 - **Copy debug logs** - copies a full diagnostic report to your clipboard: system details, the app's log, every setting, recent errors, and the state of every control. Paste it into a bug report.
-- **Wipe all app data** - deletes everything the app has stored and restarts it as if freshly installed: settings, caches, downloaded presets, remembered game locations, all of it. Before it does, it restores your game's original BetterRTX and LUT files from the app's backups, which may show several admin prompts. **Approve every one.** If you don't and the game isn't back on its original files, the app's backups of them are gone for good, and fixing that means reinstalling Minecraft.
+- **Wipe all app data** - deletes everything the app has stored and restarts it as if freshly installed: settings, caches, downloaded presets, remembered game locations, all of it. Before it does, it restores your game's original shader and LUT files from the app's backups, which may show several admin prompts. **Approve every one.** If you don't and the game isn't back on its original files, the app's backups of them are gone for good, and fixing that means reinstalling Minecraft.
 
 At the very bottom are links to **[this repo](https://github.com/vanilla-rtx/Vanilla-RTX-App/)**, **[Discord](https://discord.gg/A4wv4wwYud)** and **Ko-fi**, and the list of Vanilla RTX Insiders - the supporters who make this project possible. **[Please consider joining them!](https://ko-fi.com/cubeir)**
 
@@ -381,7 +390,7 @@ At the very bottom are links to **[this repo](https://github.com/vanilla-rtx/Van
 
 The app finds your game and your user data on its own and for almost everyone both will succeed silently, but if it does not, and you use a feature that needs them, the app tries to guide you to point it to the correct locations:
 
-**The game:** the app asks Windows where Minecraft is installed and follows that to the real files, wherever you installed them. If that fails, it searches the usual locations on every drive, then the whole system, usually succeeding in under a minute. If it still can't, it asks you: pick the folder containing `Minecraft.Windows.exe`, or the folder one level above it. You can also set either game's location manually in Settings, under **Game installations**. BetterRTX, the LUT manager and the DLSS swapper need this.
+**The game:** the app asks Windows where Minecraft is installed and follows that to the real files, wherever you installed them. If that fails, it searches the usual locations on every drive, then the whole system, usually succeeding in under a minute. If it still can't, it asks you: pick the folder containing `Minecraft.Windows.exe`, or the folder one level above it. You can also set either game's location manually in Settings, under **Game installations**. The shader mod manager, the LUT manager and the DLSS swapper need this.
 
 **User data:** this folder only exists once you've played the game at least once. If it can't be found, the **Select other packs** button temporarily turns into a highlighted **Locate user data** button. Click it and pick the folder named `Minecraft Bedrock` (or `Minecraft Bedrock Preview`), the one with a `Users` folder inside, usually under `%appdata%`. If it isn't there, you may be using an unofficial launcher that keeps it elsewhere. You can also set it in Settings, under **Game user data**. Pack selection, tuning, installing, importing, exporting, RTX Reactor and the Launch button all need this.
 
@@ -389,9 +398,9 @@ The app finds your game and your user data on its own and for almost everyone bo
 
 Your computer may not have the link/protocol Minecraft uses to be launched. Just start the game yourself - the settings were most likely already written, which is the only part that actually matters.
 
-### Minecraft crashes after installing a BetterRTX preset
+### Minecraft crashes after installing a shader preset
 
-Roll back to **Default RTX** in the BetterRTX manager. BetterRTX sometimes takes a while to catch up with Minecraft updates. Meanwhile, the [RTX LUT manager](#rtx-lut-manager) changes the look of Minecraft RTX reliably without depending on updates. Keep an eye on the in-app announcements and news as I usually update those to communicate whether the current version of BetterRTX supports the latest game version, or not.
+Roll back to **Default RTX** in the Shader mod manager. Shader mods sometimes take a while to catch up with Minecraft updates. Meanwhile, the [RTX LUT manager](#rtx-lut-manager) changes the look of Minecraft RTX reliably without depending on updates. Keep an eye on the in-app announcements and news as I usually update those to communicate whether the current version of BetterRTX supports the latest game version, or not.
 
 ### Known limitations
 

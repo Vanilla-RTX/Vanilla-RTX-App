@@ -9,7 +9,7 @@ using Windows.Storage;
 
 namespace Vanilla_RTX_App.Modules.LUT;
 
-// Maybe the same game version change detection and Default preset re-establishment of BetterRTX manager must be deployed here as well.
+// Maybe the same game version change detection and Default preset re-establishment of the shader mod manager must be deployed here as well.
 // Esepcially if down the line Mojang starts updating the luts after 7 years.
 // The only reason it was held back is because you weren't sure if game updates actually revert lut files to default or not...
 // In case of BetterRTX, it was certain material.bin files go back to defaults upon game updates, here, we don't know.

@@ -654,7 +654,7 @@ public sealed partial class DLSSSwapperOverlay : ModuleOverlay
             var success = await _swapper.InstallAsync(dllData.FilePath);
 
             // The elevated replace has been through either way by here - see the same call in
-            // the BetterRTX and LUT installs.
+            // the shader mod and LUT installs.
             _ = Host.BlinkingLamp(true, true, success ? 1.0 : 0.0, 1.0);
 
             if (success)

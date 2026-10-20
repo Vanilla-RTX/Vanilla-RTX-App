@@ -108,7 +108,7 @@
     <Page Update="Modules\PackUpdater\PackUpdaterOverlay.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Update="Modules\BetterRTX\BetterRTXManagerOverlay.xaml">
+    <Page Update="Modules\ShaderMods\ShaderModManagerOverlay.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Update="Modules\DLSS\DLSSSwapperOverlay.xaml">
@@ -176,7 +176,7 @@
     <DefaultLanguage>en-US</DefaultLanguage>
     <AssemblyVersion>$(VersionPrefix)</AssemblyVersion>
     <FileVersion>$(VersionPrefix)</FileVersion>
-    <PackageTags>Minecraft, RTX, BetterRTX, Minecraft RTX, Minecraft Preview</PackageTags>
+    <PackageTags>Minecraft, RTX, BetterRTX, Supervanilla RTX, Minecraft RTX, Minecraft Preview</PackageTags>
     <PackageIcon>vrtx.lamp.on.128x.png</PackageIcon>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x86'">

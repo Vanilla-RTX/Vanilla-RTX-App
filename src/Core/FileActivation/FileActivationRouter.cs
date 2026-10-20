@@ -59,7 +59,7 @@ internal static class FileActivationRouter
 
     /// <summary>
     /// <list type="bullet">
-    /// <item><c>.rtpack</c> - a BetterRTX preset, into this app's own RTX_Cache.</item>
+    /// <item><c>.rtpack</c> - a shader mod preset (BetterRTX or Supervanilla RTX), into this app's own RTX_Cache.</item>
     /// <item>everything else - a Minecraft pack, into Minecraft's resource_packs.</item>
     /// </list>
     ///
@@ -72,8 +72,8 @@ internal static class FileActivationRouter
     /// </summary>
     private static readonly Route[] Routes =
     [
-        new("BetterRTX preset", [".rtpack"], (window, files) => window.ImportBetterRTXPresetFilesAsync(files),
-            typeof(Modules.BetterRTX.BetterRTXManagerOverlay)),
+        new("Shader mod preset", [".rtpack"], (window, files) => window.ImportShaderModPresetFilesAsync(files),
+            typeof(Modules.ShaderMods.ShaderModManagerOverlay)),
         new("Minecraft pack",   [],          (window, files) => window.ImportPackFilesAsync(files),
             typeof(Modules.PackBrowser.PackBrowserOverlay)),
     ];

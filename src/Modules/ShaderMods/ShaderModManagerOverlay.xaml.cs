@@ -20,7 +20,7 @@ using Windows.Storage;
 using WinRT.Interop;
 using static Vanilla_RTX_App.Core.EnvironmentVariables;
 
-namespace Vanilla_RTX_App.Modules.BetterRTX;
+namespace Vanilla_RTX_App.Modules.ShaderMods;
 
 internal enum DownloadStatus
 {
@@ -34,23 +34,36 @@ internal class DownloadQueueItem
 {
     public DownloadQueueItem() { }
 
-    public string? Uuid { get; set; }
+    /// <summary>The row's key in the status map - a BetterRTX UUID, or one of the manager's <c>svrtx:</c> keys.</summary>
+    public string? Key { get; set; }
     public string? Name { get; set; }
+
+    /// <summary>
+    /// The download itself. The queue only paces and reports; what a download is - an API preset
+    /// by UUID, Supervanilla RTX's /latest, one build from its index - is the row's to say.
+    /// </summary>
+    public Func<CancellationToken, Task<bool>>? Download { get; set; }
 }
 
 
 /// <summary>
-/// The BetterRTX preset manager's window: chrome, the disclaimer dialog, the preset list it
-/// draws, the refresh cooldown, drag/drop, and the download queue that feeds the list.
-/// Everything below that - the cache, the bedrock.graphics API, reading presets off disk,
-/// downloading, importing, hashing and the elevated install - lives in
-/// <see cref="BetterRTXManager"/>. This holds one and renders it.
+/// The shader mod manager's window: chrome, the disclaimer dialog, the sectioned preset list it
+/// draws, the refresh cooldown, drag/drop, the bottom bar's three import routes, and the download
+/// queue that feeds the list. Everything below that - the cache, both providers, reading presets
+/// off disk, downloading, importing, hashing and the elevated install - lives in
+/// <see cref="ShaderModManager"/>. This holds one and renders it.
+///
+/// <para><b>The list is three sections, in a fixed order</b>: Default, Supervanilla RTX, BetterRTX.
+/// Which section a preset is drawn in is never decided here - it is
+/// <see cref="ShaderModManager.ClassifyFolder"/>'s answer, the same one that decides which
+/// provider's wipes may delete it, so a preset can never sit in one section while being cleared
+/// with the other's.</para>
 /// </summary>
-public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileActivation.IFileActivationTarget
+public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileActivation.IFileActivationTarget
 {
     private bool _isClosing;
 
-    private readonly BetterRTXManager _manager = new();
+    private readonly ShaderModManager _manager = new();
 
     /// <summary>
     /// Which edition this module is for, taken once at construction rather than read live:
@@ -108,7 +121,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
     private bool _ready;
 
 
-    public BetterRTXManagerOverlay()
+    public ShaderModManagerOverlay()
     {
         this.InitializeComponent();
 
@@ -125,25 +138,32 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
         // end of Loaded, is what brings it back.
         RefreshButton.IsEnabled = false;
 
-        ShowBrowseTarget();
+        ShowBrowseTargets();
 
-        this.Loaded += BetterRTXManagerOverlay_Loaded;
+        // The Supervanilla RTX button is the bar's one accented control, and so are its two
+        // bevels - which, built from code, have to follow both the theme and the button's own
+        // enabled state by hand (a # SuspendControls entry is what would disable it).
+        ApplySupervanillaButtonBevels(ThemeService.Current);
+        ThemeService.ThemeChanged += ApplySupervanillaButtonBevels;
+        SupervanillaDownloadsButton.IsEnabledChanged += (_, _) => ApplySupervanillaButtonBevels(ThemeService.Current);
+
+        this.Loaded += ShaderModManagerOverlay_Loaded;
     }
 
     /// <summary>The cache-refresh button, which lives in MainWindow's titlebar while this is open.</summary>
     protected internal override FrameworkElement? TitleBarStrip => TitleBarActions;
 
-    private async void BetterRTXManagerOverlay_Loaded(object sender, RoutedEventArgs e)
+    private async void ShaderModManagerOverlay_Loaded(object sender, RoutedEventArgs e)
     {
         try
         {
-            this.Loaded -= BetterRTXManagerOverlay_Loaded;
+            this.Loaded -= ShaderModManagerOverlay_Loaded;
 
             if (_isClosing) return;
 
             // bedrock.graphics builds against stable Minecraft, so on Preview the notice at
-            // the top of the list is the whole of what makes the feature supported there
-            // rather than refused. Everything below it behaves identically either way.
+            // the top of the list is the whole of what makes BetterRTX supported there rather
+            // than refused. Everything below it behaves identically either way.
             ApplyNotices();
 
             await InitializeAsync();
@@ -153,7 +173,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"[BetterRTXManager] The _Loaded Event Crashed: {ex.Message}");
+            Trace.WriteLine($"[ShaderMods] The _Loaded Event Crashed: {ex.Message}");
             return;
         }
     }
@@ -163,7 +183,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
         if (_isClosing) return;
         _isClosing = true;
 
-        this.Loaded -= BetterRTXManagerOverlay_Loaded;
+        this.Loaded -= ShaderModManagerOverlay_Loaded;
 
         _scanCancellationTokenSource?.Cancel();
         _scanCancellationTokenSource?.Dispose();
@@ -177,6 +197,8 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
 
         _cooldownTimer?.Stop();
         _cooldownTimer = null;
+
+        ThemeService.ThemeChanged -= ApplySupervanillaButtonBevels;
     }
 
     /// <summary>
@@ -215,18 +237,18 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
     private void EvaluateDefaultBackup()
     {
         var state = _manager.EnsureDefaultBackedUp();
-        _defaultReady = state == BetterRTXManager.DefaultBackupState.Ready;
+        _defaultReady = state == ShaderModManager.DefaultBackupState.Ready;
 
         DefaultMissingText.Text = state switch
         {
-            BetterRTXManager.DefaultBackupState.Ready => "",
+            ShaderModManager.DefaultBackupState.Ready => "",
 
-            BetterRTXManager.DefaultBackupState.GameFilesIncomplete =>
-                "Your Minecraft installation is missing some of the RTX shader files BetterRTX replaces, so the app can't take a backup of your originals - " +
+            ShaderModManager.DefaultBackupState.GameFilesIncomplete =>
+                "Your Minecraft installation is missing some of the RTX shader files shader mods replace, so the app can't take a backup of your originals - " +
                 "and without one there would be no way back if a preset didn't work out. Installing presets is disabled until that's sorted.\n\n" +
                 "Repairing or reinstalling Minecraft from the Xbox app/Microsoft Store usually fixes this. You can still import presets in the meantime; they'll be waiting once the game is whole again.",
 
-            BetterRTXManager.DefaultBackupState.BackupUnverifiable =>
+            ShaderModManager.DefaultBackupState.BackupUnverifiable =>
                 "The app has a partial backup of your original RTX shader files, and it no longer matches what's in your game - which means the game is running shaders that aren't its own. " +
                 "Finishing the backup from those files would record somebody else's preset as your defaults permanently, so the app won't, and installing presets is disabled.\n\n" +
                 "Repair or reinstall Minecraft from the Xbox app/Microsoft Store to put its original files back, then reopen this module. Importing presets still works.",
@@ -241,7 +263,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
     {
         var localSettings = ApplicationData.Current.LocalSettings;
 
-        if (localSettings.Values.ContainsKey(BetterRTXManager.BETTERRTX_DISCLAIMER_KEY))
+        if (localSettings.Values.ContainsKey(ShaderModManager.DISCLAIMER_KEY))
             return true;
 
         var tcs = new TaskCompletionSource<bool>();
@@ -276,8 +298,10 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
             {
             new TextBlock
                  {
-                Text = "BetterRTX is an unofficial mod to Minecraft RTX's shader code. The files for this feature are provided by the following third-party: https://bedrock.graphics/api\n" +
-                    "BetterRTX can also potentially break with Minecraft updates. Vanilla RTX App takes extensive measures to mitigate any issues that may arise, such as giving a way to quickly revert to your defaults." +
+                Text = "Shader mods replace Minecraft RTX's own shader files. This module installs two of them:\n" +
+                    "- Supervanilla RTX, provided by vanillartx.net.\n" +
+                    "- BetterRTX, an unofficial third-party mod whose files are provided by https://bedrock.graphics/api\n\n" +
+                    "Either can break with Minecraft updates. Vanilla RTX App takes extensive measures to mitigate any issues that may arise, such as giving a way to quickly revert to your defaults." +
                     "\n\nPlease pay attention to the info panels to keep updated and help steer yourself away from potential issues.",
                 TextWrapping = TextWrapping.Wrap,
                 IsTextScaleFactorEnabled = false
@@ -289,7 +313,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
 
         var dialog = new ContentDialog
         {
-            Title = "Third-Party API Usage Notice",
+            Title = "Shader Mod Notice",
             Content = contentPanel,
             XamlRoot = this.XamlRoot,
             IsTextScaleFactorEnabled = false,
@@ -315,7 +339,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
 
         confirmButton.Click += (s, e) =>
         {
-            localSettings.Values[BetterRTXManager.BETTERRTX_DISCLAIMER_KEY] = true;
+            localSettings.Values[ShaderModManager.DISCLAIMER_KEY] = true;
             tcs.TrySetResult(true);
             dialog.Hide();
         };
@@ -350,7 +374,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
             // Validate cached path
             if (MinecraftGDKLocator.RevalidateCachedPath(cachedPath, _isPreview))
             {
-                Trace.WriteLine($"[BetterRTX] ✓ Using cached path: {cachedPath}");
+                Trace.WriteLine($"[ShaderMods] ✓ Using cached path: {cachedPath}");
                 minecraftPath = cachedPath;
             }
             else
@@ -358,7 +382,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
                 // Cache invalid - clear it and search
                 if (!string.IsNullOrEmpty(cachedPath))
                 {
-                    Trace.WriteLine($"[BetterRTX] ⚠ Cache became invalid, clearing");
+                    Trace.WriteLine($"[ShaderMods] ⚠ Cache became invalid, clearing");
                     if (_isPreview)
                         Persistent.MinecraftPreviewInstallPath = null;
                     else
@@ -372,7 +396,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
                 });
 
                 // Start system-wide search
-                Trace.WriteLine("[BetterRTX] Starting system-wide search...");
+                Trace.WriteLine("[ShaderMods] Starting system-wide search...");
                 _scanCancellationTokenSource = new CancellationTokenSource();
 
                 minecraftPath = await MinecraftGDKLocator.SearchForMinecraftAsync(
@@ -382,7 +406,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
 
                 if (minecraftPath == null)
                 {
-                    Trace.WriteLine("[BetterRTX] System search cancelled or failed - waiting for manual selection");
+                    Trace.WriteLine("[ShaderMods] System search cancelled or failed - waiting for manual selection");
                     return;
                 }
             }
@@ -393,7 +417,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"[BetterRTX] EXCEPTION in InitializeAsync: {ex}");
+            Trace.WriteLine($"[ShaderMods] EXCEPTION in InitializeAsync: {ex}");
             StatusMessage = $"Initialization error: {ex.Message}";
             this.Close();
         }
@@ -453,7 +477,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"[BetterRTX] Error updating refresh button state: {ex.Message}");
+            Trace.WriteLine($"[ShaderMods] Error updating refresh button state: {ex.Message}");
 
             // On error, default to enabled with icon visible
             RefreshButton.IsEnabled = true;
@@ -469,7 +493,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
         // being spammed; this stops it colliding with an install.
         if (_applyInProgress)
         {
-            Trace.WriteLine("[BetterRTX] A preset is being applied - ignoring refresh");
+            Trace.WriteLine("[ShaderMods] A preset is being applied - ignoring refresh");
             return;
         }
 
@@ -481,7 +505,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
         // files. Refused rather than queued, same as an install.
         if (_isProcessingQueue)
         {
-            Trace.WriteLine("[BetterRTX] A preset download is in progress - ignoring refresh");
+            Trace.WriteLine("[ShaderMods] A preset download is in progress - ignoring refresh");
             return;
         }
 
@@ -492,26 +516,36 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
 
         try
         {
-            Trace.WriteLine("[BetterRTX] === REFRESH BUTTON CLICKED ===");
+            Trace.WriteLine("[ShaderMods] === REFRESH BUTTON CLICKED ===");
 
             // The loading panel is shared, and the manual-pick offer inside it belongs to the
             // locate phase alone - left visible it would read as an instruction for this refresh.
             ManualSelectionPanel.Visibility = Visibility.Collapsed;
-            SetLoadingStatus("Checking bedrock.graphics for the latest presets...");
+            SetLoadingStatus("Checking vanillartx.net and bedrock.graphics for the latest presets...");
             LoadingPanel.Visibility = Visibility.Visible;
             PresetSelectionPanel.Visibility = Visibility.Collapsed;
             RefreshButton.IsEnabled = false;
             await Task.Delay(100);
 
-            // Fetch first: nothing is cleared unless there is something to rebuild from, so a
-            // refresh with no connection costs the user nothing and can be tried again at once.
-            var rebuilt = await _manager.RebuildFromApiAsync();
+            // Fetch first, per provider: each clears only its own presets, and only if its own
+            // source answered, so a refresh with no connection costs nothing and one with half a
+            // connection costs only the half that can be rebuilt.
+            var supervanillaRebuilt = await _manager.RebuildSupervanillaAsync();
+            var betterRtxRebuilt = await _manager.RebuildFromApiAsync();
 
-            if (!rebuilt)
+            if (!supervanillaRebuilt || !betterRtxRebuilt)
             {
-                SetLoadingStatus("Couldn't reach bedrock.graphics. Nothing was cleared - check your connection and try again.");
+                SetLoadingStatus((supervanillaRebuilt, betterRtxRebuilt) switch
+                {
+                    (false, false) => "Couldn't reach vanillartx.net or bedrock.graphics. Nothing was cleared - check your connection and try again.",
+                    (false, true) => "Couldn't reach vanillartx.net - your Supervanilla RTX presets were left as they were.",
+                    _ => "Couldn't reach bedrock.graphics - your BetterRTX presets were left as they were."
+                });
                 await Task.Delay(2200);
+            }
 
+            if (!supervanillaRebuilt && !betterRtxRebuilt)
+            {
                 _manager.ForgetLoadedPresets();
                 await _manager.LoadApiDataAsync();
                 await _manager.LoadLocalPresetsAsync();
@@ -536,11 +570,11 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
             LoadingPanel.Visibility = Visibility.Collapsed;
             PresetSelectionPanel.Visibility = Visibility.Visible;
 
-            Trace.WriteLine($"[BetterRTX] ✓ Refresh complete — {_manager.DefaultFolderName} preserved");
+            Trace.WriteLine($"[ShaderMods] ✓ Refresh complete — {_manager.DefaultFolderName} preserved");
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"[BetterRTX] ✗ Error during refresh: {ex.Message}");
+            Trace.WriteLine($"[ShaderMods] ✗ Error during refresh: {ex.Message}");
             LoadingPanel.Visibility = Visibility.Collapsed;
             PresetSelectionPanel.Visibility = Visibility.Visible;
         }
@@ -561,7 +595,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
 
     private async void ManualSelectionButton_Click(object sender, RoutedEventArgs e)
     {
-        Trace.WriteLine("[BetterRTX] Manual selection button clicked - cancelling system search");
+        Trace.WriteLine("[ShaderMods] Manual selection button clicked - cancelling system search");
 
         _scanCancellationTokenSource?.Cancel();
 
@@ -570,12 +604,12 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
 
         if (pick.Path is { } path)
         {
-            Trace.WriteLine($"[BetterRTX] ✓ User selected valid path: {path}");
+            Trace.WriteLine($"[ShaderMods] ✓ User selected valid path: {path}");
             await ContinueInitializationWithPath(path);
         }
         else
         {
-            Trace.WriteLine("[BetterRTX] ✗ User cancelled or selected invalid path");
+            Trace.WriteLine("[ShaderMods] ✗ User cancelled or selected invalid path");
             StatusMessage = MinecraftGDKLocator.DescribeUnsetPick(pick, _isPreview);
             this.Close();
         }
@@ -583,16 +617,18 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
 
     private async Task ContinueInitializationWithPath(string minecraftPath)
     {
-        // Locate the materials folder, establish the cache, and deal with a game update
-        // having happened since last time - all of which is the manager's business.
+        // Locate the materials folder, establish the cache, deal with a game update having
+        // happened since last time, and ask both sources whether they have published something
+        // new - all of which is the manager's business.
+        SetLoadingStatus("Checking for new Supervanilla RTX and BetterRTX builds...");
         switch (await _manager.TryAttachAsync(minecraftPath, _isPreview))
         {
-            case BetterRTXManager.AttachFailure.MaterialsFolderMissing:
+            case ShaderModManager.AttachFailure.MaterialsFolderMissing:
                 StatusMessage = "Materials folder not found in Minecraft installation";
                 this.Close();
                 return;
 
-            case BetterRTXManager.AttachFailure.CacheFolderUnavailable:
+            case ShaderModManager.AttachFailure.CacheFolderUnavailable:
                 StatusMessage = "Could not establish cache folder";
                 this.Close();
                 return;
@@ -617,18 +653,16 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
         LoadingPanel.Visibility = Visibility.Collapsed;
         PresetSelectionPanel.Visibility = Visibility.Visible;
 
-        // Initialize Teletext
-        if (EmptyStatePanel.Visibility != Visibility.Visible) // semantically, it means only alongside actual api preset lists, making sure Teletext dont clip into fallback background
-        {
-            TeletextCard.Populate(BetterRTXInfoPanel, TeletextContent.BetterRTXInfo);
+        // Announcements. The .md section is still called BetterRTXInfo: it is a wire format
+        // older builds read too, and renaming it would take it away from every one of them.
+        TeletextCard.Populate(BetterRTXInfoPanel, TeletextContent.BetterRTXInfo);
 
-            // Populate can legitimately add nothing (every announcement dismissed), and an
-            // empty-but-visible panel still contributes its margin, which reads as an
-            // oversized gap between whatever is above it and the preset list.
-            BetterRTXInfoPanel.Visibility = BetterRTXInfoPanel.Children.Count > 0
-                ? Visibility.Visible
-                : Visibility.Collapsed;
-        }
+        // Populate can legitimately add nothing (every announcement dismissed), and an
+        // empty-but-visible panel still contributes its margin, which reads as an
+        // oversized gap between whatever is above it and the preset list.
+        BetterRTXInfoPanel.Visibility = BetterRTXInfoPanel.Children.Count > 0
+            ? Visibility.Visible
+            : Visibility.Collapsed;
 
         // Show disclaimer -- background work is done, but try to gate the UI
         try
@@ -636,19 +670,24 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
             var agreed = await ShowDisclaimerDialogAsync();
             if (!agreed)
             {
-                StatusMessage = "Dismissed third-party API usage notice. You should understand the risks before you can use this feature.\n" +
-                    $"If you wish to change up the look of RTX without BetterRTX, try out \"RTX LUT manager\" instead.";
+                StatusMessage = "Dismissed the shader mod notice. You should understand the risks before you can use this feature.\n" +
+                    $"If you wish to change up the look of RTX without a shader mod, try out \"RTX LUT manager\" instead.";
                 this.Close();
                 return;
             }
         }
         catch (Exception ex)
         {
-            Trace.WriteLine("[BetterRTX]  Something went wrong while trying to show the BetterRTX disclaimer dialogue:\n" + ex.ToString());
+            Trace.WriteLine("[ShaderMods]  Something went wrong while trying to show the shader mod disclaimer dialogue:\n" + ex.ToString());
         }
     }
 
 
+    /// <summary>
+    /// Rebuilds the whole list: Default, then Supervanilla RTX, then BetterRTX, each under its own
+    /// header. Called after anything that changes what is on disk or what the game is running -
+    /// cheap enough that redrawing everything beats tracking which row changed.
+    /// </summary>
     private async Task DisplayPresetsAsync()
     {
         try
@@ -656,153 +695,292 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
             // Both should be loaded by the time anything draws. A null here means a load was
             // skipped or failed - worth a line in the log, not worth refusing to draw.
             if (_manager.ApiPresets == null)
-                Trace.WriteLine("[BetterRTX] ⚠ WARNING: ApiPresets is null in DisplayPresetsAsync!");
+                Trace.WriteLine("[ShaderMods] ⚠ WARNING: ApiPresets is null in DisplayPresetsAsync!");
 
             if (_manager.LocalPresets == null)
-                Trace.WriteLine("[BetterRTX] ⚠ WARNING: LocalPresets is null in DisplayPresetsAsync!");
-
-            var apiPresets = _manager.ApiPresets ?? new List<ApiPresetData>();
-            var localPresets = _manager.LocalPresets ?? new Dictionary<string, LocalPresetData>();
+                Trace.WriteLine("[ShaderMods] ⚠ WARNING: LocalPresets is null in DisplayPresetsAsync!");
 
             PresetListContainer.Children.Clear();
 
             var currentHashes = _manager.GetCurrentlyInstalledHashes();
 
-            // Always add Default preset first
+            // ── Default ──
+            // Absent only when there is no backup, in which case the notice card above the list
+            // already says why and every row below is disabled.
             var defaultPreset = _manager.CreateDefaultPreset();
             if (defaultPreset != null)
             {
-                var defaultButton = CreatePresetButton(defaultPreset, currentHashes, true);
-                PresetListContainer.Children.Add(defaultButton);
+                PresetListContainer.Children.Add(CreateSectionHeader("Default"));
+                PresetListContainer.Children.Add(CreatePresetButton(defaultPreset, currentHashes, true));
             }
 
-            // Merge API presets with local presets
-            var downloadedPresets = new List<DisplayPresetData>();
-            var notDownloadedPresets = new List<DisplayPresetData>();
-            var seenUuids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // ── Supervanilla RTX ──
+            PresetListContainer.Children.Add(CreateSectionHeader("Supervanilla RTX"));
+            foreach (var preset in BuildSupervanillaRows())
+                PresetListContainer.Children.Add(CreatePresetButton(preset, currentHashes, false));
 
-            // First, process API presets
-            foreach (var apiPreset in apiPresets)
-            {
-                if (string.IsNullOrEmpty(apiPreset.Uuid)) continue;    // skip malformed entries
+            // ── BetterRTX ──
+            PresetListContainer.Children.Add(CreateSectionHeader("BetterRTX"));
+            var betterRtxRows = BuildBetterRTXRows();
+            foreach (var preset in betterRtxRows)
+                PresetListContainer.Children.Add(CreatePresetButton(preset, currentHashes, false));
 
-                seenUuids.Add(apiPreset.Uuid);
-
-                if (localPresets.TryGetValue(apiPreset.Uuid, out var localPreset))
-                {
-                    // Downloaded - add to downloaded list
-                    downloadedPresets.Add(new DisplayPresetData
-                    {
-                        Uuid = apiPreset.Uuid,
-                        Name = localPreset.Name,
-                        IsDownloaded = true,
-                        IsCustomImport = false,
-                        Icon = localPreset.Icon,
-                        PresetPath = localPreset.PresetPath,
-                        BinFiles = localPreset.BinFiles,
-                        FileHashes = localPreset.FileHashes
-                    });
-                }
-                else
-                {
-                    // Not downloaded - add to not downloaded list
-                    notDownloadedPresets.Add(new DisplayPresetData
-                    {
-                        Uuid = apiPreset.Uuid,
-                        Name = apiPreset.Name,
-                        IsDownloaded = false,
-                        Icon = null,
-                        PresetPath = null,
-                        BinFiles = null,
-                        FileHashes = null
-                    });
-                }
-            }
-
-            // Second, add any local presets that weren't in the API list
-            foreach (var localPreset in localPresets.Values)
-            {
-                if (string.IsNullOrEmpty(localPreset.Uuid)) continue;   // skip malformed entries
-
-                if (!seenUuids.Contains(localPreset.Uuid))
-                {
-                    downloadedPresets.Add(new DisplayPresetData
-                    {
-                        Uuid = localPreset.Uuid,
-                        Name = localPreset.Name,
-                        IsDownloaded = true,
-                        IsCustomImport = true,
-                        Icon = localPreset.Icon,
-                        PresetPath = localPreset.PresetPath,
-                        BinFiles = localPreset.BinFiles,
-                        FileHashes = localPreset.FileHashes
-                    });
-                }
-            }
-
-            // Sort each list alphabetically
-            downloadedPresets = SmartPresetSorter.SafeOrderByName(downloadedPresets, p => p.Name);
-            notDownloadedPresets = SmartPresetSorter.SafeOrderByName(notDownloadedPresets, p => p.Name);
-
-            // Display downloaded first, then not downloaded
-            foreach (var preset in downloadedPresets)
-            {
-                var button = CreatePresetButton(preset, currentHashes, false);
-                PresetListContainer.Children.Add(button);
-            }
-
-            foreach (var preset in notDownloadedPresets)
-            {
-                var button = CreatePresetButton(preset, currentHashes, false);
-                PresetListContainer.Children.Add(button);
-            }
-
-            // Handle empty state
-            if (downloadedPresets.Count == 0 && notDownloadedPresets.Count == 0 && defaultPreset == null)
-            {
-                EmptyStatePanel.Visibility = Visibility.Visible;
-
-                int apiCount = apiPresets.Count;
-                int localCount = localPresets.Count;
-
-                Trace.WriteLine($"[BetterRTX] 📊 Empty state triggered - API: {apiCount}, Local: {localCount}");
-
-                if (apiCount == 0 && localCount == 0)
-                {
-                    // Check if we actually tried to load from API
-                    bool apiCacheExists = File.Exists(_manager.ApiCachePath);
-
-                    if (apiCacheExists)
-                    {
-                        // Cache exists but is empty/corrupt
-                        EmptyStateText.Text = "No presets available. The preset list may be corrupted, try clicking the Refresh button in the top left corner.";
-                        Trace.WriteLine("[BetterRTX] ⚠ Empty state: Cache exists but no presets loaded (possible corruption)");
-                    }
-                    else
-                    {
-                        // No cache, probably offline
-                        EmptyStateText.Text = "No presets available. An internet connection is required to fetch BetterRTX preset information.\n" +
-                            "You may still import and install custom presets (.rtpack) even without an internet connection.";
-                        Trace.WriteLine("[BetterRTX] ⚠ Empty state: No cache and no presets (offline?)");
-                    }
-                }
-                else
-                {
-                    // We have data but nothing to display (edge case)
-                    EmptyStateText.Text = "No BetterRTX presets could be displayed. Try clicking the Refresh button in the top left corner.";
-                    Trace.WriteLine($"[BetterRTX] ⚠ Empty state: API={apiCount}, Local={localCount} but no displayable presets (parsing issue?)");
-                }
-            }
-            else
-            {
-                EmptyStatePanel.Visibility = Visibility.Collapsed;
-            }
+            if (betterRtxRows.Count == 0)
+                PresetListContainer.Children.Add(CreateSectionNote(DescribeEmptyBetterRTX()));
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"[BetterRTX] Error displaying presets: {ex.Message}");
+            Trace.WriteLine($"[ShaderMods] Error displaying presets: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// The Supervanilla RTX section, in order: this edition's Get latest row, then (while
+    /// <see cref="ShaderModManager.ShowSupervanillaIndexPresets"/> allows) the index's other builds,
+    /// then every Supervanilla RTX import.
+    ///
+    /// <para><b>The Get latest row is always there</b>, whatever the index says or whether it was
+    /// ever reached - it asks /latest directly. Until it has downloaded something it offers to;
+    /// afterwards it is that build, named by its version, until an update or a newer build in the
+    /// index retires it and it goes back to offering.</para>
+    ///
+    /// <para>Only this edition's downloads are drawn - a Release build installed into Preview is
+    /// exactly what the per-edition channels exist to avoid. Imports carry no edition and are drawn
+    /// for both, as BetterRTX's are.</para>
+    /// </summary>
+    private List<DisplayPresetData> BuildSupervanillaRows()
+    {
+        var rows = new List<DisplayPresetData>();
+        var edition = ShaderModManager.EditionLabel(_isPreview);
+
+        var held = _manager.HeldSupervanillaLatest;
+        if (held != null)
+        {
+            rows.Add(FromLocal(held,
+                name: SupervanillaBuildName(held),
+                subtitle: $"Latest build for Minecraft {edition} - click to install",
+                deletable: false));
+        }
+        else
+        {
+            var latestKey = ShaderModManager.LatestDownloadKey(_isPreview);
+            rows.Add(new DisplayPresetData
+            {
+                Uuid = latestKey,
+                Name = $"Get latest Supervanilla RTX ({edition})",
+                IsDownloaded = false,
+                DownloadKey = latestKey,
+                DownloadAction = _manager.DownloadSupervanillaLatestAsync,
+                Subtitle = $"Click to download the newest build made for Minecraft {edition}"
+            });
+        }
+
+#pragma warning disable CS0162 // ShowSupervanillaIndexPresets is a deliberate compile-time switch
+        if (ShaderModManager.ShowSupervanillaIndexPresets && _manager.CurrentSupervanillaIndex is { } index)
+        {
+            // The index's latest is the Get latest row's build already; listing it twice would
+            // offer the same file under two rows that download it into two folders.
+            foreach (var entry in index.Files.Where(f =>
+                         !string.Equals(f.Name, index.Latest?.Name, StringComparison.OrdinalIgnoreCase)))
+            {
+                var downloaded = _manager.HeldSupervanillaIndexBuild(entry);
+                if (downloaded != null)
+                {
+                    rows.Add(FromLocal(downloaded, SupervanillaBuildName(downloaded), "Click to install", deletable: false));
+                    continue;
+                }
+
+                var key = ShaderModManager.IndexDownloadKey(_isPreview, entry.Name);
+                rows.Add(new DisplayPresetData
+                {
+                    Uuid = key,
+                    Name = entry.EffectiveVersion is { } v ? $"Supervanilla RTX v{v}" : entry.Name,
+                    IsDownloaded = false,
+                    DownloadKey = key,
+                    DownloadAction = ct => _manager.DownloadSupervanillaIndexEntryAsync(entry, ct),
+                    Subtitle = entry.Date is { } date ? $"Released {date} - click to download" : null
+                });
+            }
+        }
+#pragma warning restore CS0162
+
+        var imports = (_manager.SupervanillaPresets ?? new List<LocalPresetData>())
+            .Where(p => p.Supervanilla is not { Kind: not SupervanillaKind.Import })
+            .Select(p => FromLocal(p, p.Name, subtitle: null, deletable: true));
+        rows.AddRange(SmartPresetSorter.SafeOrderByName(imports, p => p.Name));
+
+        return rows;
+    }
+
+    /// <summary>"Supervanilla RTX v1.26.40.56" when the build's version is known, its manifest name otherwise.</summary>
+    private static string SupervanillaBuildName(LocalPresetData preset) =>
+        preset.Supervanilla?.Version is { } version ? $"Supervanilla RTX v{version}" : preset.Name ?? "Supervanilla RTX";
+
+    private static DisplayPresetData FromLocal(LocalPresetData preset, string? name, string? subtitle, bool deletable) => new()
+    {
+        Uuid = preset.Uuid,
+        Name = name,
+        IsDownloaded = true,
+        IsCustomImport = deletable,
+        Icon = preset.Icon,
+        PresetPath = preset.PresetPath,
+        BinFiles = preset.BinFiles,
+        FileHashes = preset.FileHashes,
+        Subtitle = subtitle
+    };
+
+    /// <summary>
+    /// The BetterRTX section: every API preset merged with what is on disk, downloaded ones first,
+    /// then every BetterRTX import the API doesn't list. Reads <see cref="ShaderModManager.LocalPresets"/>
+    /// only, which by construction holds no Supervanilla RTX folder.
+    /// </summary>
+    private List<DisplayPresetData> BuildBetterRTXRows()
+    {
+        var apiPresets = _manager.ApiPresets ?? new List<ApiPresetData>();
+        var localPresets = _manager.LocalPresets ?? new Dictionary<string, LocalPresetData>();
+
+        var downloadedPresets = new List<DisplayPresetData>();
+        var notDownloadedPresets = new List<DisplayPresetData>();
+        var seenUuids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // First, process API presets
+        foreach (var apiPreset in apiPresets)
+        {
+            if (string.IsNullOrEmpty(apiPreset.Uuid)) continue;    // skip malformed entries
+
+            seenUuids.Add(apiPreset.Uuid);
+
+            if (localPresets.TryGetValue(apiPreset.Uuid, out var localPreset))
+            {
+                downloadedPresets.Add(new DisplayPresetData
+                {
+                    Uuid = apiPreset.Uuid,
+                    Name = localPreset.Name,
+                    IsDownloaded = true,
+                    IsCustomImport = false,
+                    Icon = localPreset.Icon,
+                    PresetPath = localPreset.PresetPath,
+                    BinFiles = localPreset.BinFiles,
+                    FileHashes = localPreset.FileHashes
+                });
+            }
+            else
+            {
+                var uuid = apiPreset.Uuid;
+                notDownloadedPresets.Add(new DisplayPresetData
+                {
+                    Uuid = uuid,
+                    Name = apiPreset.Name,
+                    IsDownloaded = false,
+                    DownloadKey = uuid,
+                    DownloadAction = ct => _manager.DownloadPresetAsync(uuid, ct)
+                });
+            }
+        }
+
+        // Second, add any local presets that weren't in the API list
+        foreach (var localPreset in localPresets.Values)
+        {
+            if (string.IsNullOrEmpty(localPreset.Uuid)) continue;   // skip malformed entries
+
+            if (!seenUuids.Contains(localPreset.Uuid))
+            {
+                downloadedPresets.Add(new DisplayPresetData
+                {
+                    Uuid = localPreset.Uuid,
+                    Name = localPreset.Name,
+                    IsDownloaded = true,
+                    IsCustomImport = true,
+                    Icon = localPreset.Icon,
+                    PresetPath = localPreset.PresetPath,
+                    BinFiles = localPreset.BinFiles,
+                    FileHashes = localPreset.FileHashes
+                });
+            }
+        }
+
+        // Sort each list alphabetically, downloaded first
+        return SmartPresetSorter.SafeOrderByName(downloadedPresets, p => p.Name)
+            .Concat(SmartPresetSorter.SafeOrderByName(notDownloadedPresets, p => p.Name))
+            .ToList();
+    }
+
+    /// <summary>What the BetterRTX section says when it has nothing to list.</summary>
+    private string DescribeEmptyBetterRTX()
+    {
+        int apiCount = _manager.ApiPresets?.Count ?? 0;
+        int localCount = _manager.LocalPresets?.Count ?? 0;
+
+        Trace.WriteLine($"[ShaderMods] 📊 BetterRTX section empty - API: {apiCount}, Local: {localCount}");
+
+        if (apiCount == 0 && localCount == 0)
+        {
+            return File.Exists(_manager.ApiCachePath)
+                // Cache exists but is empty/corrupt
+                ? "No BetterRTX presets available. The preset list may be corrupted, try clicking the Refresh button in the top left corner."
+                // No cache, probably offline
+                : "No BetterRTX presets available. An internet connection is required to fetch BetterRTX preset information.\n" +
+                  "You may still import and install custom presets (.rtpack) even without an internet connection.";
+        }
+
+        // We have data but nothing to display (edge case)
+        return "No BetterRTX presets could be displayed. Try clicking the Refresh button in the top left corner.";
+    }
+
+    /// <summary>
+    /// A section's heading: its name centred on a hairline that runs the width of the list, so it
+    /// reads as a divider while scrolling past it rather than as one more row. Code-built like the
+    /// rows around it, so its colours come from App.xaml's Themed styles (CLAUDE.md §6, "Theme
+    /// colours on code-built elements").
+    /// </summary>
+    private static FrameworkElement CreateSectionHeader(string title)
+    {
+        var grid = new Grid { Margin = new Thickness(0, 10, 0, 2), ColumnSpacing = 14 };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        FrameworkElement Rule(int column)
+        {
+            var rule = new Border
+            {
+                Height = 1,
+                VerticalAlignment = VerticalAlignment.Center,
+                Style = (Style)Application.Current.Resources["ThemedDividerRuleStyle"]
+            };
+            Grid.SetColumn(rule, column);
+            return rule;
+        }
+
+        var label = new TextBlock
+        {
+            Text = title,
+            FontSize = 13,
+            FontWeight = FontWeights.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center,
+            IsTextScaleFactorEnabled = false,
+            Style = (Style)Application.Current.Resources["ThemedSecondaryTextStyle"]
+        };
+        Grid.SetColumn(label, 1);
+
+        grid.Children.Add(Rule(0));
+        grid.Children.Add(label);
+        grid.Children.Add(Rule(2));
+        return grid;
+    }
+
+    /// <summary>A line of explanation inside a section that has no rows to show.</summary>
+    private static FrameworkElement CreateSectionNote(string text) => new TextBlock
+    {
+        Text = text,
+        FontSize = 13,
+        TextWrapping = TextWrapping.Wrap,
+        TextAlignment = TextAlignment.Center,
+        HorizontalAlignment = HorizontalAlignment.Center,
+        Margin = new Thickness(24, 4, 24, 8),
+        IsTextScaleFactorEnabled = false,
+        Style = (Style)Application.Current.Resources["ThemedSecondaryTextStyle"]
+    };
 
     private FrameworkElement CreatePresetButton(object presetData, Dictionary<string, string> currentInstalledHashes, bool isDefault)
     {
@@ -822,7 +1000,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
             uuid = localPreset.Uuid ?? "";
 
             // Compare ALL hashes to see if it is current
-            if (localPreset.FileHashes != null && BetterRTXManager.AreHashesMatching(currentInstalledHashes, localPreset.FileHashes))
+            if (localPreset.FileHashes != null && ShaderModManager.AreHashesMatching(currentInstalledHashes, localPreset.FileHashes))
             {
                 isCurrent = true;
             }
@@ -837,13 +1015,13 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
             isDownloaded = displayPreset.IsDownloaded;
             isCustomImport = displayPreset.IsCustomImport;
             name = displayPreset.Name ?? "";
-            uuid = displayPreset.Uuid ?? "";
+            uuid = displayPreset.DownloadKey ?? displayPreset.Uuid ?? "";
             icon = displayPreset.Icon;
 
             // Dynamic description based on download status
             if (isDownloaded)
             {
-                if (displayPreset.FileHashes != null && BetterRTXManager.AreHashesMatching(currentInstalledHashes, displayPreset.FileHashes))
+                if (displayPreset.FileHashes != null && ShaderModManager.AreHashesMatching(currentInstalledHashes, displayPreset.FileHashes))
                 {
                     isCurrent = true;
                     description = Helpers.SanitizePathForDisplay(displayPreset.PresetPath ?? "");
@@ -851,7 +1029,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
                 else
                 {
                     isCurrent = false;
-                    description = "Click to install";
+                    description = displayPreset.Subtitle ?? "Click to install";
                 }
             }
             else
@@ -867,7 +1045,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
                 {
                     DownloadStatus.Queued => "In queue",
                     DownloadStatus.Downloading => "Download in progress...",
-                    _ => "Click to download"
+                    _ => displayPreset.Subtitle ?? "Click to download"
                 };
             }
         }
@@ -1033,8 +1211,8 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
         if (!_defaultReady)
             button.IsEnabled = false;
 
-        // Delete button: only for custom-imported presets that aren't __DEFAULT and aren't the
-        // one currently installed. Built as a sibling "fake split button" next to the main
+        // Delete button: only for imported presets - either provider's - that aren't __DEFAULT
+        // and aren't the one currently installed. Built as a sibling "fake split button" next to the main
         // button rather than floating on top of it - see CreateSplitSeamPiece below.
         if (!showDeleteButton || presetData is not DisplayPresetData deletablePreset)
             return button;
@@ -1143,18 +1321,56 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
     #region custom preset handlers
 
     /// <summary>
-    /// <summary>
-    /// Names the address the Create button opens, in its own label and its tooltip. Read once
-    /// at construction from the same <see cref="Links"/> accessor the click uses, so the two
-    /// cannot say different things - which is exactly what they did while the label was a
-    /// literal in XAML and the address was a setting.
+    /// Names the address each in-app-browser button opens, in its own label (and for Create, its
+    /// tooltip). Read once at construction from the same source the click uses, so the two cannot
+    /// say different things - which is exactly what they did while the label was a literal in XAML
+    /// and the address was a setting.
     /// </summary>
-    private void ShowBrowseTarget()
+    private void ShowBrowseTargets()
     {
         CreatePresetTargetText.Text = $"Visit {EnvironmentVariables.LinkLabel(Links.BetterRtxCreator, includePath: true)}";
         ToolTipService.SetToolTip(CreatePresetLink,
             $"Browse {EnvironmentVariables.LinkLabel(Links.BetterRtxCreator, includePath: true)} right here - " +
-            "build a preset and it will be imported automatically when you close it.");
+            "build a BetterRTX preset and it will be imported automatically when you close it.");
+
+        var supervanillaPage = EnvironmentVariables.LinkLabel(ShaderModManager.SupervanillaDownloadsPageUrl, includePath: false);
+        SupervanillaDownloadsTargetText.Text = $"Visit {supervanillaPage}";
+        ToolTipService.SetToolTip(SupervanillaDownloadsButton,
+            $"Browse every Supervanilla RTX build on {supervanillaPage}, for any game version, right here - " +
+            "whatever you download is imported automatically when you click Done.");
+    }
+
+    /// <summary>
+    /// The way to every Supervanilla RTX build the Get latest row doesn't offer - older ones for an
+    /// older game, mostly. Same flow as Create your own preset, onto the site's minimal
+    /// <c>?app</c> layout; the difference is that everything downloaded there is Supervanilla RTX
+    /// by construction, so the import is told so rather than left to guess from the file name.
+    /// </summary>
+    private void SupervanillaDownloadsButton_Click(object sender, RoutedEventArgs e)
+    {
+        WebImportOverlay.Show(
+            url: ShaderModManager.SupervanillaDownloadsPageUrl,
+            title: "Supervanilla RTX downloads",
+            glyph: "\uE81C",
+            guideText: "Download the Supervanilla RTX build for the game version you play. Once it downloads, click Done; It'll auto-import & you can install it.",
+            stagingTag: "Supervanilla",
+            watchedExtensions: ShaderModManager.SupportedCustomPresetExtensions,
+            onFilesReady: files => ImportCustomPresetsAsync(files, forceSupervanilla: true));
+    }
+
+    /// <summary>
+    /// Paints the two bevels the Supervanilla RTX button owns: accented while it is enabled, and the
+    /// dimmed resting colour while it isn't - the same rule MainWindow's Preview toggle follows, so
+    /// the seams never claim a state the button between them isn't in. Its neighbours' own edges
+    /// are plain ThemeResources in the XAML and need nothing from here.
+    /// </summary>
+    private void ApplySupervanillaButtonBevels(ElementTheme theme)
+    {
+        var enabled = SupervanillaDownloadsButton.IsEnabled;
+        SupervanillaLeftBevel.BorderBrush = new SolidColorBrush(
+            ThemeService.GetBevelColor(theme, ThemeService.BevelEdge.Left, accented: true, isEnabled: enabled));
+        SupervanillaRightBevel.BorderBrush = new SolidColorBrush(
+            ThemeService.GetBevelColor(theme, ThemeService.BevelEdge.Right, accented: true, isEnabled: enabled));
     }
 
     /// <summary>
@@ -1179,8 +1395,8 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
             glyph: "",
             guideText: "Once you've customized your preset, click Export, build and export as .rtpack. Once it downloads, click Done; It'll auto-import & you can install it.",
             stagingTag: "BetterRTX",
-            watchedExtensions: BetterRTXManager.SupportedCustomPresetExtensions,
-            onFilesReady: ImportCustomPresetsAsync);
+            watchedExtensions: ShaderModManager.SupportedCustomPresetExtensions,
+            onFilesReady: files => ImportCustomPresetsAsync(files));
     }
 
     private async void AddPresetButton_Click(object sender, RoutedEventArgs e)
@@ -1191,7 +1407,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
             var hWnd = WindowHandle;
             InitializeWithWindow.Initialize(picker, hWnd);
 
-            foreach (var ext in BetterRTXManager.SupportedCustomPresetExtensions)
+            foreach (var ext in ShaderModManager.SupportedCustomPresetExtensions)
                 picker.FileTypeFilter.Add(ext);
 
             var files = await picker.PickMultipleFilesAsync();
@@ -1201,7 +1417,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"[BetterRTX] [CustomImport] Error browsing for preset file(s): {ex.Message}");
+            Trace.WriteLine($"[ShaderMods] [CustomImport] Error browsing for preset file(s): {ex.Message}");
         }
     }
     private async void AddPresetButton_DragOver(object sender, DragEventArgs e)
@@ -1217,12 +1433,12 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
 
             var items = await e.DataView.GetStorageItemsAsync();
             bool hasSupportedFile = items.OfType<StorageFile>()
-                .Any(f => BetterRTXManager.SupportedCustomPresetExtensions.Contains(Path.GetExtension(f.Path), StringComparer.OrdinalIgnoreCase));
+                .Any(f => ShaderModManager.SupportedCustomPresetExtensions.Contains(Path.GetExtension(f.Path), StringComparer.OrdinalIgnoreCase));
 
             if (hasSupportedFile)
             {
                 e.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
-                e.DragUIOverride.Caption = "Add as BetterRTX preset(s)";
+                e.DragUIOverride.Caption = "Add as shader preset(s)";
                 e.DragUIOverride.IsGlyphVisible = true;
             }
             else
@@ -1234,7 +1450,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"[BetterRTX] [CustomImport] Error evaluating drag-over content: {ex.Message}");
+            Trace.WriteLine($"[ShaderMods] [CustomImport] Error evaluating drag-over content: {ex.Message}");
             e.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.None;
         }
         finally
@@ -1260,7 +1476,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
         {
             var items = await e.DataView.GetStorageItemsAsync();
             bool hasSupportedFile = items.OfType<StorageFile>()
-                .Any(f => BetterRTXManager.SupportedCustomPresetExtensions.Contains(Path.GetExtension(f.Path), StringComparer.OrdinalIgnoreCase));
+                .Any(f => ShaderModManager.SupportedCustomPresetExtensions.Contains(Path.GetExtension(f.Path), StringComparer.OrdinalIgnoreCase));
 
             if (hasSupportedFile && token == _addPresetDragToken)
             {
@@ -1269,7 +1485,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"[BetterRTX] [CustomImport] Error on drag enter: {ex.Message}");
+            Trace.WriteLine($"[ShaderMods] [CustomImport] Error on drag enter: {ex.Message}");
         }
         finally
         {
@@ -1299,7 +1515,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
 
             if (!e.DataView.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.StorageItems))
             {
-                Trace.WriteLine("[BetterRTX] [CustomImport] Drop event carried no storage items");
+                Trace.WriteLine("[ShaderMods] [CustomImport] Drop event carried no storage items");
                 return;
             }
 
@@ -1310,7 +1526,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
 
             if (filePaths.Count == 0)
             {
-                Trace.WriteLine("[BetterRTX] [CustomImport] Drop contained no usable files");
+                Trace.WriteLine("[ShaderMods] [CustomImport] Drop contained no usable files");
                 return;
             }
 
@@ -1320,7 +1536,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"[BetterRTX] [CustomImport] Error handling dropped file(s): {ex.Message}");
+            Trace.WriteLine($"[ShaderMods] [CustomImport] Error handling dropped file(s): {ex.Message}");
         }
         finally
         {
@@ -1333,7 +1549,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
 
         if (string.IsNullOrEmpty(preset.PresetPath) || !Directory.Exists(preset.PresetPath))
         {
-            Trace.WriteLine($"[BetterRTX] [Delete] ✗ Preset path missing or already gone: {preset.PresetPath}");
+            Trace.WriteLine($"[ShaderMods] [Delete] ✗ Preset path missing or already gone: {preset.PresetPath}");
             return;
         }
 
@@ -1344,8 +1560,9 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
 
             lock (_downloadStatusLock)
             {
-                if (!string.IsNullOrEmpty(preset.Uuid))
-                    _downloadStatuses.Remove(preset.Uuid);
+                var key = preset.DownloadKey ?? preset.Uuid;
+                if (!string.IsNullOrEmpty(key))
+                    _downloadStatuses.Remove(key);
             }
 
             await _manager.LoadLocalPresetsAsync();
@@ -1353,31 +1570,31 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"[BetterRTX] [Delete] ✗ Error refreshing after delete of \"{preset.Name}\": {ex.Message}");
+            Trace.WriteLine($"[ShaderMods] [Delete] ✗ Error refreshing after delete of \"{preset.Name}\": {ex.Message}");
         }
     }
     #endregion
 
 
-    private void EnqueueDownload(string uuid, string name)
+    private void EnqueueDownload(string key, string name, Func<CancellationToken, Task<bool>> download)
     {
         // Check if already in queue or downloading
         lock (_downloadStatusLock)
         {
-            if (_downloadStatuses.ContainsKey(uuid))
+            if (_downloadStatuses.ContainsKey(key))
             {
-                Trace.WriteLine($"[BetterRTX] ⚠ Already queued or downloading: {name}");
+                Trace.WriteLine($"[ShaderMods] ⚠ Already queued or downloading: {name}");
                 return;
             }
 
-            Trace.WriteLine($"[BetterRTX] ➕ Queued download: {name}");
+            Trace.WriteLine($"[ShaderMods] ➕ Queued download: {name}");
 
             // Mark as queued
-            _downloadStatuses[uuid] = DownloadStatus.Queued;
+            _downloadStatuses[key] = DownloadStatus.Queued;
         }
 
         // Add to queue
-        _downloadQueue.Enqueue(new DownloadQueueItem { Uuid = uuid, Name = name });
+        _downloadQueue.Enqueue(new DownloadQueueItem { Key = key, Name = name, Download = download });
 
         // Refresh UI to show "Queued" status
         _ = this.DispatcherQueue.EnqueueAsync(async () => await DisplayPresetsAsync());
@@ -1395,20 +1612,20 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
             return;
 
         _isProcessingQueue = true;
-        Trace.WriteLine("[BetterRTX] ▶ Starting download queue processor");
+        Trace.WriteLine("[ShaderMods] ▶ Starting download queue processor");
 
         try
         {
             while (_downloadQueue.Count > 0)
             {
                 var item = _downloadQueue.Dequeue();
-                Trace.WriteLine($"[BetterRTX] 🔽 Processing download: {item.Name} (Queue: {_downloadQueue.Count} remaining)");
+                Trace.WriteLine($"[ShaderMods] 🔽 Processing download: {item.Name} (Queue: {_downloadQueue.Count} remaining)");
 
                 // Update status to downloading
                 lock (_downloadStatusLock)
                 {
-                    if (item.Uuid != null)
-                        _downloadStatuses[item.Uuid] = DownloadStatus.Downloading;
+                    if (item.Key != null)
+                        _downloadStatuses[item.Key] = DownloadStatus.Downloading;
                 }
                 await this.DispatcherQueue.EnqueueAsync(async () => await DisplayPresetsAsync());
 
@@ -1416,17 +1633,17 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
                 await Task.Delay(2000);
 
                 // Download
-                var success = item.Uuid != null && await _manager.DownloadPresetAsync(item.Uuid, _closingCts.Token);
+                var success = item.Key != null && item.Download != null && await item.Download(_closingCts.Token);
 
                 if (success)
                 {
-                    Trace.WriteLine($"[BetterRTX] ✓ Download complete: {item.Name}");
+                    Trace.WriteLine($"[ShaderMods] ✓ Download complete: {item.Name}");
 
                     // Mark as downloaded and remove from status tracking
                     lock (_downloadStatusLock)
                     {
-                        if (item.Uuid != null)
-                            _downloadStatuses.Remove(item.Uuid);
+                        if (item.Key != null)
+                            _downloadStatuses.Remove(item.Key);
                     }
 
                     // Reload local presets and refresh UI
@@ -1435,13 +1652,13 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
                 }
                 else
                 {
-                    Trace.WriteLine($"[BetterRTX] ✗ Download failed: {item.Name}");
+                    Trace.WriteLine($"[ShaderMods] ✗ Download failed: {item.Name}");
 
                     // Remove from status (will show download button again)
                     lock (_downloadStatusLock)
                     {
-                        if (item.Uuid != null)
-                            _downloadStatuses.Remove(item.Uuid);
+                        if (item.Key != null)
+                            _downloadStatuses.Remove(item.Key);
                     }
                     await this.DispatcherQueue.EnqueueAsync(async () => await DisplayPresetsAsync());
                 }
@@ -1449,19 +1666,19 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
                 // Wait a bit between downloads to be nice to the api
                 if (_downloadQueue.Count > 0)
                 {
-                    Trace.WriteLine("[BetterRTX] ⏱ Waiting 3 seconds before next download...");
+                    Trace.WriteLine("[ShaderMods] ⏱ Waiting 3 seconds before next download...");
                     await Task.Delay(1500);
                 }
             }
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"[BetterRTX] ✗ Error in download queue processor: {ex.Message}");
+            Trace.WriteLine($"[ShaderMods] ✗ Error in download queue processor: {ex.Message}");
         }
         finally
         {
             _isProcessingQueue = false;
-            Trace.WriteLine("[BetterRTX] ⏹ Download queue processor stopped");
+            Trace.WriteLine("[ShaderMods] ⏹ Download queue processor stopped");
         }
     }
 
@@ -1469,7 +1686,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
     /// Reloads and redisplays the local presets list - the same pair of calls
     /// ImportCustomPresetsAsync makes after its own import loop. Exposed so MainWindow can
     /// call it on an already-open manager once a headless .rtpack file-activation
-    /// import lands (see MainWindow.ImportBetterRTXPresetFilesAsync,
+    /// import lands (see MainWindow.ImportShaderModPresetFilesAsync,
     /// ImportPresetFilesHeadlessAsync above) - otherwise this module's list would keep
     /// showing what was installed before that import until closed and reopened.
     /// </summary>
@@ -1480,7 +1697,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
     }
 
     /// <summary>
-    /// Handed to <see cref="BetterRTXManager.DownloadTrackingReset"/>: a soft wipe has just
+    /// Handed to <see cref="ShaderModManager.DownloadTrackingReset"/>: a soft wipe has just
     /// deleted the folders anything queued was headed for.
     /// </summary>
     private void ClearDownloadTracking()
@@ -1503,16 +1720,20 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
     public Task ImportActivatedFilesAsync(IReadOnlyList<string> paths) =>
         ImportCustomPresetsAsync(paths);
 
-    // Bulk operation wrapper for custom preset imports
-    private async Task ImportCustomPresetsAsync(IEnumerable<string> filePaths)
+    /// <summary>
+    /// Bulk wrapper around <see cref="ShaderModManager.ImportCustomPresetAsync"/> for every route a
+    /// file comes in by. <paramref name="forceSupervanilla"/> is for the one route that knows its
+    /// files are Supervanilla RTX - the downloads page - rather than leaving it to their names.
+    /// </summary>
+    private async Task ImportCustomPresetsAsync(IEnumerable<string> filePaths, bool forceSupervanilla = false)
     {
         var candidates = filePaths
-            .Where(p => BetterRTXManager.SupportedCustomPresetExtensions.Contains(Path.GetExtension(p), StringComparer.OrdinalIgnoreCase))
+            .Where(p => ShaderModManager.SupportedCustomPresetExtensions.Contains(Path.GetExtension(p), StringComparer.OrdinalIgnoreCase))
             .ToList();
 
         if (candidates.Count == 0)
         {
-            Trace.WriteLine($"[BetterRTX] [CustomImport] No supported preset files ({string.Join("/", BetterRTXManager.SupportedCustomPresetExtensions)}) in selection");
+            Trace.WriteLine($"[ShaderMods] [CustomImport] No supported preset files ({string.Join("/", ShaderModManager.SupportedCustomPresetExtensions)}) in selection");
             return;
         }
 
@@ -1523,11 +1744,11 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
         int successCount = 0;
         foreach (var path in candidates)
         {
-            var (ok, _) = await _manager.ImportCustomPresetAsync(path);
+            var (ok, _) = await _manager.ImportCustomPresetAsync(path, forceSupervanilla);
             if (ok) successCount++;
         }
 
-        Trace.WriteLine($"[BetterRTX] [CustomImport] Imported {successCount}/{candidates.Count} preset(s) successfully");
+        Trace.WriteLine($"[ShaderMods] [CustomImport] Imported {successCount}/{candidates.Count} preset(s) successfully");
 
         await _manager.LoadLocalPresetsAsync();
         await DisplayPresetsAsync();
@@ -1552,7 +1773,8 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
                     if (!displayPreset.IsDownloaded)
                     {
                         // Trigger download by adding to queue
-                        EnqueueDownload(displayPreset.Uuid ?? "", displayPreset.Name ?? "");
+                        if (displayPreset.DownloadKey is { } key && displayPreset.DownloadAction is { } download)
+                            EnqueueDownload(key, displayPreset.Name ?? "", download);
                         return;
                     }
                     else
@@ -1578,7 +1800,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
                     // deliberate - there is no state here that can be left stuck.
                     if (_applyInProgress)
                     {
-                        Trace.WriteLine("[BetterRTX] A preset is already being applied - ignoring this click");
+                        Trace.WriteLine("[ShaderMods] A preset is already being applied - ignoring this click");
                         return;
                     }
 
@@ -1614,7 +1836,7 @@ public sealed partial class BetterRTXManagerOverlay : ModuleOverlay, Core.FileAc
             }
             catch (Exception ex)
             {
-                Trace.WriteLine($"[BetterRTX] Error applying preset: {ex.Message}");
+                Trace.WriteLine($"[ShaderMods] Error applying preset: {ex.Message}");
             }
         }
     }

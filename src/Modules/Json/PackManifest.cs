@@ -37,7 +37,7 @@ public sealed class ManifestModule
 /// <summary>
 /// The app's single reader for Minecraft Bedrock pack manifests.
 ///
-/// <para><b>Why.</b> PackLocator, PackUpdater, PackBrowserOverlay, ExpImpDel, BetterRTXManager
+/// <para><b>Why.</b> PackLocator, PackUpdater, PackBrowserOverlay, ExpImpDel, ShaderModManager
 /// and Alchitex each grew their own parser as the app grew, each covering the subset of fields
 /// it happened to need and each disagreeing slightly about leniency, about where a legacy
 /// manifest keeps its UUID, and about what an unparseable file means. This class is the union

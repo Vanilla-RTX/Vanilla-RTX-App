@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Vanilla_RTX_App.Modules.BetterRTX;
+using Vanilla_RTX_App.Modules.ShaderMods;
 using Vanilla_RTX_App.Modules.LUT;
 using static Vanilla_RTX_App.Core.EnvironmentVariables;
 
@@ -28,7 +28,7 @@ public enum RTXDefaultsGuard
 }
 
 /// <summary>
-/// QoL safety net for the "hard wipe" button. BetterRTX and RTX LUT both keep a
+/// QoL safety net for the "hard wipe" button. The shader mod manager and RTX LUT both keep a
 /// Default preset backup used to restore the game's original files - but that backup
 /// lives in local storage, which the reset button wipes. If the game currently has a
 /// non-default preset installed when that happens, the user loses their only path back
@@ -39,7 +39,7 @@ public enum RTXDefaultsGuard
 public static class DefaultsGuard
 {
     /// <summary>
-    /// Runs the BetterRTX check for <b>both</b> editions, since each keeps its own Default
+    /// Runs the shader mod check for <b>both</b> editions, since each keeps its own Default
     /// backup and the wipe is about to take both with it. The LUT guard is called once per
     /// edition from the call site instead; this one answers for the feature as a whole
     /// because its two backups live in one cache folder and are cleared by one wipe.
@@ -49,10 +49,10 @@ public static class DefaultsGuard
     /// edition logs under its own label, so the combined verdict never hides which one it
     /// came from. Each dirty edition costs one UAC prompt.</para>
     /// </summary>
-    public static async Task<RTXDefaultsGuard> RestoreBetterRTXDefaultIfNeededAsync(Action<string>? log = null)
+    public static async Task<RTXDefaultsGuard> RestoreShaderModDefaultIfNeededAsync(Action<string>? log = null)
     {
-        var release = await RestoreBetterRTXDefaultForEditionAsync(targetPreview: false, log);
-        var preview = await RestoreBetterRTXDefaultForEditionAsync(targetPreview: true, log);
+        var release = await RestoreShaderModDefaultForEditionAsync(targetPreview: false, log);
+        var preview = await RestoreShaderModDefaultForEditionAsync(targetPreview: true, log);
 
         if (release == RTXDefaultsGuard.RestoreFailed || preview == RTXDefaultsGuard.RestoreFailed)
             return RTXDefaultsGuard.RestoreFailed;
@@ -66,18 +66,18 @@ public static class DefaultsGuard
         return RTXDefaultsGuard.NoActionNeeded;
     }
 
-    // Folder layout comes from BetterRTXManager rather than being spelled again here: this
+    // Folder layout comes from ShaderModManager rather than being spelled again here: this
     // guard protects that feature's backup, so it has to resolve the same folder permanently.
     // A local copy of "RTX_Cache" / "__DEFAULT" silently stops matching the moment the
     // manager's layout changes - a new edition, a renamed folder - and guards nothing.
-    private static async Task<RTXDefaultsGuard> RestoreBetterRTXDefaultForEditionAsync(bool targetPreview, Action<string>? log)
+    private static async Task<RTXDefaultsGuard> RestoreShaderModDefaultForEditionAsync(bool targetPreview, Action<string>? log)
     {
-        var tag = $"[BetterRTX Guard{(targetPreview ? " Preview" : "")}]";
+        var tag = $"[ShaderMods Guard{(targetPreview ? " Preview" : "")}]";
 
         try
         {
-            var defaultFolder = BetterRTXManager.GetDefaultFolderPath(targetPreview);
-            var folderName = BetterRTXManager.GetDefaultFolderName(targetPreview);
+            var defaultFolder = ShaderModManager.GetDefaultFolderPath(targetPreview);
+            var folderName = ShaderModManager.GetDefaultFolderName(targetPreview);
 
             if (defaultFolder == null || !Directory.Exists(defaultFolder))
             {
@@ -106,8 +106,8 @@ public static class DefaultsGuard
                 return RTXDefaultsGuard.Skipped;
             }
 
-            var defaultHashes = BetterRTXManager.GetPresetHashes(defaultBinFiles);
-            var currentHashes = BetterRTXManager.GetCurrentlyInstalledHashes(gameMaterialsPath);
+            var defaultHashes = ShaderModManager.GetPresetHashes(defaultBinFiles);
+            var currentHashes = ShaderModManager.GetCurrentlyInstalledHashes(gameMaterialsPath);
 
             if (currentHashes.Count == 0)
             {
@@ -115,7 +115,7 @@ public static class DefaultsGuard
                 return RTXDefaultsGuard.Skipped;
             }
 
-            if (BetterRTXManager.AreHashesMatching(currentHashes, defaultHashes))
+            if (ShaderModManager.AreHashesMatching(currentHashes, defaultHashes))
             {
                 log?.Invoke($"{tag} Game already matches Default - nothing to do.");
                 return RTXDefaultsGuard.NoActionNeeded;

@@ -113,7 +113,7 @@ public static class EnvironmentVariables
         /// <summary>Where the DLSS swapper's in-app browser goes to download runtimes.</summary>
         public const string DlssProviderUrl = "https://www.techpowerup.com/download/nvidia-dlss-dll";
 
-        /// <summary>Where the BetterRTX manager's in-app browser goes to build a custom preset.</summary>
+        /// <summary>Where the shader mod manager's in-app browser goes to build a custom BetterRTX preset.</summary>
         public const string BetterRtxCreatorUrl = "https://bedrock.graphics/creator";
     }
 
