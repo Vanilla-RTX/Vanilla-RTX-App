@@ -790,6 +790,13 @@
         "sss": {
             "min": 8,
             "max": 183
+        },
+        "heightmap": {
+            "intensity": 0.1
+        },
+        "normal": {
+            "intensity": 0.05,
+            "padding_type": "colorfill"
         }
     },
     "cactus_bottom": {
@@ -809,6 +816,13 @@
         "sss": {
             "min": 128,
             "max": 204
+        },
+        "heightmap": {
+            "intensity": 0.1
+        },
+        "normal": {
+            "intensity": 0.05,
+            "padding_type": "colorfill"
         }
     },
     "cactus_side": {
@@ -6351,6 +6365,13 @@
                 191
             ],
             "strength": 92
+        },
+        "heightmap": {
+            "intensity": 0.1
+        },
+        "normal": {
+            "intensity": 0.05,
+            "padding_type": "colorfill"
         }
     },
     "firefly_bush_firefly": {
@@ -9944,6 +9965,26 @@
             "max": 167
         }
     },
+    "orange_poplar_leaves": {
+        "mer": {
+            "roughness_min": 120,
+            "roughness_max": 196
+        },
+        "sss": {
+            "min": 64,
+            "max": 244
+        }
+    },
+    "orange_poplar_leaves_opaque": {
+        "mer": {
+            "roughness_min": 120,
+            "roughness_max": 196
+        },
+        "sss": {
+            "min": 64,
+            "max": 244
+        }
+    },
     "oxidized_chiseled_copper": {
         "mer": {
             "metal_min": 120,
@@ -10750,6 +10791,56 @@
         },
         "normal": {
             "intensity": 0.1
+        }
+    },
+    "poplar_door_bottom": {
+        "mer": {
+            "roughness_min": 108
+        }
+    },
+    "poplar_door_top": {
+        "mer": {
+            "roughness_min": 108
+        }
+    },
+    "poplar_log_side": {
+        "mer": {
+            "roughness_min": 184,
+            "roughness_max": 253
+        }
+    },
+    "poplar_log_top": {
+        "mer": {
+            "roughness_min": 128,
+            "roughness_max": 241
+        }
+    },
+    "poplar_planks": {
+        "mer": {
+            "roughness_min": 128,
+            "roughness_max": 240
+        }
+    },
+    "poplar_sapling": {
+        "mer": {
+            "roughness_min": 110,
+            "roughness_max": 241
+        },
+        "sss": {
+            "max": 129
+        },
+        "normal": {
+            "padding_type": "colorfill"
+        }
+    },
+    "poplar_shelf": {
+        "mer": {
+            "roughness_min": 108
+        }
+    },
+    "poplar_trapdoor": {
+        "mer": {
+            "roughness_min": 108
         }
     },
     "portal": {
@@ -11676,6 +11767,26 @@
             "roughness_max": 213
         }
     },
+    "red_poplar_leaves": {
+        "mer": {
+            "roughness_min": 120,
+            "roughness_max": 196
+        },
+        "sss": {
+            "min": 64,
+            "max": 244
+        }
+    },
+    "red_poplar_leaves_opaque": {
+        "mer": {
+            "roughness_min": 120,
+            "roughness_max": 196
+        },
+        "sss": {
+            "min": 64,
+            "max": 244
+        }
+    },
     "red_sand": {
         "mer": {
             "roughness_min": 134,
@@ -11722,6 +11833,22 @@
         "mer": {
             "roughness_min": 88,
             "roughness_max": 203
+        }
+    },
+    "red_shrub": {
+        "mer": {
+            "roughness_min": 221
+        },
+        "sss": {
+            "min": 4,
+            "max": 215
+        },
+        "heightmap": {
+            "intensity": 0.1
+        },
+        "normal": {
+            "intensity": 0.05,
+            "padding_type": "colorfill"
         }
     },
     "reeds": {
@@ -12710,6 +12837,24 @@
             "padding_type": "colorfill"
         }
     },
+    "shelf_mushroom_large": {
+        "mer": {
+            "roughness_min": 96,
+            "roughness_max": 174
+        },
+        "sss": {
+            "max": 64
+        }
+    },
+    "shelf_mushroom_small": {
+        "mer": {
+            "roughness_min": 96,
+            "roughness_max": 174
+        },
+        "sss": {
+            "max": 64
+        }
+    },
     "short_dry_grass": {
         "mer": {
             "metal_max": 11,
@@ -13542,6 +13687,14 @@
             "intensity": 0.1
         }
     },
+    "straw_bed": {
+        "mer": {
+            "roughness_min": 166
+        },
+        "sss": {
+            "max": 157
+        }
+    },
     "stripped_acacia_log": {
         "mer": {
             "roughness_min": 132,
@@ -13657,6 +13810,18 @@
         }
     },
     "stripped_pale_oak_log_top": {
+        "mer": {
+            "roughness_min": 128,
+            "roughness_max": 228
+        }
+    },
+    "stripped_poplar_log_side": {
+        "mer": {
+            "roughness_min": 132,
+            "roughness_max": 180
+        }
+    },
+    "stripped_poplar_log_top": {
         "mer": {
             "roughness_min": 128,
             "roughness_max": 228
@@ -15992,6 +16157,26 @@
         "sss": {
             "min": 8,
             "max": 167
+        }
+    },
+    "yellow_poplar_leaves": {
+        "mer": {
+            "roughness_min": 120,
+            "roughness_max": 196
+        },
+        "sss": {
+            "min": 64,
+            "max": 244
+        }
+    },
+    "yellow_poplar_leaves_opaque": {
+        "mer": {
+            "roughness_min": 120,
+            "roughness_max": 196
+        },
+        "sss": {
+            "min": 64,
+            "max": 244
         }
     }
 }
