@@ -75,7 +75,7 @@
                 <RowDefinition Height="Auto" />
                 <!-- Preset list (scrollable) -->
                 <RowDefinition Height="*" />
-                <!-- Add customized preset (fixed) -->
+                <!-- Import manually (fixed) -->
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
@@ -186,7 +186,7 @@
             </ScrollViewer>
 
             <!-- ══════════════════════════════════════════
-                Add customized preset | Supervanilla RTX downloads | Create your own preset
+                Import manually | Supervanilla RTX downloads | Create your own preset
             ═══════════════════════════════════════════ -->
             <Border Grid.Row="2"
                     Margin="0"
@@ -202,7 +202,7 @@
                       HorizontalAlignment="Stretch"
                       VerticalAlignment="Bottom">
                     <Grid.ColumnDefinitions>
-                        <!-- Add customized preset -->
+                        <!-- Import manually -->
                         <ColumnDefinition Width="1.5*" />
                         <!-- Gap 6 px -->
                         <ColumnDefinition Width="6" />
@@ -214,7 +214,7 @@
                         <ColumnDefinition Width="1*" />
                     </Grid.ColumnDefinitions>
 
-                    <!-- ── ADD CUSTOMIZED PRESET ──────────────── -->
+                    <!-- ── Import manually ──────────────── -->
                     <Button x:Name="AddPresetButton"
                             Grid.Column="0"
                             HorizontalAlignment="Stretch"
@@ -253,7 +253,7 @@
 
                             <StackPanel Grid.Column="2"
                                         VerticalAlignment="Center">
-                                <TextBlock Text="Add customized preset (.rtpack)"
+                                <TextBlock Text="Import manually (.rtpack)"
                                            FontWeight="SemiBold"
                                            TextWrapping="NoWrap"
                                            TextTrimming="CharacterEllipsis"
