@@ -996,6 +996,12 @@ public sealed partial class MainWindow : Window
     private const string BugTrackerTitle = "Known Minecraft RTX Bugs & Issues";
 
     /// <summary>
+    /// Where both documents open the first time in a session: their table of contents, the way into
+    /// the rest of the page. A page already read this session reopens where it was left instead.
+    /// </summary>
+    private const string DocumentLandingAnchor = "table-of-contents";
+
+    /// <summary>
     /// The settings panel is closed first if it's open,
     /// then the document opens. <see cref="MarkdownOverlay.Show"/> already handles the
     /// document-to-document case (same URL toggles, a different one swaps), so this only owns
@@ -1006,7 +1012,7 @@ public sealed partial class MainWindow : Window
         if (SettingsPanel.IsOpen)
             SettingsPanel.Hide();
 
-        DocsOverlay.Show(url: Links.Documentation, title: DocumentationTitle, glyph: "");
+        DocsOverlay.Show(url: Links.Documentation, title: DocumentationTitle, glyph: "", landingAnchor: DocumentLandingAnchor);
 
         _ = BlinkingLamp(true, true, 1.0, 0.0);
     }
@@ -1015,7 +1021,7 @@ public sealed partial class MainWindow : Window
         if (SettingsPanel.IsOpen)
             SettingsPanel.Hide();
 
-        DocsOverlay.Show(url: Links.BugTracker, title: BugTrackerTitle, glyph: "");
+        DocsOverlay.Show(url: Links.BugTracker, title: BugTrackerTitle, glyph: "", landingAnchor: DocumentLandingAnchor);
 
         _ = BlinkingLamp(true, true, 1.0, 1.0);
     }
@@ -2416,6 +2422,9 @@ public sealed partial class MainWindow : Window
 }
 
 /* ### BACKLOG/TODO OF HIGHCORTISOLSOFTWARE LLC (STRICTLY CONFIDENTIAL)
+
+- Hook onto game's exe, when it closes, do a blink in app, would be fun and cheap to do, probably
+you're already tracking the process being open to give warnings, so, worth expanding on that and doing it more properly
 
 - Version History integeration
 complete the CHANGELOG.md, append the missing versios' changelogs, put it on the repo, link it in the app, new button in pack updater menu

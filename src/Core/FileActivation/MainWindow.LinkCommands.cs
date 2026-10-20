@@ -174,7 +174,7 @@ public sealed partial class MainWindow
         if (string.Equals(DocsOverlay.ShowingUrl, url, StringComparison.Ordinal)) return;
 
         if (SettingsPanel.IsOpen) SettingsPanel.Hide();
-        DocsOverlay.Show(url: url, title: button == BugButton ? BugTrackerTitle : DocumentationTitle, glyph: "");
+        DocsOverlay.Show(url: url, title: button == BugButton ? BugTrackerTitle : DocumentationTitle, glyph: "", landingAnchor: DocumentLandingAnchor);
     }
 
     /// <summary>

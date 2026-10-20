@@ -106,11 +106,17 @@ public sealed partial class MarkdownOverlay : UserControl
 
     /// <summary>
     /// Set by any wheel, pointer or key input on the page, and by the back-to-top button, so a
-    /// pending <see cref="RestoreScrollOffset"/> knows the reader has taken over. Input rather
+    /// pending <see cref="SettleScroll"/> knows the reader has taken over. Input rather
     /// than the offset is the signal because the offset moves on its own: the viewer keeps its
     /// last value while collapsed, and a re-rendered page clamps it as its images arrive.
     /// </summary>
     private bool _readerScrolled;
+
+    /// <summary>
+    /// The heading a page opens at when it has no saved position - see <see cref="Show"/>. Null
+    /// opens at the top.
+    /// </summary>
+    private string? _landingAnchor;
 
     /// <summary>
     /// True while a fetch is running. The Reload cooldown is armed by the answer rather than by
@@ -199,8 +205,13 @@ public sealed partial class MarkdownOverlay : UserControl
     /// <para>Calling this again with the URL currently showing closes the overlay (a toggle).
     /// Calling it with a different URL while one is open closes the current document first, then
     /// opens the new one - see the class doc.</para>
+    ///
+    /// <para><paramref name="landingAnchor"/> is a heading slug to open at the first time, while
+    /// the page has no saved position this session - a document's table of contents, say. A
+    /// fragment in <paramref name="url"/> outranks both it and the saved position: whoever put
+    /// it there asked for that heading.</para>
     /// </summary>
-    public void Show(string url, string title, string glyph)
+    public void Show(string url, string title, string glyph, string? landingAnchor = null)
     {
         if (_isOpen && string.Equals(_pageUrl, url, StringComparison.Ordinal))
         {
@@ -210,16 +221,17 @@ public sealed partial class MarkdownOverlay : UserControl
 
         if (_isOpen)
         {
-            CloseInternal(() => OpenAndLoad(url, title, glyph));
+            CloseInternal(() => OpenAndLoad(url, title, glyph, landingAnchor));
             return;
         }
 
-        OpenAndLoad(url, title, glyph);
+        OpenAndLoad(url, title, glyph, landingAnchor);
     }
 
-    private void OpenAndLoad(string url, string title, string glyph)
+    private void OpenAndLoad(string url, string title, string glyph, string? landingAnchor)
     {
         _isOpen = true;
+        _landingAnchor = landingAnchor;
 
         Header.SetTitleText(title);
         Header.SetIcon(glyph);
@@ -381,17 +393,22 @@ public sealed partial class MarkdownOverlay : UserControl
             var restore = _restorePositionOnRender;
             _restorePositionOnRender = false;
 
+            // Where the page lands: a heading the URL names (a link asked for it), else where the
+            // reader left this page, else - first open only - the caller's landing heading.
+            // Reload and Try Again re-render without moving anyone, so they take neither of the
+            // last two.
             if (!string.IsNullOrEmpty(_pendingFragment))
             {
                 var slug = _pendingFragment;
                 _pendingFragment = null;
-                // The content isn't laid out yet on this same tick - give it one dispatcher
-                // pass before asking a heading to scroll itself into view.
-                DispatcherQueue.TryEnqueue(() => ScrollToAnchor(slug));
+                SettleScroll(() => AnchorOffset(slug));
             }
             else if (restore)
             {
-                RestoreScrollOffset();
+                if (_scrollOffsets.TryGetValue(_pageUrl, out var saved) && saved > 0.5)
+                    SettleScroll(() => saved);
+                else if (_landingAnchor is { } landing)
+                    SettleScroll(() => AnchorOffset(landing));
             }
         }
         catch (Exception ex)
@@ -414,27 +431,52 @@ public sealed partial class MarkdownOverlay : UserControl
     }
 
     /// <summary>
-    /// Scrolls back to where this page was left, once there is enough page to scroll.
+    /// Where <paramref name="slug"/>'s heading sits in the page, or null until it has been laid
+    /// out - or when the page has no such heading, which <see cref="SettleScroll"/> then waits out
+    /// to its deadline and gives up on.
+    /// </summary>
+    private double? AnchorOffset(string slug)
+    {
+        if (_anchors is null) return null;
+        var decoded = Uri.UnescapeDataString(slug);
+        if (!_anchors.TryGetValue(decoded, out var element) && !_anchors.TryGetValue(slug, out element))
+            return null;
+        if (element.ActualHeight <= 0) return null;
+
+        try
+        {
+            // Relative to the viewport, plus how far it is scrolled: the heading's place in the
+            // whole page, whatever the viewer's offset happens to be right now.
+            var inViewport = element.TransformToVisual(ContentScrollViewer).TransformPoint(new Windows.Foundation.Point(0, 0)).Y;
+            return Math.Max(0, inViewport + ContentScrollViewer.VerticalOffset);
+        }
+        catch (ArgumentException)
+        {
+            return null; // not in the tree yet
+        }
+    }
+
+    /// <summary>
+    /// Scrolls to <paramref name="target"/> - a saved position, or a heading's place - once the
+    /// page is laid out far enough to get there.
     ///
-    /// <para><b>The wait is the whole problem.</b> Freshly rendered markdown is shorter than its
-    /// final height: inline images have no dimensions until they load, so asking for an offset on
-    /// the tick the content is set clamps it to whatever the page is at that moment and lands the
-    /// reader part-way up. Each layout pass is a chance to try again, and the attempt and time
-    /// caps are what stop a page that never grows tall enough - a document edited down since it
-    /// was last read - from leaving a handler subscribed for the session.</para>
+    /// <para><b>The wait is the whole problem.</b> Freshly rendered markdown has not been laid out
+    /// at all on the tick its content is set - the viewer was collapsed while it loaded - and is
+    /// shorter than its final height after that, since inline images have no dimensions until they
+    /// load. Asking for an offset straight away clamps it to whatever the page is at that moment,
+    /// or, for a heading, finds nothing to bring into view. So <paramref name="target"/> is asked
+    /// again on every layout pass until it answers and the page reaches it.</para>
     ///
     /// <para>A reader who scrolls while that is going on has said where they want to be, so the
-    /// restore gives up rather than yanking them somewhere else - judged by their input
+    /// scroll gives up rather than yanking them somewhere else - judged by their input
     /// (<see cref="_readerScrolled"/>), never by the offset, which moves on its own here.</para>
     ///
     /// <para>When the deadline passes first, it goes as far down as the page allows by then
     /// rather than nowhere: a page whose images are slow is still worth landing near the
     /// place.</para>
     /// </summary>
-    private void RestoreScrollOffset()
+    private void SettleScroll(Func<double?> resolveTarget)
     {
-        if (!_scrollOffsets.TryGetValue(_pageUrl, out var target) || target <= 0.5) return;
-
         _readerScrolled = false;
         var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(4);
         var page = _pageUrl;
@@ -449,8 +491,15 @@ public sealed partial class MarkdownOverlay : UserControl
                 return;
             }
 
+            var pastDeadline = DateTime.UtcNow >= deadline;
+            if (resolveTarget() is not double target)
+            {
+                if (pastDeadline) ContentScrollViewer.LayoutUpdated -= OnLayoutUpdated;
+                return;
+            }
+
             var reachable = Math.Max(0, ContentScrollViewer.ExtentHeight - ContentScrollViewer.ViewportHeight);
-            if (reachable + 0.5 < target && DateTime.UtcNow < deadline) return;
+            if (reachable + 0.5 < target && !pastDeadline) return;
 
             ContentScrollViewer.LayoutUpdated -= OnLayoutUpdated;
             ContentScrollViewer.ChangeView(null, Math.Min(target, reachable), null, disableAnimation: true);
