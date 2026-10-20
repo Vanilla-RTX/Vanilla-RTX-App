@@ -665,7 +665,7 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
 
         // Announcements. Falls back to the section's old name while the .md might not carry the
         // new one yet - both are published side by side until older builds have aged out.
-        TeletextCard.Populate(ShaderModsInfoPanel, TeletextContent.ShaderModsInfo ?? TeletextContent.BetterRTXInfo);
+        TeletextCard.Populate(ShaderModsInfoPanel, TeletextContent.ShaderModsInfo);
 
         // Populate can legitimately add nothing (every announcement dismissed), and an
         // empty-but-visible panel still contributes its margin, which reads as an
