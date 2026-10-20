@@ -105,6 +105,14 @@ public sealed partial class MarkdownOverlay : UserControl
     private bool _restorePositionOnRender;
 
     /// <summary>
+    /// Set by any wheel, pointer or key input on the page, and by the back-to-top button, so a
+    /// pending <see cref="RestoreScrollOffset"/> knows the reader has taken over. Input rather
+    /// than the offset is the signal because the offset moves on its own: the viewer keeps its
+    /// last value while collapsed, and a re-rendered page clamps it as its images arrive.
+    /// </summary>
+    private bool _readerScrolled;
+
+    /// <summary>
     /// True while a fetch is running. The Reload cooldown is armed by the answer rather than by
     /// the click, so this is what stops a second click going out behind the first.
     /// </summary>
@@ -168,7 +176,15 @@ public sealed partial class MarkdownOverlay : UserControl
         };
 
         Header.ScrollTopClick += (_, _) =>
+        {
+            _readerScrolled = true;
             ContentScrollViewer.ChangeView(null, 0, null, disableAnimation: AnimationsSuspended);
+        };
+
+        // handledEventsToo: the ScrollViewer marks the very input that scrolls it as handled.
+        ContentScrollViewer.AddHandler(PointerWheelChangedEvent, new PointerEventHandler((_, _) => _readerScrolled = true), true);
+        ContentScrollViewer.AddHandler(PointerPressedEvent, new PointerEventHandler((_, _) => _readerScrolled = true), true);
+        ContentScrollViewer.AddHandler(KeyDownEvent, new KeyEventHandler((_, _) => _readerScrolled = true), true);
 
         Header.CloseClick += (_, _) => Close();
     }
@@ -408,29 +424,33 @@ public sealed partial class MarkdownOverlay : UserControl
     /// was last read - from leaving a handler subscribed for the session.</para>
     ///
     /// <para>A reader who scrolls while that is going on has said where they want to be, so the
-    /// restore gives up rather than yanking them somewhere else.</para>
+    /// restore gives up rather than yanking them somewhere else - judged by their input
+    /// (<see cref="_readerScrolled"/>), never by the offset, which moves on its own here.</para>
+    ///
+    /// <para>When the deadline passes first, it goes as far down as the page allows by then
+    /// rather than nowhere: a page whose images are slow is still worth landing near the
+    /// place.</para>
     /// </summary>
     private void RestoreScrollOffset()
     {
         if (!_scrollOffsets.TryGetValue(_pageUrl, out var target) || target <= 0.5) return;
 
-        var attempts = 0;
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(3);
+        _readerScrolled = false;
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(4);
         var page = _pageUrl;
 
         void OnLayoutUpdated(object? sender, object e)
         {
             // A different document is on screen when the overlay was switched while this waited -
             // its position is not this one's to set.
-            if (!_isOpen || !string.Equals(_pageUrl, page, StringComparison.Ordinal)
-                || ContentScrollViewer.VerticalOffset > 0.5 || DateTime.UtcNow > deadline)
+            if (!_isOpen || _readerScrolled || !string.Equals(_pageUrl, page, StringComparison.Ordinal))
             {
                 ContentScrollViewer.LayoutUpdated -= OnLayoutUpdated;
                 return;
             }
 
             var reachable = Math.Max(0, ContentScrollViewer.ExtentHeight - ContentScrollViewer.ViewportHeight);
-            if (reachable + 0.5 < target && ++attempts < 120) return;
+            if (reachable + 0.5 < target && DateTime.UtcNow < deadline) return;
 
             ContentScrollViewer.LayoutUpdated -= OnLayoutUpdated;
             ContentScrollViewer.ChangeView(null, Math.Min(target, reachable), null, disableAnimation: true);
