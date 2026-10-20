@@ -139,6 +139,9 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
 
     private const double SECTION_FOLD_MS = 220;
 
+    /// <summary>The header chevron's turn while its section is folded: the down glyph, pointing right.</summary>
+    private const double CHEVRON_COLLAPSED_ANGLE = -90;
+
 
     public ShaderModManagerOverlay()
     {
@@ -723,18 +726,20 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
             // already says why and every row below is disabled.
             var defaultPreset = _manager.CreateDefaultPreset();
             if (defaultPreset != null)
-                AddSection(SectionDefault, [CreatePresetButton(defaultPreset, currentHashes, true)]);
+                AddSection(SectionDefault, [CreatePresetButton(defaultPreset, currentHashes, true)], count: null);
 
-            AddSection(SectionSupervanilla, BuildSupervanillaRows()
-                .Select(preset => CreatePresetButton(preset, currentHashes, false))
-                .ToList());
+            var supervanillaRows = BuildSupervanillaRows()
+                .Select(preset => (FrameworkElement)CreatePresetButton(preset, currentHashes, false))
+                .ToList();
+            AddSection(SectionSupervanilla, supervanillaRows, supervanillaRows.Count);
 
             var betterRtxRows = BuildBetterRTXRows()
-                .Select(preset => CreatePresetButton(preset, currentHashes, false))
+                .Select(preset => (FrameworkElement)CreatePresetButton(preset, currentHashes, false))
                 .ToList();
-            if (betterRtxRows.Count == 0)
+            int betterRtxCount = betterRtxRows.Count;
+            if (betterRtxCount == 0)
                 betterRtxRows.Add(CreateSectionNote(DescribeEmptyBetterRTX()));
-            AddSection(SectionBetterRTX, betterRtxRows);
+            AddSection(SectionBetterRTX, betterRtxRows, betterRtxCount);
         }
         catch (Exception ex)
         {
@@ -936,8 +941,12 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
     /// Adds one section to the list: its header, and beneath it a host holding its rows. The host is
     /// what folds - a Grid whose Height is animated, which clips the rows as it shrinks because they
     /// are arranged at their full height inside a slot smaller than it.
+    ///
+    /// <para><paramref name="count"/> is the number of rows the header shows beside the title, so a
+    /// folded section still says what is inside it. Null shows none - Default, which is always
+    /// exactly one row. A section note (an empty section's explanation) is not a row.</para>
     /// </summary>
-    private void AddSection(string title, IReadOnlyList<FrameworkElement> content)
+    private void AddSection(string title, IReadOnlyList<FrameworkElement> content, int? count)
     {
         var body = new StackPanel { Spacing = 12 };
         foreach (var element in content) body.Children.Add(element);
@@ -945,19 +954,21 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
         var host = new Grid();
         host.Children.Add(body);
 
-        if (_collapsedSections.Contains(title))
+        bool collapsed = _collapsedSections.Contains(title);
+        if (collapsed)
             host.Visibility = Visibility.Collapsed;
 
-        var header = CreateSectionHeader(title);
-        header.Click += (_, _) => ToggleSection(title, host, body);
+        var (header, chevron) = CreateSectionHeader(title, count, collapsed);
+        header.Click += (_, _) => ToggleSection(title, host, body, chevron);
 
         PresetListContainer.Children.Add(header);
         PresetListContainer.Children.Add(host);
     }
 
     /// <summary>
-    /// Folds a section away or back out. Animated over <see cref="SECTION_FOLD_MS"/> - height and
-    /// opacity together - unless UI animations are suspended, in which case it snaps.
+    /// Folds a section away or back out. Animated over <see cref="SECTION_FOLD_MS"/> - height,
+    /// opacity and the header's chevron together - unless UI animations are suspended, in which case
+    /// it snaps.
     ///
     /// <para><b>Height is a dependent animation</b> (it re-runs layout every frame, on the UI
     /// thread), which is fine for one short list section and is the only way to make the rows
@@ -969,7 +980,7 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
     /// pin the section at a fixed height forever, and a row added to it by the next download would
     /// be clipped off.</para>
     /// </summary>
-    private void ToggleSection(string title, Grid host, FrameworkElement body)
+    private void ToggleSection(string title, Grid host, FrameworkElement body, RotateTransform chevron)
     {
         bool collapse = !_collapsedSections.Contains(title);
         if (collapse) _collapsedSections.Add(title);
@@ -978,12 +989,15 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
 
         double fromHeight = host.Visibility == Visibility.Visible ? host.ActualHeight : 0;
         double fromOpacity = host.Visibility == Visibility.Visible ? host.Opacity : 0;
+        double fromAngle = chevron.Angle;
+        double toAngle = collapse ? CHEVRON_COLLAPSED_ANGLE : 0;
 
         if (_sectionStoryboards.Remove(title, out var running))
             running.Stop();
 
         if (EnvironmentVariables.Persistent.SuspendUIAnimations)
         {
+            chevron.Angle = toAngle;
             host.Height = double.NaN;
             host.Opacity = 1;
             host.Visibility = collapse ? Visibility.Collapsed : Visibility.Visible;
@@ -1000,6 +1014,7 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
 
         host.Height = fromHeight;
         host.Opacity = fromOpacity;
+        chevron.Angle = fromAngle;
 
         var ease = new QuadraticEase { EasingMode = EasingMode.EaseInOut };
         var duration = new Duration(TimeSpan.FromMilliseconds(SECTION_FOLD_MS));
@@ -1012,9 +1027,14 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
         Storyboard.SetTarget(opacity, host);
         Storyboard.SetTargetProperty(opacity, "Opacity");
 
+        var angle = new DoubleAnimation { From = fromAngle, To = toAngle, Duration = duration, EasingFunction = ease };
+        Storyboard.SetTarget(angle, chevron);
+        Storyboard.SetTargetProperty(angle, "Angle");
+
         var storyboard = new Storyboard();
         storyboard.Children.Add(height);
         storyboard.Children.Add(opacity);
+        storyboard.Children.Add(angle);
         storyboard.Completed += (_, _) =>
         {
             // Superseded by a later click, which has already taken the host over.
@@ -1022,6 +1042,7 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
             _sectionStoryboards.Remove(title);
 
             storyboard.Stop();
+            chevron.Angle = toAngle;
             host.Height = double.NaN;
             host.Opacity = collapse ? 0 : 1;
             host.Visibility = collapse ? Visibility.Collapsed : Visibility.Visible;
@@ -1055,8 +1076,13 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
     /// just the divider and only hover and press say it can be clicked. Code-built like the rows
     /// around it, so its colours come from App.xaml's Themed styles (CLAUDE.md §6, "Theme colours on
     /// code-built elements").
+    ///
+    /// <para>Beside the title sit the row count and a chevron - pointing down while open, right while
+    /// folded. Together they are what tells a folded section from an empty one, and that the divider
+    /// can be clicked at all. The chevron is one down-pointing glyph turned by the returned transform,
+    /// so <see cref="ToggleSection"/> can animate it with the fold rather than swap glyphs.</para>
     /// </summary>
-    private static Button CreateSectionHeader(string title)
+    private static (Button Header, RotateTransform Chevron) CreateSectionHeader(string title, int? count, bool collapsed)
     {
         var grid = new Grid { ColumnSpacing = 14 };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -1084,10 +1110,42 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
             IsTextScaleFactorEnabled = false,
             Style = (Style)Application.Current.Resources["ThemedSecondaryTextStyle"]
         };
-        Grid.SetColumn(label, 1);
+        var chevron = new RotateTransform { Angle = collapsed ? CHEVRON_COLLAPSED_ANGLE : 0 };
+        var chevronIcon = new FontIcon
+        {
+            Glyph = "\uE70D",   // ChevronDown
+            FontSize = 10,
+            VerticalAlignment = VerticalAlignment.Center,
+            RenderTransformOrigin = new Windows.Foundation.Point(0.5, 0.5),
+            RenderTransform = chevron,
+            IsTextScaleFactorEnabled = false
+        };
+
+        var center = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        center.Children.Add(label);
+        if (count is int n)
+        {
+            center.Children.Add(new TextBlock
+            {
+                Text = $"({n})",
+                FontSize = 13,
+                Opacity = 0.75,
+                Margin = new Thickness(-4, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                IsTextScaleFactorEnabled = false,
+                Style = (Style)Application.Current.Resources["ThemedSecondaryTextStyle"]
+            });
+        }
+        center.Children.Add(chevronIcon);
+        Grid.SetColumn(center, 1);
 
         grid.Children.Add(Rule(0));
-        grid.Children.Add(label);
+        grid.Children.Add(center);
         grid.Children.Add(Rule(2));
 
         var button = new Button
@@ -1101,8 +1159,9 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
             CornerRadius = new CornerRadius(5),
             IsTextScaleFactorEnabled = false
         };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, $"{title} section - collapse or expand");
-        return button;
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button,
+            count is int c ? $"{title} section, {c} items - collapse or expand" : $"{title} section - collapse or expand");
+        return (button, chevron);
     }
 
     /// <summary>A line of explanation inside a section that has no rows to show.</summary>
