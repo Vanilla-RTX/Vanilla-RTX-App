@@ -182,13 +182,21 @@ public sealed partial class WebImportOverlay : UserControl
     /// mid-browse. Without this, a download that landed
     /// seconds before that would sit in the staging folder forever, never imported and never
     /// cleaned up - silently losing exactly the file the user just fetched. No fade-out here; the
-    /// window is already on its way down.
+    /// host is already on its way down. The overlay still goes back to its hidden state, because a
+    /// host that is only hidden rather than torn down (the settings panel) shows it again on its
+    /// next open otherwise.
     /// </summary>
     public void CloseIfOpen()
     {
         if (!_isOpen) return;
         _isOpen = false;
         Dismissed?.Invoke(this, EventArgs.Empty);
+
+        _fadeStoryboard?.Stop();
+        Opacity = 0;
+        IsHitTestVisible = false;
+        Visibility = Visibility.Collapsed;
+
         _ = FinalizeImportsAsync();
     }
 
@@ -212,11 +220,16 @@ public sealed partial class WebImportOverlay : UserControl
             // manual import button. Say that, rather than leaving them at a dead end.
             GetRuntimeButton.Content = _runtimeMissing ? "Install WebView2" : "Repair WebView2";
 
+            // A plain viewer has nothing to import, so there is no Add button to point at.
+            var alternative = _watchedExtensions.Count == 0
+                ? "open the page in your normal browser."
+                : "open the page in your normal browser, download what you need there, and bring it in with this window's own Add button.";
+
             ShowError(_runtimeMissing
                 ? "This page is shown using the Microsoft Edge WebView2 Runtime, which doesn't seem to be installed on this PC.\n\n" +
-                  "Install it and click Try Again - or open the page in your normal browser, download what you need there, and bring it in with this window's own Add button."
+                  "Install it and click Try Again - or " + alternative
                 : "The embedded browser couldn't start. Repairing or reinstalling the Microsoft Edge WebView2 Runtime usually fixes this.\n\n" +
-                  "Click Try Again once you have - or open the page in your normal browser, download what you need there, and bring it in with this window's own Add button.",
+                  "Click Try Again once you have - or " + alternative,
                 offerRuntime: true);
             return;
         }

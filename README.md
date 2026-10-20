@@ -382,7 +382,7 @@ The addresses the app uses for things it doesn't ship itself: the **Documentatio
 - **Copy debug logs** - copies a full diagnostic report to your clipboard: system details, the app's log, every setting, recent errors, and the state of every control. Paste it into a bug report.
 - **Wipe all app data** - deletes everything the app has stored and restarts it as if freshly installed: settings, caches, downloaded presets, remembered game locations, all of it. Before it does, it restores your game's original shader and LUT files from the app's backups, which may show several admin prompts. **Approve every one.** If you don't and the game isn't back on its original files, the app's backups of them are gone for good, and fixing that means reinstalling Minecraft.
 
-At the very bottom are links to **[this repo](https://github.com/vanilla-rtx/Vanilla-RTX-App/)**, **[Discord](https://discord.gg/A4wv4wwYud)** and **Ko-fi**, and the list of Vanilla RTX Insiders - the supporters who make this project possible. **[Please consider joining them!](https://ko-fi.com/cubeir)**
+At the very bottom are links to **[this repo](https://github.com/vanilla-rtx/Vanilla-RTX-App/)**, **[Discord](https://discord.gg/A4wv4wwYud)**, **Ko-fi** and the **[official website](https://vanillartx.net)**, a way to play **Vanilla RTX Chess**, a ray-traced voxel chess game, right inside the app, and the list of Vanilla RTX Insiders - the supporters who make this project possible. **[Please consider joining them!](https://ko-fi.com/cubeir)**
 
 # Troubleshooting
 

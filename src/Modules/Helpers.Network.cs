@@ -91,6 +91,46 @@ public static partial class Helpers
             ? $"vanilla_rtx_app/{EnvironmentVariables.appVersion}"
             : $"vanilla_rtx_app_{component}/{EnvironmentVariables.appVersion} (https://github.com/vanilla-rtx/Vanilla-RTX-App)";
     /// <summary>
+    /// Where vanillartx.net lives, in order of preference. Both are the same Cloudflare
+    /// deployment, both edge-cached (<c>Cache-Control: max-age=300</c>, identical ETags -
+    /// measured), so the second is purely the way through when the domain itself stops resolving.
+    /// </summary>
+    public static readonly string[] VanillaRtxSiteOrigins =
+    [
+        "https://vanillartx.net",
+        "https://vanilla-rtx-website.cubeir.workers.dev"
+    ];
+
+    /// <summary>
+    /// <paramref name="pathAndQuery"/> on the first <see cref="VanillaRtxSiteOrigins"/> entry that
+    /// answers at all, for opening a page of the site in a browser. Any HTTP status counts as an
+    /// answer - the question is only whether the host is up, and a page that 404s on the domain
+    /// would 404 on the fallback too. When nothing answers, the first origin is returned anyway,
+    /// so the browser shows its own error for the address the user would recognise.
+    ///
+    /// <para>A short deadline per origin because a person is waiting on a click: the domain
+    /// normally answers in well under a second, and one that hasn't in 3 is not about to.</para>
+    /// </summary>
+    public static async Task<string> ResolveVanillaRtxSiteUrlAsync(string pathAndQuery = "")
+    {
+        foreach (var origin in VanillaRtxSiteOrigins)
+        {
+            try
+            {
+                using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+                using var request = new HttpRequestMessage(HttpMethod.Head, origin + "/");
+                using var response = await SharedHttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token);
+                return origin + pathAndQuery;
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine($"[HttpsHelper] {origin} didn't answer ({ex.GetType().Name}) - trying the next origin");
+            }
+        }
+        return VanillaRtxSiteOrigins[0] + pathAndQuery;
+    }
+
+    /// <summary>
     /// How long a transfer may make no progress at all before it is abandoned and retried.
     /// Separate from <c>timeout</c>, which bounds the whole attempt: a total deadline large
     /// enough for an 11MB pack on a slow line is far too large to notice a connection that was

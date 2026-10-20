@@ -784,6 +784,32 @@
                                              ToolTipService.ToolTip="An invitation to the Vanilla RTX Discord server." />
                         </StackPanel>
 
+                        <StackPanel Orientation="Horizontal"
+                                    HorizontalAlignment="Center"
+                                    Spacing="4"
+                                    Margin="0,-10,0,0">
+
+                            <HyperlinkButton x:Name="WebsiteLink"
+                                             Content="Official Website"
+                                             Padding="6,2,6,2"
+                                             FontWeight="Medium"
+                                             Click="WebsiteLink_Click"
+                                             IsTextScaleFactorEnabled="False"
+                                             ToolTipService.ToolTip="vanillartx.net, in your browser." />
+                            <TextBlock Text="•"
+                                       Opacity="0.5"
+                                       FontWeight="Medium"
+                                       VerticalAlignment="Center"
+                                       IsTextScaleFactorEnabled="False" />
+                            <HyperlinkButton x:Name="ChessLink"
+                                             Content="Try Vanilla RTX Chess"
+                                             Padding="6,2,6,2"
+                                             FontWeight="Medium"
+                                             Click="ChessLink_Click"
+                                             IsTextScaleFactorEnabled="False"
+                                             ToolTipService.ToolTip="Ray-traced voxel chess, right here in the app." />
+                        </StackPanel>
+
                         <TextBlock x:Name="CreditsText"
                                    Text="With ❤️‍🔥 – By Cubeir (R. Sol)"
                                    TextWrapping="Wrap"
@@ -809,5 +835,10 @@
 
             </Grid>
         </Border>
+
+        <!-- The in-app browser for Vanilla RTX Chess. Spans both columns, over the panel and the
+             scrim, so it takes the window's whole body; closing it returns to the panel. -->
+        <local:WebImportOverlay x:Name="ChessViewer"
+                                Grid.ColumnSpan="2" />
     </Grid>
 </UserControl>

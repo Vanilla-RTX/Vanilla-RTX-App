@@ -171,6 +171,7 @@ public sealed partial class SettingsOverlay : UserControl
         if (!_isOpen) return;
         _isOpen = false;
 
+        ChessViewer.CloseIfOpen();
         SaveSettings();
 
         IsHitTestVisible = false;
@@ -1396,5 +1397,41 @@ public sealed partial class SettingsOverlay : UserControl
     {
         MainWindow.Log("Here is the invitation!\nDiscord.gg/A4wv4wwYud", MainWindow.LogLevel.VanillaRTX);
         _ = MainWindow.OpenUrl("https://discord.gg/A4wv4wwYud");
+    }
+
+    /// <summary>
+    /// The two vanillartx.net links resolve their origin on click - the domain, or its
+    /// workers.dev fallback when the domain isn't answering. The link is disabled while that
+    /// probe runs, so a second click can't open the page twice.
+    /// </summary>
+    private async void WebsiteLink_Click(object sender, RoutedEventArgs e)
+    {
+        WebsiteLink.IsEnabled = false;
+        try { _ = MainWindow.OpenUrl(await Helpers.ResolveVanillaRtxSiteUrlAsync()); }
+        finally { WebsiteLink.IsEnabled = true; }
+    }
+
+    /// <summary>
+    /// Vanilla RTX Chess in the in-app browser, on the site's minimal <c>?app</c> layout. Nothing
+    /// is downloaded there, so the viewer watches no extensions and its button reads Return.
+    /// </summary>
+    private async void ChessLink_Click(object sender, RoutedEventArgs e)
+    {
+        ChessLink.IsEnabled = false;
+        try
+        {
+            var url = await Helpers.ResolveVanillaRtxSiteUrlAsync("/chess?app");
+            if (!_isOpen) return;
+
+            ChessViewer.Show(
+                url: url,
+                title: "Vanilla RTX Chess",
+                glyph: "",
+                guideText: "",
+                stagingTag: "Chess",
+                watchedExtensions: Array.Empty<string>(),
+                onFilesReady: _ => Task.CompletedTask);
+        }
+        finally { ChessLink.IsEnabled = true; }
     }
 }

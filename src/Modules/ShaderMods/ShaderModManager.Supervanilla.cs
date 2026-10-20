@@ -63,16 +63,10 @@ internal sealed partial class ShaderModManager
     public const bool ShowSupervanillaIndexPresets = false;
 
     /// <summary>
-    /// Where the site lives, in order of preference. Both are the same Cloudflare deployment, both
-    /// edge-cached (<c>Cache-Control: max-age=300</c>, identical ETags - measured), so the second is
-    /// purely the way through when the domain itself stops resolving. Only the first is ever asked
-    /// conditionally; see <see cref="FetchSupervanillaIndexAsync"/> for why.
+    /// The site's two origins (<see cref="Helpers.VanillaRtxSiteOrigins"/>). Only the first is ever
+    /// asked conditionally; see <see cref="FetchSupervanillaIndexAsync"/> for why.
     /// </summary>
-    private static readonly string[] SupervanillaOrigins =
-    [
-        "https://vanillartx.net",
-        "https://vanilla-rtx-website.cubeir.workers.dev"
-    ];
+    private static readonly string[] SupervanillaOrigins = Helpers.VanillaRtxSiteOrigins;
 
     /// <summary>
     /// The downloads page, in the minimal layout <c>?app</c> asks for, opened in the in-app
