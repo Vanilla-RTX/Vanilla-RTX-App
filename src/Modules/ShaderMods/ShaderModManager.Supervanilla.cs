@@ -98,6 +98,11 @@ internal sealed partial class ShaderModManager
     /// Every Supervanilla RTX folder in the cache starts with this, and nothing else does - a
     /// BetterRTX folder is a bare UUID, a Default backup starts with two underscores. Every wipe keys
     /// off it, so it must never change without migrating what is already on users' disks.
+    ///
+    /// <para><b>It is a contract with a second repository.</b> The Supervanilla RTX factory
+    /// (<c>scripts/vrs.py</c>, <c>app_folder</c>) builds dev presets straight into this cache as
+    /// <c>SVRTX_&lt;Edition&gt;_svrtx-&lt;id&gt;</c>. Only the prefix and edition are read; what follows
+    /// is any unique name, a UUID when the app writes it.</para>
     /// </summary>
     public const string SupervanillaFolderPrefix = "SVRTX_";
 
