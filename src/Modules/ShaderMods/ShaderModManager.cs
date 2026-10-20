@@ -36,8 +36,8 @@ internal class LocalPresetData
     public List<string>? BinFiles { get; set; }
     public Dictionary<string, string>? FileHashes { get; set; }
 
-    /// <summary>What a Supervanilla RTX folder's sidecar says about it. Null for BetterRTX's.</summary>
-    public SupervanillaOrigin? Supervanilla { get; set; }
+    /// <summary>Which Supervanilla RTX build this is. Null for BetterRTX's.</summary>
+    public SupervanillaBuild? Supervanilla { get; set; }
 }
 
 internal class DisplayPresetData
@@ -65,6 +65,20 @@ internal class DisplayPresetData
 
     /// <summary>The second line under the name while the row is not the installed preset. Null keeps the default wording.</summary>
     public string? Subtitle { get; set; }
+}
+
+/// <summary>
+/// What one import did. <paramref name="SupervanillaPreview"/> is the edition a Supervanilla RTX
+/// build was filed under - the window says so when it isn't the one on screen, since the build
+/// would otherwise seem to vanish - and null for a BetterRTX preset or a failure.
+/// </summary>
+internal readonly record struct ImportResult(bool Success, string Message, bool? SupervanillaPreview)
+{
+    public void Deconstruct(out bool success, out string message)
+    {
+        success = Success;
+        message = Message;
+    }
 }
 
 /// <summary>
@@ -136,7 +150,7 @@ internal sealed partial class ShaderModManager
 
     private const string CacheFolderName = "RTX_Cache";
 
-    public const string DISCLAIMER_KEY = $"BetterRTXDisclaimerAgreed_Key";
+    public const string DISCLAIMER_KEY = "ShaderModsDisclaimerAgreed_Key";
 
 
     /// <summary>
@@ -270,10 +284,6 @@ internal sealed partial class ShaderModManager
         ApiCachePath = Path.Combine(CacheFolder, ApiCacheFileName);
         SupervanillaIndexCachePath = Path.Combine(CacheFolder, SupervanillaIndexCacheFileName(isPreview));
 
-        // Before any wipe: every wipe below decides what to delete by folder name, so a
-        // Supervanilla RTX import still sitting under a bare UUID would be taken for BetterRTX's.
-        AdoptLegacySupervanillaImports(CacheFolder);
-
         bool versionChanged = await GameVersionDetector.HasGameVersionChanged(minecraftPath, isPreview);
 
         // What an update invalidates depends on which edition updated:
@@ -282,24 +292,26 @@ internal sealed partial class ShaderModManager
         //   which the update just replaced. The other edition's copy stays: that game did not
         //   change, and deleting its backup strands it on whatever preset it is running.
         //
-        //   This edition's Supervanilla RTX downloads (Get latest, and anything from its index) -
-        //   always. They were built for the game that just changed, and the latest one is exactly
-        //   what the user is about to want again.
+        //   This edition's Supervanilla RTX builds, however they arrived - always. Supervanilla
+        //   RTX publishes a build per edition per game update, so the ones held were made for the
+        //   game that just changed, and a new one is what the user is about to want.
         //
-        //   Everything shared (BetterRTX's downloads and API JSON, every import) and the disclaimer
-        //   acknowledgement - Release only. bedrock.graphics builds against stable Minecraft, so a
-        //   Release update is grounds to suspect all of it is now for the wrong game, and a cold
-        //   start is the occasion to show the notice again. A Preview update is neither: Preview
-        //   ships weekly, and wiping on it would mean re-downloading every preset most weeks.
-        //   Preview's Supervanilla RTX downloads are never collateral of a Release update - they
-        //   are that other game's, and its own updates are what clear them.
+        //   BetterRTX's presets and API JSON, and the disclaimer acknowledgement - Release only.
+        //   bedrock.graphics builds against stable Minecraft, so a Release update is grounds to
+        //   suspect all of it is now for the wrong game, and a cold start is the occasion to show
+        //   the notice again. A Preview update is neither: BetterRTX has nothing Preview-specific
+        //   to replace it with, and wiping on Preview's weekly updates would mean re-downloading
+        //   every preset most weeks for nothing.
+        //
+        //   The other edition's Supervanilla RTX builds - never. They are that other game's, and
+        //   its own updates are what clear them.
         bool sharedCacheWiped = false;
 
         if (versionChanged)
         {
             Trace.WriteLine($"[ShaderMods] ⚠🔥 GAME VERSION CHANGED ({(isPreview ? "Preview" : "Release")}) 🔥⚠");
             WipeDefaultPresetCache();
-            WipeSupervanillaPresets(isPreview, includeImports: !isPreview);
+            WipeSupervanillaPresets(isPreview);
 
             if (!isPreview)
             {
@@ -319,8 +331,7 @@ internal sealed partial class ShaderModManager
             await CheckApiStalenessOnStartupAsync();
 
         // Never skipped: its cache describes the server rather than the game, so no update makes
-        // it stale, and the reconcile at its end is what retires a Get latest download the index
-        // has moved past.
+        // it stale - and it is what tells the Get latest row whether a newer build is out.
         await RefreshSupervanillaIndexAsync(force: false);
 
         Directory.CreateDirectory(DefaultFolder);
@@ -453,14 +464,10 @@ internal sealed partial class ShaderModManager
     /// Reads every preset folder in the cache into one of two collections, by owner:
     /// <see cref="LocalPresets"/> for BetterRTX's, keyed by manifest UUID because that is what the
     /// API's entries are matched against, and <see cref="SupervanillaPresets"/> for Supervanilla
-    /// RTX's, kept per folder.
+    /// RTX's, with the build each one is (<see cref="SupervanillaBuild"/>).
     ///
-    /// <para><b>Supervanilla RTX cannot be keyed by UUID.</b> Its builds are one preset moving
-    /// forward with the game, so successive versions are free to share a manifest UUID - keyed by
-    /// it, importing an older build would silently hide the newer one.</para>
-    ///
-    /// <para>Both editions' Supervanilla RTX downloads are loaded; which of them belong in the
-    /// list is the window's call, through <see cref="SupervanillaOrigin.IsPreview"/>.</para>
+    /// <para>Both editions' Supervanilla RTX builds are loaded; which of them belong in the list is
+    /// the window's call, through <see cref="SupervanillaBuild.IsPreview"/>.</para>
     /// </summary>
     public async Task LoadLocalPresetsAsync()
     {
@@ -489,7 +496,7 @@ internal sealed partial class ShaderModManager
 
                 if (IsSupervanillaFolderName(Path.GetFileName(folder)))
                 {
-                    localPreset.Supervanilla = ReadSupervanillaOrigin(folder) ?? InferSupervanillaOrigin(Path.GetFileName(folder));
+                    localPreset.Supervanilla = ReadSupervanillaBuild(folder, localPreset.Name);
                     SupervanillaPresets.Add(localPreset);
                     Trace.WriteLine($"[ShaderMods] ✓ Loaded Supervanilla RTX preset: {localPreset.Name} ({Path.GetFileName(folder)})");
                 }
@@ -748,9 +755,12 @@ internal sealed partial class ShaderModManager
     /// in-app browsers and a double-click in Explorer all end up on.
     ///
     /// <para><b>Who it belongs to is decided here, once</b>, and recorded in the folder name it
-    /// lands under (<see cref="ClassifyImport"/>). <paramref name="forceSupervanilla"/> is for the
-    /// callers that know where the file came from - the Supervanilla RTX downloads page - and
-    /// skips the name test, which is only a guess for a file whose origin is unknown.</para>
+    /// lands under: a bare UUID for BetterRTX, <c>SVRTX_&lt;Edition&gt;_&lt;uuid&gt;</c> for
+    /// Supervanilla RTX (<see cref="ClassifyImport"/>, <see cref="IsPreviewBuildName"/>).
+    /// <paramref name="forceSupervanilla"/> is for the caller that knows where the file came from -
+    /// the Supervanilla RTX downloads page - and skips the name test, which is only a guess for a
+    /// file whose origin is unknown. The edition is still read off the name in that case: the page
+    /// offers both channels' builds.</para>
     ///
     /// <para>Only ever touches <see cref="CacheFolder"/>, which is why the headless import path
     /// can run this on an instance that was never attached to a Minecraft install at all.
@@ -758,7 +768,7 @@ internal sealed partial class ShaderModManager
     /// to fall back on, so this is the only way it can tell the user <i>why</i> something failed
     /// rather than just that it did.</para>
     /// </summary>
-    public async Task<(bool Success, string Message)> ImportCustomPresetAsync(string archivePath, bool forceSupervanilla = false)
+    public async Task<ImportResult> ImportCustomPresetAsync(string archivePath, bool forceSupervanilla = false)
     {
         var fileName = Path.GetFileName(archivePath);
         string? stagingFolder = null;
@@ -767,7 +777,7 @@ internal sealed partial class ShaderModManager
             if (!File.Exists(archivePath))
             {
                 Trace.WriteLine($"[ShaderMods] [CustomImport] ✗ File not found: {archivePath}");
-                return (false, $"'{fileName}' not found.");
+                return new ImportResult(false, $"'{fileName}' not found.", null);
             }
 
             Trace.WriteLine($"[ShaderMods] [CustomImport] Importing: {archivePath}");
@@ -778,16 +788,18 @@ internal sealed partial class ShaderModManager
             if (parsed == null || string.IsNullOrEmpty(parsed.Uuid))
             {
                 Trace.WriteLine($"[ShaderMods] [CustomImport] ✗ Not a valid shader mod preset: {archivePath}");
-                return (false, $"'{fileName}' is not a valid shader mod preset (no readable manifest).");
+                return new ImportResult(false, $"'{fileName}' is not a valid shader mod preset (no readable manifest).", null);
             }
 
             var source = forceSupervanilla ? PresetSource.Supervanilla : ClassifyImport(fileName, parsed.Name);
+            bool? supervanillaPreview = source == PresetSource.Supervanilla
+                ? IsPreviewBuildName(fileName, parsed.Name)
+                : null;
 
-            // BetterRTX: named after the pack's own UUID, the convention its downloads use, so
-            // re-importing the same file replaces it in place. Supervanilla RTX: named after the
-            // file, since its builds can share a UUID - see SupervanillaImportFolderName.
-            var destinationFolder = Path.Combine(CacheFolder, source == PresetSource.Supervanilla
-                ? SupervanillaImportFolderName(fileName)
+            // Named after the pack's own UUID either way, so bringing in the same pack again
+            // replaces it in place.
+            var destinationFolder = Path.Combine(CacheFolder, supervanillaPreview is bool preview
+                ? SupervanillaFolderName(preview, parsed.Uuid)
                 : SanitizePresetName(parsed.Uuid));
 
             if (Directory.Exists(destinationFolder))
@@ -796,19 +808,18 @@ internal sealed partial class ShaderModManager
             Directory.Move(stagingFolder, destinationFolder);
             stagingFolder = null; // moved successfully, nothing left to clean up
 
-            if (source == PresetSource.Supervanilla)
-                WriteSupervanillaOrigin(destinationFolder, new SupervanillaOrigin(
-                    SupervanillaKind.Import, IsPreview: null,
-                    Version: VersionFromFileName(fileName) ?? ManifestVersion(destinationFolder),
-                    FileName: fileName, Size: null, Date: null));
+            if (supervanillaPreview is not null)
+                WriteSupervanillaBuild(destinationFolder, fileName);
 
             Trace.WriteLine($"[ShaderMods] [CustomImport] ✓ Imported \"{parsed.Name}\" ({source}) to: {destinationFolder}");
-            return (true, $"Imported \"{parsed.Name}\".");
+            return new ImportResult(true, supervanillaPreview is bool p
+                ? $"Imported \"{parsed.Name}\" as a Supervanilla RTX build for Minecraft {EditionLabel(p)}."
+                : $"Imported \"{parsed.Name}\".", supervanillaPreview);
         }
         catch (Exception ex)
         {
             Trace.WriteLine($"[ShaderMods] [CustomImport] ✗ Error importing {archivePath}: {ex.Message}");
-            return (false, $"'{fileName}' failed to import: {ex.Message}");
+            return new ImportResult(false, $"'{fileName}' failed to import: {ex.Message}", null);
         }
         finally
         {

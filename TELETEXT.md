@@ -47,6 +47,22 @@ As of MCBE 26.45, it is safe to install BetterRTX presets, the files were tested
 ## [cd:"120"] [glyph:"E7BA"] Is it broken?
 BetterRTX might not yet support Minecraft 26.50. Check back here every day until this text says otherwise. If your game crashes after installing a preset, revert back to the Default RTX backup preset.
 
+# ShaderModsInfo
+
+## [glyph:"E730"] [cd:"10000"] Warning
+Reminder: If your preset list has been auto-reset since your last visit, or this is your first visit:
+It is a good idea to wait and check from the BetterRTX Discord whether it has been updated for the latest game version before installing a preset. Installing presets while it serves outdated files could result in crashes and visual glitches. In this scenario, revert to Default RTX, and once BetterRTX is updated, use the refresh button in the top left corner. 
+In other words: Minecraft updates can break BetterRTX, it depends on you to update Minecraft, and BetterRTX's maintainer to update it for that game version just in time for everything to continue to work smoothly. If installing BetterRTX causes issues for you, follow these steps:
+1. Revert to Default RTX for now
+2. Wait until BetterRTX developers confirm they've updated the mod.
+3. Use the refresh button in the top left corner to refetch the latest files & continue installing your presets.
+
+## [cd:"120"] [glyph:"F78C"] Is it broken?
+As of MCBE 26.45, it is safe to install BetterRTX presets, the files were tested and the endpoint seems up-to-date for this game version, hit the refresh button in the top left corner just to be sure you're not installing old files, and continue to download/import & install presets, also ensure your game is up-to-date.
+
+## [cd:"120"] [glyph:"E7BA"] Is it broken?
+BetterRTX might not yet support Minecraft 26.50. Check back here every day until this text says otherwise. If your game crashes after installing a preset, revert back to the Default RTX backup preset.
+
 # LutManagerInfo 
 Look up tables provide a simple way to improve or further customize Minecraft RTX, which works across all game versions reliably and without a performance hit as oppposed to heavier modifications such as BetterRTX. Select from the list of available presets and hit install. You can always revert back to defaults by installing the default preset.
 

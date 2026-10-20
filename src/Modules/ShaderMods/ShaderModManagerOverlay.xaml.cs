@@ -13,6 +13,7 @@ using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Vanilla_RTX_App.Core;
 using Vanilla_RTX_App.Core.Overlays;
@@ -92,7 +93,7 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
     private readonly CancellationTokenSource _closingCts = new();
     private readonly object _downloadStatusLock = new object();
 
-    private const string REFRESH_COOLDOWN_KEY = "BetterRTXManager_RefreshCooldown_LastClickTimestamp";
+    private const string REFRESH_COOLDOWN_KEY = "ShaderModManager_RefreshCooldown_LastClickTimestamp";
     private const int REFRESH_COOLDOWN_SECONDS = 60;
     private DispatcherTimer? _cooldownTimer;
 
@@ -120,6 +121,24 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
     /// </summary>
     private bool _ready;
 
+    // ── Collapsible sections ──
+    private const string SectionDefault = "Default";
+    private const string SectionSupervanilla = "Supervanilla RTX";
+    private const string SectionBetterRTX = "BetterRTX";
+
+    /// <summary>
+    /// Which sections are folded away, by title. Remembered across opens because it is a
+    /// preference about the list ("I never use BetterRTX"), not about one visit. A convenience, so a
+    /// settings store that can't be read just starts everything expanded.
+    /// </summary>
+    private const string COLLAPSED_SECTIONS_KEY = "ShaderModManager_CollapsedSections";
+    private readonly HashSet<string> _collapsedSections = LoadCollapsedSections();
+
+    /// <summary>The fold animation running for each section, so a second click mid-fold can take over from where it is.</summary>
+    private readonly Dictionary<string, Storyboard> _sectionStoryboards = new();
+
+    private const double SECTION_FOLD_MS = 220;
+
 
     public ShaderModManagerOverlay()
     {
@@ -139,13 +158,6 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
         RefreshButton.IsEnabled = false;
 
         ShowBrowseTargets();
-
-        // The Supervanilla RTX button is the bar's one accented control, and so are its two
-        // bevels - which, built from code, have to follow both the theme and the button's own
-        // enabled state by hand (a # SuspendControls entry is what would disable it).
-        ApplySupervanillaButtonBevels(ThemeService.Current);
-        ThemeService.ThemeChanged += ApplySupervanillaButtonBevels;
-        SupervanillaDownloadsButton.IsEnabledChanged += (_, _) => ApplySupervanillaButtonBevels(ThemeService.Current);
 
         this.Loaded += ShaderModManagerOverlay_Loaded;
     }
@@ -197,8 +209,6 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
 
         _cooldownTimer?.Stop();
         _cooldownTimer = null;
-
-        ThemeService.ThemeChanged -= ApplySupervanillaButtonBevels;
     }
 
     /// <summary>
@@ -298,9 +308,9 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
             {
             new TextBlock
                  {
-                Text = "Shader mods replace Minecraft RTX's own shader files. This module installs two of them:\n" +
-                    "- Supervanilla RTX, provided by vanillartx.net.\n" +
-                    "- BetterRTX, an unofficial third-party mod whose files are provided by https://bedrock.graphics/api\n\n" +
+                Text = "Shader mods replace Minecraft RTX's own shader files. There are two types:\n" +
+                    "- Supervanilla RTX, from the maker of Vanilla RTX (vanillartx.net).\n" +
+                    "- BetterRTX, provided by https://bedrock.graphics/api\n\n" +
                     "Either can break with Minecraft updates. Vanilla RTX App takes extensive measures to mitigate any issues that may arise, such as giving a way to quickly revert to your defaults." +
                     "\n\nPlease pay attention to the info panels to keep updated and help steer yourself away from potential issues.",
                 TextWrapping = TextWrapping.Wrap,
@@ -653,14 +663,14 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
         LoadingPanel.Visibility = Visibility.Collapsed;
         PresetSelectionPanel.Visibility = Visibility.Visible;
 
-        // Announcements. The .md section is still called BetterRTXInfo: it is a wire format
-        // older builds read too, and renaming it would take it away from every one of them.
-        TeletextCard.Populate(BetterRTXInfoPanel, TeletextContent.BetterRTXInfo);
+        // Announcements. Falls back to the section's old name while the .md might not carry the
+        // new one yet - both are published side by side until older builds have aged out.
+        TeletextCard.Populate(ShaderModsInfoPanel, TeletextContent.ShaderModsInfo ?? TeletextContent.BetterRTXInfo);
 
         // Populate can legitimately add nothing (every announcement dismissed), and an
         // empty-but-visible panel still contributes its margin, which reads as an
         // oversized gap between whatever is above it and the preset list.
-        BetterRTXInfoPanel.Visibility = BetterRTXInfoPanel.Children.Count > 0
+        ShaderModsInfoPanel.Visibility = ShaderModsInfoPanel.Children.Count > 0
             ? Visibility.Visible
             : Visibility.Collapsed;
 
@@ -686,7 +696,8 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
     /// <summary>
     /// Rebuilds the whole list: Default, then Supervanilla RTX, then BetterRTX, each under its own
     /// header. Called after anything that changes what is on disk or what the game is running -
-    /// cheap enough that redrawing everything beats tracking which row changed.
+    /// cheap enough that redrawing everything beats tracking which row changed. A folded section is
+    /// rebuilt folded, with no animation: only a click on its header animates.
     /// </summary>
     private async Task DisplayPresetsAsync()
     {
@@ -702,31 +713,28 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
 
             PresetListContainer.Children.Clear();
 
+            // A redraw replaces every section host, so whatever was mid-fold is gone with it.
+            foreach (var running in _sectionStoryboards.Values) running.Stop();
+            _sectionStoryboards.Clear();
+
             var currentHashes = _manager.GetCurrentlyInstalledHashes();
 
-            // ── Default ──
             // Absent only when there is no backup, in which case the notice card above the list
             // already says why and every row below is disabled.
             var defaultPreset = _manager.CreateDefaultPreset();
             if (defaultPreset != null)
-            {
-                PresetListContainer.Children.Add(CreateSectionHeader("Default"));
-                PresetListContainer.Children.Add(CreatePresetButton(defaultPreset, currentHashes, true));
-            }
+                AddSection(SectionDefault, [CreatePresetButton(defaultPreset, currentHashes, true)]);
 
-            // ── Supervanilla RTX ──
-            PresetListContainer.Children.Add(CreateSectionHeader("Supervanilla RTX"));
-            foreach (var preset in BuildSupervanillaRows())
-                PresetListContainer.Children.Add(CreatePresetButton(preset, currentHashes, false));
+            AddSection(SectionSupervanilla, BuildSupervanillaRows()
+                .Select(preset => CreatePresetButton(preset, currentHashes, false))
+                .ToList());
 
-            // ── BetterRTX ──
-            PresetListContainer.Children.Add(CreateSectionHeader("BetterRTX"));
-            var betterRtxRows = BuildBetterRTXRows();
-            foreach (var preset in betterRtxRows)
-                PresetListContainer.Children.Add(CreatePresetButton(preset, currentHashes, false));
-
+            var betterRtxRows = BuildBetterRTXRows()
+                .Select(preset => CreatePresetButton(preset, currentHashes, false))
+                .ToList();
             if (betterRtxRows.Count == 0)
-                PresetListContainer.Children.Add(CreateSectionNote(DescribeEmptyBetterRTX()));
+                betterRtxRows.Add(CreateSectionNote(DescribeEmptyBetterRTX()));
+            AddSection(SectionBetterRTX, betterRtxRows);
         }
         catch (Exception ex)
         {
@@ -735,35 +743,32 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
     }
 
     /// <summary>
-    /// The Supervanilla RTX section, in order: this edition's Get latest row, then (while
-    /// <see cref="ShaderModManager.ShowSupervanillaIndexPresets"/> allows) the index's other builds,
-    /// then every Supervanilla RTX import.
+    /// The Supervanilla RTX section: the Get latest row while this edition doesn't hold the newest
+    /// build, then every build held for this edition, newest first (game version, then release
+    /// number - so R2 of a version sits above R1 of it), then - while
+    /// <see cref="ShaderModManager.ShowSupervanillaIndexPresets"/> allows - index builds not held.
     ///
-    /// <para><b>The Get latest row is always there</b>, whatever the index says or whether it was
-    /// ever reached - it asks /latest directly. Until it has downloaded something it offers to;
-    /// afterwards it is that build, named by its version, until an update or a newer build in the
-    /// index retires it and it goes back to offering.</para>
+    /// <para><b>The Get latest row steps aside rather than turning into the build.</b> Once the
+    /// newest build is held it simply sorts to the top as an ordinary row named by its version, and
+    /// when the index later lists something newer the offer comes back above it. That needs no
+    /// record of which build came from where, and nothing is deleted to make it happen. With no
+    /// index to ask it always offers - it asks /latest itself, and downloading a build already held
+    /// just replaces it.</para>
     ///
-    /// <para>Only this edition's downloads are drawn - a Release build installed into Preview is
-    /// exactly what the per-edition channels exist to avoid. Imports carry no edition and are drawn
-    /// for both, as BetterRTX's are.</para>
+    /// <para>Only this edition's builds are drawn: a Release build installed into Preview is exactly
+    /// what the per-edition channels exist to avoid.</para>
     /// </summary>
     private List<DisplayPresetData> BuildSupervanillaRows()
     {
         var rows = new List<DisplayPresetData>();
         var edition = ShaderModManager.EditionLabel(_isPreview);
+        var index = _manager.CurrentSupervanillaIndex;
+        bool holdsLatest = _manager.HoldsSupervanillaLatest();
 
-        var held = _manager.HeldSupervanillaLatest;
-        if (held != null)
-        {
-            rows.Add(FromLocal(held,
-                name: SupervanillaBuildName(held),
-                subtitle: $"Latest build for Minecraft {edition} - click to install",
-                deletable: false));
-        }
-        else
+        if (!holdsLatest)
         {
             var latestKey = ShaderModManager.LatestDownloadKey(_isPreview);
+            var latestLabel = index?.Latest?.ToBuild(_isPreview).Label;
             rows.Add(new DisplayPresetData
             {
                 Uuid = latestKey,
@@ -771,30 +776,35 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
                 IsDownloaded = false,
                 DownloadKey = latestKey,
                 DownloadAction = _manager.DownloadSupervanillaLatestAsync,
-                Subtitle = $"Click to download the newest build made for Minecraft {edition}"
+                Subtitle = latestLabel is null
+                    ? $"Click to download the newest build made for Minecraft {edition}"
+                    : $"Click to download {latestLabel}, the newest build made for Minecraft {edition}"
             });
         }
 
-#pragma warning disable CS0162 // ShowSupervanillaIndexPresets is a deliberate compile-time switch
-        if (ShaderModManager.ShowSupervanillaIndexPresets && _manager.CurrentSupervanillaIndex is { } index)
+        var held = _manager.HeldSupervanillaBuilds();
+        for (int i = 0; i < held.Count; i++)
         {
-            // The index's latest is the Get latest row's build already; listing it twice would
-            // offer the same file under two rows that download it into two folders.
-            foreach (var entry in index.Files.Where(f =>
-                         !string.Equals(f.Name, index.Latest?.Name, StringComparison.OrdinalIgnoreCase)))
-            {
-                var downloaded = _manager.HeldSupervanillaIndexBuild(entry);
-                if (downloaded != null)
-                {
-                    rows.Add(FromLocal(downloaded, SupervanillaBuildName(downloaded), "Click to install", deletable: false));
-                    continue;
-                }
+            rows.Add(FromLocal(held[i],
+                name: SupervanillaBuildName(held[i].Supervanilla, held[i].Name),
+                subtitle: i == 0 && holdsLatest ? $"Latest build for Minecraft {edition} - click to install" : null,
+                deletable: true));
+        }
 
+#pragma warning disable CS0162 // ShowSupervanillaIndexPresets is a deliberate compile-time switch
+        if (ShaderModManager.ShowSupervanillaIndexPresets && index is not null)
+        {
+            // The index's latest is the Get latest row's build; listing it twice would offer the
+            // same file under two rows.
+            foreach (var entry in index.Files.Where(f =>
+                         !string.Equals(f.Name, index.Latest?.Name, StringComparison.OrdinalIgnoreCase) &&
+                         !_manager.HoldsSupervanillaBuild(f)))
+            {
                 var key = ShaderModManager.IndexDownloadKey(_isPreview, entry.Name);
                 rows.Add(new DisplayPresetData
                 {
                     Uuid = key,
-                    Name = entry.EffectiveVersion is { } v ? $"Supervanilla RTX v{v}" : entry.Name,
+                    Name = SupervanillaBuildName(entry.ToBuild(_isPreview), entry.Name),
                     IsDownloaded = false,
                     DownloadKey = key,
                     DownloadAction = ct => _manager.DownloadSupervanillaIndexEntryAsync(entry, ct),
@@ -804,17 +814,12 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
         }
 #pragma warning restore CS0162
 
-        var imports = (_manager.SupervanillaPresets ?? new List<LocalPresetData>())
-            .Where(p => p.Supervanilla is not { Kind: not SupervanillaKind.Import })
-            .Select(p => FromLocal(p, p.Name, subtitle: null, deletable: true));
-        rows.AddRange(SmartPresetSorter.SafeOrderByName(imports, p => p.Name));
-
         return rows;
     }
 
-    /// <summary>"Supervanilla RTX v1.26.40.56" when the build's version is known, its manifest name otherwise.</summary>
-    private static string SupervanillaBuildName(LocalPresetData preset) =>
-        preset.Supervanilla?.Version is { } version ? $"Supervanilla RTX v{version}" : preset.Name ?? "Supervanilla RTX";
+    /// <summary>"Supervanilla RTX R2 - 1.26.7020.0" when the build is readable from its name, the fallback otherwise.</summary>
+    private static string? SupervanillaBuildName(SupervanillaBuild? build, string? fallback) =>
+        build?.Label is { } label ? $"Supervanilla RTX {label}" : fallback;
 
     private static DisplayPresetData FromLocal(LocalPresetData preset, string? name, string? subtitle, bool deletable) => new()
     {
@@ -928,14 +933,132 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
     }
 
     /// <summary>
-    /// A section's heading: its name centred on a hairline that runs the width of the list, so it
-    /// reads as a divider while scrolling past it rather than as one more row. Code-built like the
-    /// rows around it, so its colours come from App.xaml's Themed styles (CLAUDE.md §6, "Theme
-    /// colours on code-built elements").
+    /// Adds one section to the list: its header, and beneath it a host holding its rows. The host is
+    /// what folds - a Grid whose Height is animated, which clips the rows as it shrinks because they
+    /// are arranged at their full height inside a slot smaller than it.
     /// </summary>
-    private static FrameworkElement CreateSectionHeader(string title)
+    private void AddSection(string title, IReadOnlyList<FrameworkElement> content)
     {
-        var grid = new Grid { Margin = new Thickness(0, 10, 0, 2), ColumnSpacing = 14 };
+        var body = new StackPanel { Spacing = 12 };
+        foreach (var element in content) body.Children.Add(element);
+
+        var host = new Grid();
+        host.Children.Add(body);
+
+        if (_collapsedSections.Contains(title))
+            host.Visibility = Visibility.Collapsed;
+
+        var header = CreateSectionHeader(title);
+        header.Click += (_, _) => ToggleSection(title, host, body);
+
+        PresetListContainer.Children.Add(header);
+        PresetListContainer.Children.Add(host);
+    }
+
+    /// <summary>
+    /// Folds a section away or back out. Animated over <see cref="SECTION_FOLD_MS"/> - height and
+    /// opacity together - unless UI animations are suspended, in which case it snaps.
+    ///
+    /// <para><b>Height is a dependent animation</b> (it re-runs layout every frame, on the UI
+    /// thread), which is fine for one short list section and is the only way to make the rows
+    /// below slide up rather than jump. A click that lands mid-fold starts from the height and
+    /// opacity on screen at that moment rather than snapping back to where the first fold began.</para>
+    ///
+    /// <para><b>Every transition ends by stopping its storyboard and writing the end state as base
+    /// values.</b> A storyboard holds its end value without assigning it, so left running it would
+    /// pin the section at a fixed height forever, and a row added to it by the next download would
+    /// be clipped off.</para>
+    /// </summary>
+    private void ToggleSection(string title, Grid host, FrameworkElement body)
+    {
+        bool collapse = !_collapsedSections.Contains(title);
+        if (collapse) _collapsedSections.Add(title);
+        else _collapsedSections.Remove(title);
+        SaveCollapsedSections();
+
+        double fromHeight = host.Visibility == Visibility.Visible ? host.ActualHeight : 0;
+        double fromOpacity = host.Visibility == Visibility.Visible ? host.Opacity : 0;
+
+        if (_sectionStoryboards.Remove(title, out var running))
+            running.Stop();
+
+        if (EnvironmentVariables.Persistent.SuspendUIAnimations)
+        {
+            host.Height = double.NaN;
+            host.Opacity = 1;
+            host.Visibility = collapse ? Visibility.Collapsed : Visibility.Visible;
+            return;
+        }
+
+        double toHeight = 0;
+        if (!collapse)
+        {
+            host.Visibility = Visibility.Visible;
+            body.Measure(new Windows.Foundation.Size(PresetListContainer.ActualWidth, double.PositiveInfinity));
+            toHeight = body.DesiredSize.Height;
+        }
+
+        host.Height = fromHeight;
+        host.Opacity = fromOpacity;
+
+        var ease = new QuadraticEase { EasingMode = EasingMode.EaseInOut };
+        var duration = new Duration(TimeSpan.FromMilliseconds(SECTION_FOLD_MS));
+
+        var height = new DoubleAnimation { From = fromHeight, To = toHeight, Duration = duration, EasingFunction = ease, EnableDependentAnimation = true };
+        Storyboard.SetTarget(height, host);
+        Storyboard.SetTargetProperty(height, "Height");
+
+        var opacity = new DoubleAnimation { From = fromOpacity, To = collapse ? 0 : 1, Duration = duration, EasingFunction = ease };
+        Storyboard.SetTarget(opacity, host);
+        Storyboard.SetTargetProperty(opacity, "Opacity");
+
+        var storyboard = new Storyboard();
+        storyboard.Children.Add(height);
+        storyboard.Children.Add(opacity);
+        storyboard.Completed += (_, _) =>
+        {
+            // Superseded by a later click, which has already taken the host over.
+            if (!_sectionStoryboards.TryGetValue(title, out var current) || current != storyboard) return;
+            _sectionStoryboards.Remove(title);
+
+            storyboard.Stop();
+            host.Height = double.NaN;
+            host.Opacity = collapse ? 0 : 1;
+            host.Visibility = collapse ? Visibility.Collapsed : Visibility.Visible;
+        };
+
+        _sectionStoryboards[title] = storyboard;
+        storyboard.Begin();
+    }
+
+    private static HashSet<string> LoadCollapsedSections()
+    {
+        try
+        {
+            if (ApplicationData.Current.LocalSettings.Values[COLLAPSED_SECTIONS_KEY] is string stored)
+                return new HashSet<string>(stored.Split('|', StringSplitOptions.RemoveEmptyEntries));
+        }
+        catch { }
+        return new HashSet<string>();
+    }
+
+    private void SaveCollapsedSections()
+    {
+        try { ApplicationData.Current.LocalSettings.Values[COLLAPSED_SECTIONS_KEY] = string.Join('|', _collapsedSections); }
+        catch { }
+    }
+
+    /// <summary>
+    /// A section's heading: its name centred on a hairline that runs the width of the list, so it
+    /// reads as a divider while scrolling past it rather than as one more row. The whole of it is a
+    /// button that folds the section (<see cref="ToggleSection"/>) - subtle-styled, so at rest it is
+    /// just the divider and only hover and press say it can be clicked. Code-built like the rows
+    /// around it, so its colours come from App.xaml's Themed styles (CLAUDE.md §6, "Theme colours on
+    /// code-built elements").
+    /// </summary>
+    private static Button CreateSectionHeader(string title)
+    {
+        var grid = new Grid { ColumnSpacing = 14 };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -966,7 +1089,20 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
         grid.Children.Add(Rule(0));
         grid.Children.Add(label);
         grid.Children.Add(Rule(2));
-        return grid;
+
+        var button = new Button
+        {
+            Content = grid,
+            Style = (Style)Application.Current.Resources["SubtleButtonStyle"],
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Padding = new Thickness(8, 6, 8, 6),
+            Margin = new Thickness(0, 4, 0, -4),
+            CornerRadius = new CornerRadius(5),
+            IsTextScaleFactorEnabled = false
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, $"{title} section - collapse or expand");
+        return button;
     }
 
     /// <summary>A line of explanation inside a section that has no rows to show.</summary>
@@ -1335,7 +1471,7 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
 
         var supervanillaPage = EnvironmentVariables.LinkLabel(ShaderModManager.SupervanillaDownloadsPageUrl, includePath: false);
         SupervanillaDownloadsTargetText.Text = $"Visit {supervanillaPage}";
-        ToolTipService.SetToolTip(SupervanillaDownloadsButton,
+        ToolTipService.SetToolTip(SupervanillaDownloadsLink,
             $"Browse every Supervanilla RTX build on {supervanillaPage}, for any game version, right here - " +
             "whatever you download is imported automatically when you click Done.");
     }
@@ -1356,21 +1492,6 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
             stagingTag: "Supervanilla",
             watchedExtensions: ShaderModManager.SupportedCustomPresetExtensions,
             onFilesReady: files => ImportCustomPresetsAsync(files, forceSupervanilla: true));
-    }
-
-    /// <summary>
-    /// Paints the two bevels the Supervanilla RTX button owns: accented while it is enabled, and the
-    /// dimmed resting colour while it isn't - the same rule MainWindow's Preview toggle follows, so
-    /// the seams never claim a state the button between them isn't in. Its neighbours' own edges
-    /// are plain ThemeResources in the XAML and need nothing from here.
-    /// </summary>
-    private void ApplySupervanillaButtonBevels(ElementTheme theme)
-    {
-        var enabled = SupervanillaDownloadsButton.IsEnabled;
-        SupervanillaLeftBevel.BorderBrush = new SolidColorBrush(
-            ThemeService.GetBevelColor(theme, ThemeService.BevelEdge.Left, accented: true, isEnabled: enabled));
-        SupervanillaRightBevel.BorderBrush = new SolidColorBrush(
-            ThemeService.GetBevelColor(theme, ThemeService.BevelEdge.Right, accented: true, isEnabled: enabled));
     }
 
     /// <summary>
@@ -1744,8 +1865,14 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
         int successCount = 0;
         foreach (var path in candidates)
         {
-            var (ok, _) = await _manager.ImportCustomPresetAsync(path, forceSupervanilla);
-            if (ok) successCount++;
+            var result = await _manager.ImportCustomPresetAsync(path, forceSupervanilla);
+            if (result.Success) successCount++;
+
+            // Filed under the other edition's builds, so it won't appear in the list on screen -
+            // which, unexplained, reads as the import having silently failed.
+            if (result.SupervanillaPreview is bool preview && preview != _isPreview)
+                MainWindow.Log($"{result.Message} Switch the app to Minecraft {ShaderModManager.EditionLabel(preview)} to see and install it.",
+                    MainWindow.LogLevel.ShaderMods);
         }
 
         Trace.WriteLine($"[ShaderMods] [CustomImport] Imported {successCount}/{candidates.Count} preset(s) successfully");

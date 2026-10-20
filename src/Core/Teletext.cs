@@ -73,7 +73,13 @@ public static class TeletextContent
     public static TeletextItem[]? LogAnnouncements { get; set; }
     public static TeletextItem[]? PackUpdateInfo { get; set; }
     public static TeletextItem[]? PackUpdateExtraInfo { get; set; }
+    /// <summary>
+    /// The shader mod manager's announcements. Superseded by <see cref="ShaderModsInfo"/>, and kept
+    /// only while builds that read this name are still in circulation - the .md carries both
+    /// sections until then. Delete later
+    /// </summary>
     public static TeletextItem[]? BetterRTXInfo { get; set; }
+    public static TeletextItem[]? ShaderModsInfo { get; set; }
     public static TeletextItem[]? LutManagerInfo { get; set; }
     public static TeletextItem[]? DLSSInfo { get; set; }
     public static TeletextItem[]? PackBrowserInfo { get; set; }

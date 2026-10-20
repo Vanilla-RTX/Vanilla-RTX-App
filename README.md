@@ -250,21 +250,21 @@ Installs shader mods - replacements for Minecraft RTX's own shaders that change 
 The list is split into three sections:
 
 - **Default** - **Default RTX**, a backup of your game's own shader files, taken the first time you open this manager. Click it to roll back to the unmodded look at any time.
-- **Supervanilla RTX** - **Get latest Supervanilla RTX** downloads the newest build made for the game you're targeting (Release or Preview). Once downloaded, it shows that build's version; click it again to install it. Supervanilla RTX builds you import yourself are listed here too.
+- **Supervanilla RTX** - **Get latest Supervanilla RTX** downloads the newest build made for the game you're targeting (Release or Preview). Then it'll be ready to install; when a newer build comes out, the button comes back offering it. Builds you import yourself are listed here too, newest first. Only builds for the game you're targeting are shown - Preview builds (named *Supervanilla-RTX-Preview-...*) appear while the app targets Minecraft Preview, the others while it targets Release.
 - **BetterRTX** - an up-to-date list of pre-made presets from the BetterRTX website, followed by any BetterRTX presets you imported. Click a preset to download it (several can queue up), then click again to install it.
 
 The installed preset is highlighted, whichever section it's in. Along the bottom:
 
-- **Add customized preset** - import `.rtpack` files, by browsing, dragging them onto the button, or opening them with the app from File Explorer. Each lands in the section it belongs to - a file with Supervanilla RTX (or SVRTX) in its name goes under Supervanilla RTX, anything else under BetterRTX. Imported presets can be deleted with the button (bin icon) beside them.
-- **Supervanilla RTX for other versions** - opens the Supervanilla RTX downloads page inside the app, where you can pick a build for any game version. Download one, click **Done**, and it's imported automatically.
+- **Add customized preset** - import `.rtpack` files, by browsing, dragging them onto the button, or opening them with the app from File Explorer. Each lands in the section it belongs to - a file with Supervanilla RTX (or SVRTX) in its name goes under Supervanilla RTX, anything else under BetterRTX. Imported presets, and every Supervanilla RTX build, can be deleted with the button (bin icon) beside them.
+- **Supervanilla RTX for older versions** - opens the Supervanilla RTX downloads page inside the app, where you can pick a build for any game version. Download one, click **Done**, and it's imported automatically.
 - **Create your own preset** - opens the BetterRTX preset creator inside the app. Customize a preset, export it as `.rtpack`, then click **Done** and it will be imported automatically!
 - **Refresh** (title bar) - clears downloaded and imported presets and fetches both lists again. If one of the two sites can't be reached, its presets are left as they were. It never clears the Default RTX preset. It can be used once a minute, and shows a countdown for that minute after it has been used.
 
 The app goes to great lengths to make sure you never install stale files, and that your Default backup always matches your game - mostly without you having to do anything:
 
-- **When Minecraft updates**, Default RTX is re-taken from the updated game, and the Supervanilla RTX build you got with Get latest is cleared, so you can fetch the one made for the new version.
-- **When Minecraft (Release) updates**, every downloaded and imported preset is cleared as well, so you can't accidentally install shaders built for an older version. You'll need to download presets again, which for BetterRTX also depends on BetterRTX itself having caught up. A **Preview** update clears only Preview's own Default RTX and Supervanilla RTX build.
-- The app checks for a newer Supervanilla RTX build every so often, and when one is out, Get latest goes back to offering it.
+- **When Minecraft updates**, Default RTX is re-taken from the updated game, and every Supervanilla RTX build for that game (Release or Preview) is cleared, so you can fetch the one made for the new version.
+- **When Minecraft (Release) updates**, BetterRTX presets are cleared as well, so you can't accidentally install shaders built for an older version. You'll need to download them again, which also depends on BetterRTX itself having caught up. A **Preview** update leaves BetterRTX presets alone.
+- The app checks for a newer Supervanilla RTX build every so often, and when one is out, Get latest comes back offering it. The builds you already have stay until the game updates.
 - The app also checks the BetterRTX API for changes every so often and clears the downloaded BetterRTX presets. Use Refresh when it's slow to notice an update that may have dropped moments ago.
 
 On **Minecraft Preview**, use Get latest Supervanilla RTX (Preview): it fetches a build made for Preview. BetterRTX works there too but isn't recommended: its presets are built for the regular release, and Preview can refuse to start with them. If that happens, roll back to **Default RTX (Preview)**.

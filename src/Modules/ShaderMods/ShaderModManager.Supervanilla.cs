@@ -13,60 +13,52 @@ using Windows.Storage;
 
 namespace Vanilla_RTX_App.Modules.ShaderMods;
 
-/// <summary>How a Supervanilla RTX folder came to be in the cache, which decides what may retire it.</summary>
-internal enum SupervanillaKind
-{
-    /// <summary>The Get latest button's download - one per edition, replaced in place.</summary>
-    Latest,
-
-    /// <summary>A specific build listed in that edition's index.json.</summary>
-    Index,
-
-    /// <summary>An .rtpack brought in by hand, or from the downloads page in the in-app browser.</summary>
-    Import
-}
-
 /// <summary>
-/// What the sidecar beside a Supervanilla RTX preset records about it. <see cref="IsPreview"/> is
-/// null for an import: nothing says which game an .rtpack from disk was built for, so it is shown
-/// to both, the way every BetterRTX preset is.
+/// Which Supervanilla RTX build a preset is. <see cref="IsPreview"/> comes from the folder the
+/// preset sits in; the rest is read off its build name - the .rtpack's file name, recorded at
+/// import, else the manifest name - because nothing inside the pack carries it.
 /// </summary>
-internal sealed record SupervanillaOrigin(
-    SupervanillaKind Kind, bool? IsPreview, string? Version, string? FileName, long? Size, string? Date);
+internal sealed record SupervanillaBuild(bool IsPreview, string? FileName, int? Release, string? Version)
+{
+    /// <summary>"R2 - 1.26.7020.0", or whichever half is known. Null when neither is.</summary>
+    public string? Label => (Release, Version) switch
+    {
+        (int r, string v) => $"R{r} - {v}",
+        (null, string v) => v,
+        (int r, null) => $"R{r}",
+        _ => null
+    };
+}
 
 /// <summary>One build in an index.json. <see cref="Url"/> is as the server wrote it - site-relative today.</summary>
 internal sealed record SupervanillaIndexEntry(string Name, string Url, string? Version, long? Size, string? Date)
 {
-    /// <summary>The build's version: the index's own field, else whatever the file name carries.</summary>
-    public string? EffectiveVersion => Version ?? ShaderModManager.VersionFromFileName(Name);
+    public SupervanillaBuild ToBuild(bool isPreview) =>
+        new(isPreview, Name, ShaderModManager.ReleaseFromName(Name), Version ?? ShaderModManager.VersionFromFileName(Name));
 }
 
 internal sealed record SupervanillaIndex(SupervanillaIndexEntry? Latest, IReadOnlyList<SupervanillaIndexEntry> Files);
 
 /// <summary>
 /// The Supervanilla RTX provider: vanillartx.net's per-edition index.json, the Get latest download,
-/// and the rules for when either retires something already in the cache.
+/// and the one distinction this provider needs that BetterRTX's doesn't - which edition a build is for.
 ///
-/// <para><b>Why it is shaped differently from BetterRTX.</b> bedrock.graphics hosts many distinct
-/// presets and versions them on its own schedule; Supervanilla RTX is one preset that moves forward
-/// with the game, published per edition. So identity here is a <i>build</i> (a file, a version)
-/// rather than a UUID, the Release and Preview channels are separate files rather than one shared
-/// set, and "the API changed, wipe everything" becomes "a newer build exists, retire the one held".</para>
-///
-/// <para><b>Ownership is the folder name</b> (<see cref="SupervanillaFolderPrefix"/>), so every wipe
-/// in the cache can tell whose a folder is without opening it. Each folder also carries a sidecar
-/// (<see cref="OriginFileName"/>) saying which kind it is, which edition it is for and which build -
-/// the facts the reconcile and the list both need.</para>
+/// <para><b>Why the edition matters here and not for BetterRTX.</b> bedrock.graphics publishes one
+/// pool, built against Release. Supervanilla RTX publishes a Release channel and a Preview channel,
+/// each moving with its own game, so a build belongs to one edition and each edition's update
+/// retires only its own. That is the whole reason Supervanilla RTX presets sit in a folder per
+/// edition (<see cref="SupervanillaFolderName"/>) - and the only reason: where a preset came from
+/// (Get latest, the downloads page, a file from disk) is deliberately not recorded anywhere.</para>
 /// </summary>
 internal sealed partial class ShaderModManager
 {
     #region Switches and addresses
 
     /// <summary>
-    /// Whether the builds listed in index.json are drawn in the list. The index is fetched, cached
-    /// and reconciled either way, and the download path for an entry is complete - this gates only
-    /// the rows. Off while Supervanilla RTX publishes one build per game version, which the Get
-    /// latest row already covers; flip it the day the index carries variants worth choosing between.
+    /// Whether the builds listed in index.json are drawn in the list. The index is fetched and cached
+    /// either way, and the download path for an entry is complete - this gates only the rows. Off
+    /// while Supervanilla RTX publishes one build per game version, which the Get latest row already
+    /// covers; flip it the day the index carries variants worth choosing between.
     /// </summary>
     public const bool ShowSupervanillaIndexPresets = false;
 
@@ -104,39 +96,40 @@ internal sealed partial class ShaderModManager
 
     /// <summary>
     /// Every Supervanilla RTX folder in the cache starts with this, and nothing else does - a
-    /// BetterRTX folder is a UUID, a Default backup starts with two underscores. Every wipe keys off
-    /// it, so it must never change without migrating what is already on users' disks.
+    /// BetterRTX folder is a bare UUID, a Default backup starts with two underscores. Every wipe keys
+    /// off it, so it must never change without migrating what is already on users' disks.
     /// </summary>
     public const string SupervanillaFolderPrefix = "SVRTX_";
 
-    /// <summary>The sidecar written into every Supervanilla RTX folder. Not a manifest and not a .bin, so preset parsing never sees it.</summary>
-    private const string OriginFileName = "svrtx_origin.json";
-
-    private const string ImportInfix = "Import_";
+    /// <summary>
+    /// Holds the one fact about a build that can't be recovered from the pack afterwards: the file
+    /// name it arrived as, which is where its release number and version live. Not a manifest and
+    /// not a .bin, so preset parsing never sees it.
+    /// </summary>
+    private const string BuildFileName = "svrtx_build.json";
 
     public static bool IsSupervanillaFolderName(string folderName) =>
         folderName.StartsWith(SupervanillaFolderPrefix, StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>The prefix of every folder that is one edition's own download - Get latest and index builds alike.</summary>
     private static string EditionFolderPrefix(bool isPreview) => $"{SupervanillaFolderPrefix}{EditionLabel(isPreview)}_";
 
-    private static string LatestFolderName(bool isPreview) => $"{EditionFolderPrefix(isPreview)}Latest";
-
-    private static string IndexFolderName(bool isPreview, string fileName) =>
-        $"{EditionFolderPrefix(isPreview)}Index_{SanitizePresetName(Path.GetFileNameWithoutExtension(fileName))}";
-
     /// <summary>
-    /// Named after the file rather than the manifest UUID: successive builds may share a UUID, and a
-    /// UUID-named folder would let importing one build silently replace another. Importing the same
-    /// file twice still replaces it in place.
+    /// <c>SVRTX_Release_&lt;uuid&gt;</c> / <c>SVRTX_Preview_&lt;uuid&gt;</c>. Keyed by UUID like
+    /// BetterRTX's folders - every build has its own, and bringing in one that shares a UUID replaces
+    /// it in place, which is what BetterRTX does too.
     /// </summary>
-    private static string SupervanillaImportFolderName(string fileName) =>
-        $"{SupervanillaFolderPrefix}{ImportInfix}{SanitizePresetName(Path.GetFileNameWithoutExtension(fileName))}";
+    private static string SupervanillaFolderName(bool isPreview, string uuid) =>
+        EditionFolderPrefix(isPreview) + SanitizePresetName(uuid);
+
+    /// <summary>The edition a Supervanilla RTX folder belongs to, from its name; null for anything else.</summary>
+    private static bool? EditionOfFolder(string folderName) =>
+        folderName.StartsWith(EditionFolderPrefix(true), StringComparison.OrdinalIgnoreCase) ? true
+        : folderName.StartsWith(EditionFolderPrefix(false), StringComparison.OrdinalIgnoreCase) ? false
+        : null;
 
     /// <summary>
-    /// Whether a name says Supervanilla RTX. Covers every spelling the user asked to be recognised -
-    /// "Supervanilla", "SupervanillaRTX", "Supervanilla RTX", "SVRTX" - case-insensitively, anywhere
-    /// in the name, since a file name and a manifest name both put it in different places.
+    /// Whether a name says Supervanilla RTX - "Supervanilla", "SupervanillaRTX", "Supervanilla RTX"
+    /// or "SVRTX", case-insensitively, anywhere in it.
     /// </summary>
     public static bool LooksLikeSupervanilla(string? name) =>
         !string.IsNullOrEmpty(name) &&
@@ -153,180 +146,61 @@ internal sealed partial class ShaderModManager
             ? PresetSource.Supervanilla
             : PresetSource.BetterRTX;
 
+    /// <summary>
+    /// Which edition an imported Supervanilla RTX build is for. Builds are named
+    /// <c>Supervanilla-RTX-Preview-R1-…</c> for Preview and <c>Supervanilla-RTX-R1-…</c> for
+    /// Release, and that convention is the only evidence there is, so "preview" anywhere in the file
+    /// or manifest name decides it. Fragile by nature, and accepted: the naming is ours and fixed.
+    /// </summary>
+    public static bool IsPreviewBuildName(string? fileName, string? manifestName) =>
+        (fileName?.Contains("preview", StringComparison.OrdinalIgnoreCase) ?? false) ||
+        (manifestName?.Contains("preview", StringComparison.OrdinalIgnoreCase) ?? false);
+
     /// <summary>Whose a folder already in the cache is - decided entirely by its name.</summary>
     public static PresetSource ClassifyFolder(string folderName) =>
         IsSupervanillaFolderName(folderName) ? PresetSource.Supervanilla : PresetSource.BetterRTX;
 
     /// <summary>
-    /// Moves a Supervanilla RTX import that predates ownership-by-folder-name - a UUID-named folder
-    /// whose manifest name says Supervanilla RTX - under the prefix it would be imported with today.
-    /// Without this every wipe would take it for BetterRTX's. Idempotent: once moved there is
-    /// nothing left for it to match.
+    /// Deletes every Supervanilla RTX build held for one edition - however it arrived. The other
+    /// edition's builds are a different game's and are never collateral.
     /// </summary>
-    private static void AdoptLegacySupervanillaImports(string cacheFolder)
+    public void WipeSupervanillaPresets(bool isPreview)
     {
-        try
-        {
-            foreach (var folder in Directory.GetDirectories(cacheFolder))
-            {
-                var name = Path.GetFileName(folder);
-                if (IsDefaultFolderName(name) || IsSupervanillaFolderName(name) ||
-                    name.StartsWith("__staging_", StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                var manifestPath = Directory.EnumerateFiles(folder, "manifest.json", SearchOption.AllDirectories).FirstOrDefault();
-                var manifestName = manifestPath is null ? null : PackManifest.FromFile(manifestPath)?.HeaderName;
-                if (!LooksLikeSupervanilla(manifestName)) continue;
-
-                var destination = Path.Combine(cacheFolder, $"{SupervanillaFolderPrefix}{ImportInfix}{name}");
-                if (Directory.Exists(destination)) continue;
-
-                Directory.Move(folder, destination);
-                WriteSupervanillaOrigin(destination, new SupervanillaOrigin(
-                    SupervanillaKind.Import, IsPreview: null, ManifestVersion(destination), FileName: null, Size: null, Date: null));
-                Trace.WriteLine($"[ShaderMods] [Supervanilla] Adopted legacy import \"{manifestName}\" as {Path.GetFileName(destination)}");
-            }
-        }
-        catch (Exception ex)
-        {
-            Trace.WriteLine($"[ShaderMods] [Supervanilla] Legacy import adoption failed: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// Deletes one edition's Supervanilla RTX downloads (Get latest and index builds), and every
-    /// import as well when <paramref name="includeImports"/> is set. Imports have no edition, so
-    /// only a wipe meant to clear the shared cache may take them.
-    /// </summary>
-    public void WipeSupervanillaPresets(bool isPreview, bool includeImports)
-    {
-        var editionPrefix = EditionFolderPrefix(isPreview);
-        var importPrefix = SupervanillaFolderPrefix + ImportInfix;
-
-        int deleted = DeleteCacheFolders(name =>
-            name.StartsWith(editionPrefix, StringComparison.OrdinalIgnoreCase) ||
-            (includeImports && name.StartsWith(importPrefix, StringComparison.OrdinalIgnoreCase)),
-            "[Supervanilla]");
-
-        Trace.WriteLine($"[ShaderMods] [Supervanilla] Wiped {deleted} folder(s) - {EditionLabel(isPreview)} downloads{(includeImports ? " and every import" : "")}");
+        var prefix = EditionFolderPrefix(isPreview);
+        int deleted = DeleteCacheFolders(name => name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase), "[Supervanilla]");
+        Trace.WriteLine($"[ShaderMods] [Supervanilla] Wiped {deleted} {EditionLabel(isPreview)} build(s)");
     }
 
     #endregion
 
-    #region The sidecar
+    #region Build names
 
-    public static SupervanillaOrigin? ReadSupervanillaOrigin(string folder)
-    {
-        try
-        {
-            var path = Path.Combine(folder, OriginFileName);
-            if (!File.Exists(path)) return null;
-
-            var root = MinecraftJson.ParseObjectFile(path);
-            if (root is null) return null;
-
-            // Spelled out rather than Enum.TryParse: this is a file format, and the names in it
-            // must not move just because an enum member is renamed.
-            SupervanillaKind? kind = MinecraftJson.GetString(root["kind"])?.ToLowerInvariant() switch
-            {
-                "latest" => SupervanillaKind.Latest,
-                "index" => SupervanillaKind.Index,
-                "import" => SupervanillaKind.Import,
-                _ => null
-            };
-            if (kind is null) return null;
-
-            string? edition = MinecraftJson.GetString(root["edition"]);
-            bool? isPreview = edition?.ToLowerInvariant() switch { "preview" => true, "release" => false, _ => null };
-
-            return new SupervanillaOrigin(
-                kind.Value, isPreview,
-                MinecraftJson.GetString(root["version"]),
-                MinecraftJson.GetString(root["file"]),
-                MinecraftJson.GetInt(root["size"]),
-                MinecraftJson.GetString(root["date"]));
-        }
-        catch (Exception ex)
-        {
-            Trace.WriteLine($"[ShaderMods] [Supervanilla] Unreadable sidecar in {folder}: {ex.Message}");
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// What a Supervanilla RTX folder's name alone says about it, for one whose sidecar is missing
-    /// or unreadable - a write that failed, or a folder from a crash between the move and the
-    /// write. Kind and edition are recoverable from the layout; the build's version is not.
-    /// </summary>
-    public static SupervanillaOrigin InferSupervanillaOrigin(string folderName)
-    {
-        foreach (var isPreview in new[] { false, true })
-        {
-            var prefix = EditionFolderPrefix(isPreview);
-            if (!folderName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) continue;
-
-            var kind = folderName.Equals(LatestFolderName(isPreview), StringComparison.OrdinalIgnoreCase)
-                ? SupervanillaKind.Latest
-                : SupervanillaKind.Index;
-            return new SupervanillaOrigin(kind, isPreview, null, null, null, null);
-        }
-
-        return new SupervanillaOrigin(SupervanillaKind.Import, null, null, null, null, null);
-    }
-
-    private static void WriteSupervanillaOrigin(string folder, SupervanillaOrigin origin)
-    {
-        try
-        {
-            // Non-generic JsonValue.Create overloads throughout - the generic one reflects, which a
-            // trimmed Release build strips (CLAUDE.md §6).
-            var root = new JsonObject
-            {
-                ["kind"] = JsonValue.Create(origin.Kind switch
-                {
-                    SupervanillaKind.Latest => "latest",
-                    SupervanillaKind.Index => "index",
-                    _ => "import"
-                }),
-                ["edition"] = origin.IsPreview is bool p ? JsonValue.Create(p ? "preview" : "release") : null,
-                ["version"] = JsonValue.Create(origin.Version),
-                ["file"] = JsonValue.Create(origin.FileName),
-                ["size"] = origin.Size is long size ? JsonValue.Create(size) : null,
-                ["date"] = JsonValue.Create(origin.Date)
-            };
-            MinecraftJson.WriteIndented(Path.Combine(folder, OriginFileName), root);
-        }
-        catch (Exception ex)
-        {
-            Trace.WriteLine($"[ShaderMods] [Supervanilla] Couldn't write sidecar in {folder}: {ex.Message}");
-        }
-    }
-
-    #endregion
-
-    #region Versions
-
-    // "Supervanilla-RTX-v1.26.40.56.rtpack" and "Supervanilla-RTX-1.26.30.rtpack" alike: the last
-    // dotted run of two or more numbers in the name, with or without a leading v.
+    // "Supervanilla-RTX-R1-1.26.7020.0" and "Supervanilla-RTX-v1.26.40.56" alike: the last dotted run
+    // of two or more numbers in the name, with or without a leading v.
     private static readonly Regex FileVersionPattern = new(@"v?(\d+(?:\.\d+)+)(?!.*\d+\.\d)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
-    public static string? VersionFromFileName(string? fileName)
+    // The R in "Supervanilla-RTX-Preview-R2-1.26.7020.0": an R and digits standing on their own
+    // between separators, so the R of "RTX" never matches.
+    private static readonly Regex ReleasePattern = new(@"(?:^|[-_ ])R(\d+)(?=$|[-_ ])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+    public static string? VersionFromFileName(string? name)
     {
-        if (string.IsNullOrEmpty(fileName)) return null;
-        var match = FileVersionPattern.Match(Path.GetFileNameWithoutExtension(fileName));
+        if (string.IsNullOrEmpty(name)) return null;
+        var match = FileVersionPattern.Match(StripRtpack(name));
         return match.Success ? match.Groups[1].Value : null;
     }
 
-    /// <summary>The manifest's own header version, dotted - the fallback when no file name carries one.</summary>
-    private static string? ManifestVersion(string presetFolder)
+    public static int? ReleaseFromName(string? name)
     {
-        try
-        {
-            var manifestPath = Directory.EnumerateFiles(presetFolder, "manifest.json", SearchOption.AllDirectories).FirstOrDefault();
-            return manifestPath is null ? null : PackManifest.FromFile(manifestPath)?.VersionDisplay;
-        }
-        catch { return null; }
+        if (string.IsNullOrEmpty(name)) return null;
+        var match = ReleasePattern.Match(StripRtpack(name));
+        return match.Success && int.TryParse(match.Groups[1].Value, out var r) ? r : null;
     }
+
+    // Only a known extension is stripped: Path.GetFileNameWithoutExtension on a manifest name such
+    // as "Supervanilla RTX 1.26.7020.0" would take ".0" off the version.
+    private static string StripRtpack(string name) =>
+        name.EndsWith(".rtpack", StringComparison.OrdinalIgnoreCase) ? name[..^7] : name;
 
     /// <summary>
     /// Compares two dotted versions part by part, a missing trailing part counting as 0, so
@@ -358,24 +232,66 @@ internal sealed partial class ShaderModManager
     }
 
     /// <summary>
-    /// Whether the index's latest build is newer than the one held. Strictly newer only: the site
-    /// moves forward with the game, so an index whose latest is <i>older</i> than what was downloaded
-    /// is the index lagging behind /latest (which this cache can be up to an hour behind), never a
-    /// reason to take the newer build away. When either version can't be read, a different file
-    /// name is the only evidence left, and is taken as a new build.
+    /// Orders builds: game version first, release number within it - so R2 of a version sits above
+    /// R1 of it, and anything of a newer version above both. A missing release number counts as 0.
+    /// Null when the versions can't be compared.
     /// </summary>
-    private static bool IsNewerBuild(SupervanillaIndexEntry latest, SupervanillaOrigin held) =>
-        CompareVersions(latest.EffectiveVersion, held.Version) switch
+    public static int? CompareBuilds(SupervanillaBuild a, SupervanillaBuild b) =>
+        CompareVersions(a.Version, b.Version) switch
         {
-            int c => c > 0,
-            null => !string.Equals(latest.Name, held.FileName, StringComparison.OrdinalIgnoreCase)
+            0 => (a.Release ?? 0).CompareTo(b.Release ?? 0),
+            var c => c
         };
+
+    #endregion
+
+    #region The sidecar
+
+    /// <summary>
+    /// What is known about the build in one Supervanilla RTX folder: its edition from the folder
+    /// name, its release and version from the recorded file name, else from the manifest name.
+    /// </summary>
+    private static SupervanillaBuild ReadSupervanillaBuild(string folder, string? manifestName)
+    {
+        string? fileName = null;
+        try
+        {
+            var path = Path.Combine(folder, BuildFileName);
+            if (File.Exists(path))
+                fileName = MinecraftJson.GetString(MinecraftJson.ParseObjectFile(path)?["file"]);
+        }
+        catch (Exception ex)
+        {
+            Trace.WriteLine($"[ShaderMods] [Supervanilla] Unreadable sidecar in {folder}: {ex.Message}");
+        }
+
+        var source = fileName ?? manifestName;
+        return new SupervanillaBuild(
+            EditionOfFolder(Path.GetFileName(folder)) ?? false,
+            fileName,
+            ReleaseFromName(source) ?? ReleaseFromName(manifestName),
+            VersionFromFileName(source) ?? VersionFromFileName(manifestName));
+    }
+
+    private static void WriteSupervanillaBuild(string folder, string fileName)
+    {
+        try
+        {
+            // The non-generic JsonValue.Create - the generic one reflects, which a trimmed Release
+            // build strips (CLAUDE.md §6).
+            MinecraftJson.WriteIndented(Path.Combine(folder, BuildFileName), new JsonObject { ["file"] = JsonValue.Create(fileName) });
+        }
+        catch (Exception ex)
+        {
+            Trace.WriteLine($"[ShaderMods] [Supervanilla] Couldn't record the build name in {folder}: {ex.Message}");
+        }
+    }
 
     #endregion
 
     #region State
 
-    /// <summary>Every Supervanilla RTX folder in the cache, both editions' - see <see cref="LoadLocalPresetsAsync"/>.</summary>
+    /// <summary>Every Supervanilla RTX preset in the cache, both editions' - see <see cref="LoadLocalPresetsAsync"/>.</summary>
     public List<LocalPresetData>? SupervanillaPresets { get; private set; }
 
     /// <summary>The attached edition's index, as last cached. Null until one has ever been fetched.</summary>
@@ -387,16 +303,40 @@ internal sealed partial class ShaderModManager
     private static string SupervanillaIndexCacheFileName(bool isPreview) =>
         $"svrtx_index_{EditionLabel(isPreview).ToLowerInvariant()}.json";
 
-    /// <summary>The Get latest download held for the attached edition, if any.</summary>
-    public LocalPresetData? HeldSupervanillaLatest =>
-        SupervanillaPresets?.FirstOrDefault(p =>
-            p.Supervanilla is { Kind: SupervanillaKind.Latest } o && o.IsPreview == IsPreview);
+    /// <summary>The attached edition's builds, newest first (<see cref="CompareBuilds"/>).</summary>
+    public List<LocalPresetData> HeldSupervanillaBuilds()
+    {
+        var held = (SupervanillaPresets ?? new List<LocalPresetData>())
+            .Where(p => p.Supervanilla?.IsPreview == IsPreview)
+            .ToList();
 
-    /// <summary>The attached edition's download of one index build, if held.</summary>
-    public LocalPresetData? HeldSupervanillaIndexBuild(SupervanillaIndexEntry entry) =>
-        SupervanillaPresets?.FirstOrDefault(p =>
-            p.Supervanilla is { Kind: SupervanillaKind.Index } o && o.IsPreview == IsPreview &&
-            string.Equals(o.FileName, entry.Name, StringComparison.OrdinalIgnoreCase));
+        // Builds whose version can't be read sort below those whose can, then by name - a stable
+        // order rather than whatever the comparer happens to do with an incomparable pair.
+        var readable = held.Where(p => CompareVersions(p.Supervanilla!.Version, "0") is not null).ToList();
+        readable.Sort((a, b) => -(CompareBuilds(a.Supervanilla!, b.Supervanilla!) ?? 0));
+        var rest = SmartPresetSorter.SafeOrderByName(held.Except(readable), p => p.Name);
+        return readable.Concat(rest).ToList();
+    }
+
+    /// <summary>
+    /// Whether this edition already holds the index's latest build, or something at least as new.
+    /// False when there is no index to ask, so the Get latest row keeps offering itself - it asks
+    /// /latest directly and never needed the index to work.
+    /// </summary>
+    public bool HoldsSupervanillaLatest()
+    {
+        if (CurrentSupervanillaIndex?.Latest is not { } latest) return false;
+        var latestBuild = latest.ToBuild(IsPreview);
+
+        return HeldSupervanillaBuilds().Any(p =>
+            string.Equals(p.Supervanilla!.FileName, latest.Name, StringComparison.OrdinalIgnoreCase) ||
+            CompareBuilds(p.Supervanilla!, latestBuild) >= 0);
+    }
+
+    /// <summary>Whether this edition holds one particular index build.</summary>
+    public bool HoldsSupervanillaBuild(SupervanillaIndexEntry entry) =>
+        HeldSupervanillaBuilds().Any(p =>
+            string.Equals(p.Supervanilla!.FileName, entry.Name, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>Download-queue keys. The <c>svrtx:</c> prefix is what keeps them clear of BetterRTX's UUIDs.</summary>
     public static string LatestDownloadKey(bool isPreview) => $"svrtx:latest:{EditionLabel(isPreview)}";
@@ -408,17 +348,15 @@ internal sealed partial class ShaderModManager
     #region The index
 
     /// <summary>
-    /// Brings this edition's index up to date and retires whatever it shows to be superseded.
-    /// Fetches when <paramref name="force"/> is set or an hour has passed since the last answer;
-    /// otherwise works from the cached copy. Returns whether the server answered this time - a 304
-    /// counts, since it confirms the cached copy is current.
+    /// Brings this edition's index up to date. Fetches when <paramref name="force"/> is set, when an
+    /// hour has passed since the last answer, or when nothing is cached; otherwise uses the cached
+    /// copy. Returns whether the server answered this time - a 304 counts.
     ///
-    /// <para><b>The reconcile runs every time, cached index or fresh.</b> It is cheap, idempotent,
-    /// and it is the only thing that notices a Get latest download the index has since moved past
-    /// - which can happen across opens without the index itself having been re-fetched.</para>
-    ///
-    /// <para><b>Nothing is wiped when the server can't be reached.</b> The cached index, however
-    /// old, still describes builds that exist; an error card is worse than a stale answer.</para>
+    /// <para><b>A new build appearing deletes nothing.</b> All it changes is
+    /// <see cref="HoldsSupervanillaLatest"/>, which brings the Get latest row back, offering it. The
+    /// builds already held stay installable until this edition's game updates or Refresh is pressed
+    /// - the two events that do mean "these are stale". Nothing is wiped when the server can't be
+    /// reached either; a stale index still describes builds that exist.</para>
     /// </summary>
     public async Task<bool> RefreshSupervanillaIndexAsync(bool force)
     {
@@ -450,15 +388,13 @@ internal sealed partial class ShaderModManager
         }
 
         CurrentSupervanillaIndex = LoadCachedSupervanillaIndex();
-        ReconcileSupervanillaDownloads();
         return answered;
     }
 
     /// <summary>
     /// What the refresh button asks of this provider: a fresh look at the index, and only if the
-    /// server answered, clearing this edition's downloads and every Supervanilla RTX import so the
-    /// next ones come straight from the site. The same fetch-first order as
-    /// <see cref="RebuildFromApiAsync"/>, for the same reason.
+    /// server answered, clearing this edition's builds so the next ones come straight from the site.
+    /// The same fetch-first order as <see cref="RebuildFromApiAsync"/>, for the same reason.
     /// </summary>
     public async Task<bool> RebuildSupervanillaAsync()
     {
@@ -468,7 +404,7 @@ internal sealed partial class ShaderModManager
             return false;
         }
 
-        WipeSupervanillaPresets(IsPreview, includeImports: true);
+        WipeSupervanillaPresets(IsPreview);
         return true;
     }
 
@@ -574,61 +510,6 @@ internal sealed partial class ShaderModManager
         return latest is null && files.Count == 0 ? null : new SupervanillaIndex(latest, files);
     }
 
-    /// <summary>
-    /// Retires this edition's downloads that the index shows to be superseded:
-    ///
-    /// <list type="bullet">
-    /// <item>the Get latest download, when the index's latest is a newer build
-    /// (<see cref="IsNewerBuild"/>) - so the row goes back to offering the newest one;</item>
-    /// <item>an index build that the index no longer lists, or now lists differently - same name
-    /// but another size, date or version is a re-upload, and the held copy is not it.</item>
-    /// </list>
-    ///
-    /// A folder whose sidecar can't be read can't be checked, and is retired: it will be downloaded
-    /// again, which is the outcome a check would have reached if it had found anything wrong.
-    /// </summary>
-    private void ReconcileSupervanillaDownloads()
-    {
-        var index = CurrentSupervanillaIndex;
-        if (index is null || !Directory.Exists(CacheFolder)) return;
-
-        var latestFolder = Path.Combine(CacheFolder, LatestFolderName(IsPreview));
-        if (Directory.Exists(latestFolder) && index.Latest is { } latest)
-        {
-            var held = ReadSupervanillaOrigin(latestFolder);
-            if (held is null || IsNewerBuild(latest, held))
-            {
-                Trace.WriteLine($"[ShaderMods] [Supervanilla] Newer {EditionLabel(IsPreview)} build in the index ({latest.EffectiveVersion}, held {held?.Version ?? "unknown"}) - retiring the held one");
-                TryDeleteFolder(latestFolder);
-            }
-        }
-
-        var indexPrefix = EditionFolderPrefix(IsPreview) + "Index_";
-        foreach (var folder in Directory.GetDirectories(CacheFolder, indexPrefix + "*"))
-        {
-            var held = ReadSupervanillaOrigin(folder);
-            var listed = held is null ? null : index.Files.FirstOrDefault(f =>
-                string.Equals(f.Name, held.FileName, StringComparison.OrdinalIgnoreCase));
-
-            bool current = listed is not null &&
-                listed.Size == held!.Size &&
-                string.Equals(listed.Date, held.Date, StringComparison.Ordinal) &&
-                string.Equals(listed.EffectiveVersion, held.Version, StringComparison.Ordinal);
-
-            if (!current)
-            {
-                Trace.WriteLine($"[ShaderMods] [Supervanilla] {Path.GetFileName(folder)} is no longer what the index lists - retiring it");
-                TryDeleteFolder(folder);
-            }
-        }
-    }
-
-    private static void TryDeleteFolder(string folder)
-    {
-        try { Directory.Delete(folder, true); }
-        catch (Exception ex) { Trace.WriteLine($"[ShaderMods] [Supervanilla] Couldn't delete {folder}: {ex.Message}"); }
-    }
-
     #endregion
 
     #region Downloads
@@ -648,9 +529,10 @@ internal sealed partial class ShaderModManager
     }
 
     /// <summary>
-    /// The Get latest button: downloads whatever this edition's <c>/latest</c> points at into the
-    /// edition's one Latest folder, replacing what was there. Independent of the index - it works
-    /// with the index unreachable, never fetched, or switched off.
+    /// The Get latest button: downloads whatever this edition's <c>/latest</c> points at. Independent
+    /// of the index - it works with the index unreachable, never fetched, or switched off. The build
+    /// is filed under the edition being targeted, whatever its name says: this edition's channel is
+    /// the authority on what this edition's build is.
     /// </summary>
     public async Task<bool> DownloadSupervanillaLatestAsync(CancellationToken cancellationToken)
     {
@@ -659,19 +541,7 @@ internal sealed partial class ShaderModManager
             var fileUrl = await ResolveLatestAsync(origin, cancellationToken);
             if (fileUrl is null) continue;
 
-            var fileName = FileNameFromUrl(fileUrl);
-
-            // The index may know this build's version and size better than its file name does.
-            var listed = CurrentSupervanillaIndex?.Files.FirstOrDefault(f => string.Equals(f.Name, fileName, StringComparison.OrdinalIgnoreCase))
-                         ?? (string.Equals(CurrentSupervanillaIndex?.Latest?.Name, fileName, StringComparison.OrdinalIgnoreCase) ? CurrentSupervanillaIndex!.Latest : null);
-
-            var ok = await DownloadSupervanillaFileAsync(fileUrl, LatestFolderName(IsPreview), folder =>
-                new SupervanillaOrigin(SupervanillaKind.Latest, IsPreview,
-                    listed?.EffectiveVersion ?? VersionFromFileName(fileName) ?? ManifestVersion(folder),
-                    fileName, listed?.Size, listed?.Date),
-                cancellationToken);
-
-            if (ok) return true;
+            if (await DownloadSupervanillaFileAsync(fileUrl, cancellationToken)) return true;
             if (cancellationToken.IsCancellationRequested) return false;
         }
 
@@ -679,8 +549,8 @@ internal sealed partial class ShaderModManager
     }
 
     /// <summary>
-    /// Downloads one build listed in the index into its own folder. The whole path is live even
-    /// while <see cref="ShowSupervanillaIndexPresets"/> keeps the rows that would call it hidden.
+    /// Downloads one build listed in the index. The whole path is live even while
+    /// <see cref="ShowSupervanillaIndexPresets"/> keeps the rows that would call it hidden.
     /// </summary>
     public async Task<bool> DownloadSupervanillaIndexEntryAsync(SupervanillaIndexEntry entry, CancellationToken cancellationToken)
     {
@@ -688,11 +558,7 @@ internal sealed partial class ShaderModManager
         {
             if (!Uri.TryCreate(new Uri(origin), entry.Url, out var fileUri)) continue;
 
-            var ok = await DownloadSupervanillaFileAsync(fileUri.AbsoluteUri, IndexFolderName(IsPreview, entry.Name), _ =>
-                new SupervanillaOrigin(SupervanillaKind.Index, IsPreview, entry.EffectiveVersion, entry.Name, entry.Size, entry.Date),
-                cancellationToken);
-
-            if (ok) return true;
+            if (await DownloadSupervanillaFileAsync(fileUri.AbsoluteUri, cancellationToken)) return true;
             if (cancellationToken.IsCancellationRequested) return false;
         }
 
@@ -739,19 +605,18 @@ internal sealed partial class ShaderModManager
     }
 
     /// <summary>
-    /// Downloads one .rtpack and puts it in place under <paramref name="folderName"/>, through the
-    /// same staging every import uses: the existing folder is only replaced once the new one has
-    /// been unpacked and found to be a preset, so a bad download never costs the good copy.
-    /// <paramref name="origin"/> builds the sidecar once the folder is in place, since a version
-    /// may only be readable from the manifest inside it.
+    /// Downloads one .rtpack into this edition's builds, through the same staging every import uses:
+    /// a folder already holding that UUID is only replaced once the new one has been unpacked and
+    /// found to be a preset, so a bad download never costs the good copy.
     /// </summary>
-    private async Task<bool> DownloadSupervanillaFileAsync(
-        string url, string folderName, Func<string, SupervanillaOrigin> origin, CancellationToken cancellationToken)
+    private async Task<bool> DownloadSupervanillaFileAsync(string url, CancellationToken cancellationToken)
     {
         string? downloadedPath = null;
         string? stagingFolder = null;
         try
         {
+            var fileName = Uri.UnescapeDataString(Path.GetFileName(new Uri(url).AbsolutePath));
+
             Trace.WriteLine($"[ShaderMods] [Supervanilla] Downloading: {url}");
             var (success, path) = await Helpers.Download(url, cancellationToken: cancellationToken, timeout: TimeSpan.FromMinutes(3));
             downloadedPath = path;
@@ -771,15 +636,15 @@ internal sealed partial class ShaderModManager
                 return false;
             }
 
-            var destination = Path.Combine(CacheFolder, folderName);
+            var destination = Path.Combine(CacheFolder, SupervanillaFolderName(IsPreview, parsed.Uuid));
             if (Directory.Exists(destination))
                 Directory.Delete(destination, true);
 
             Directory.Move(stagingFolder, destination);
             stagingFolder = null;
 
-            WriteSupervanillaOrigin(destination, origin(destination));
-            Trace.WriteLine($"[ShaderMods] [Supervanilla] ✓ \"{parsed.Name}\" in place at {destination}");
+            WriteSupervanillaBuild(destination, fileName);
+            Trace.WriteLine($"[ShaderMods] [Supervanilla] ✓ \"{parsed.Name}\" ({fileName}) in place at {destination}");
             return true;
         }
         catch (Exception ex)
@@ -789,16 +654,16 @@ internal sealed partial class ShaderModManager
         }
         finally
         {
-            if (stagingFolder != null) TryDeleteFolder(stagingFolder);
+            if (stagingFolder != null)
+            {
+                try { Directory.Delete(stagingFolder, true); } catch { }
+            }
             if (!string.IsNullOrEmpty(downloadedPath))
             {
                 try { File.Delete(downloadedPath); } catch { }
             }
         }
     }
-
-    private static string FileNameFromUrl(string url) =>
-        Uri.UnescapeDataString(Path.GetFileName(new Uri(url).AbsolutePath));
 
     #endregion
 }

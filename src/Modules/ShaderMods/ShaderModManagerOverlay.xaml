@@ -173,7 +173,7 @@
 
                     <!-- Per-content horizontal margins leave room for card shadows. Collapse
                          an empty panel so its vertical margin does not add a phantom gap. -->
-                    <StackPanel x:Name="BetterRTXInfoPanel"
+                    <StackPanel x:Name="ShaderModsInfoPanel"
                                 Spacing="10"
                                 Margin="20,12,24,0"
                                 Visibility="Collapsed" />
@@ -206,8 +206,8 @@
                         <ColumnDefinition Width="1.5*" />
                         <!-- Gap 6 px -->
                         <ColumnDefinition Width="6" />
-                        <!-- Supervanilla RTX downloads -->
-                        <ColumnDefinition Width="1.15*" />
+                        <!-- Supervanilla RTX for older versions -->
+                        <ColumnDefinition Width="1*" />
                         <!-- Gap 6 px -->
                         <ColumnDefinition Width="6" />
                         <!-- Create your own preset -->
@@ -270,21 +270,24 @@
                     </Button>
 
                     <!-- ── SUPERVANILLA RTX DOWNLOADS ─────────── -->
-                    <!-- The one accented control in the bar, deliberately: it is the way to every
-                         Supervanilla RTX build the Get latest row doesn't cover. Its two bevels are
-                         accented too and painted from code, because their colour follows the
-                         button's enabled state - see ApplySupervanillaButtonBevels. -->
-                    <Button x:Name="SupervanillaDownloadsButton"
-                            Grid.Column="2"
-                            HorizontalAlignment="Stretch"
-                            VerticalAlignment="Stretch"
-                            HorizontalContentAlignment="Center"
-                            Padding="12,0,12,0"
-                            CornerRadius="0"
-                            BorderThickness="0"
-                            Style="{ThemeResource AccentButtonStyle}"
-                            IsTextScaleFactorEnabled="False"
-                            Click="SupervanillaDownloadsButton_Click">
+                    <!-- Built exactly like Create your own preset beside it: a solid backdrop under
+                         a HyperlinkButton, whose own background is too translucent on its own. -->
+                    <Rectangle Grid.Column="2"
+                               Fill="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                               IsHitTestVisible="False" />
+
+                    <!-- The label under the title names the address it opens - see
+                         ShaderModManagerOverlay.ShowBrowseTargets. -->
+                    <HyperlinkButton x:Name="SupervanillaDownloadsLink"
+                                     Grid.Column="2"
+                                     HorizontalAlignment="Stretch"
+                                     VerticalAlignment="Stretch"
+                                     HorizontalContentAlignment="Center"
+                                     Padding="0"
+                                     CornerRadius="0"
+                                     BorderThickness="0"
+                                     IsTextScaleFactorEnabled="False"
+                                     Click="SupervanillaDownloadsButton_Click">
                         <StackPanel HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
                                     Spacing="4">
@@ -292,11 +295,11 @@
                                         HorizontalAlignment="Center"
                                         Spacing="8">
                                 <FontIcon Glyph="&#xE81C;"
-                                          FontSize="18"
-                                          Margin="0,2,0,0"
+                                          FontSize="20"
+                                          Margin="0,3,0,0"
                                           VerticalAlignment="Center"
                                           IsTextScaleFactorEnabled="False" />
-                                <TextBlock Text="Supervanilla RTX for other versions"
+                                <TextBlock Text="Supervanilla RTX for older versions"
                                            FontWeight="SemiBold"
                                            FontSize="14"
                                            TextWrapping="Wrap"
@@ -306,13 +309,13 @@
                             </StackPanel>
                             <TextBlock x:Name="SupervanillaDownloadsTargetText"
                                        FontSize="11"
-                                       Opacity="0.8"
+                                       Opacity="0.67"
                                        FontWeight="Medium"
                                        TextWrapping="Wrap"
                                        TextAlignment="Center"
                                        IsTextScaleFactorEnabled="False" />
                         </StackPanel>
-                    </Button>
+                    </HyperlinkButton>
 
                     <!-- ── CREATE YOUR OWN PRESET ─────────────── -->
                     <!-- Solid backdrop behind the hyperlink button: HyperlinkButton's own
@@ -364,8 +367,8 @@
                     </HyperlinkButton>
 
                     <!-- ── BEVELLED SPLIT SEAMS ─────────────────── -->
-                    <!-- Add | Supervanilla: Add's resting dark edge meets the accented
-                         button's bright one. -->
+                    <!-- Each seam is the left button's dark edge meeting the right one's bright
+                         edge, the same pair everywhere in the app. -->
                     <Grid Grid.Column="0"
                           HorizontalAlignment="Right"
                           Width="3"
@@ -382,19 +385,17 @@
                           Margin="-3,0,0,0"
                           IsHitTestVisible="False">
                         <Rectangle Fill="{ThemeResource ButtonBackgroundThemeBrush}" />
-                        <Border x:Name="SupervanillaLeftBevel"
+                        <Border BorderBrush="{ThemeResource FakeSplitButtonBrightBorderColor}"
                                 BorderThickness="3,0,0,0" />
                     </Grid>
 
-                    <!-- Supervanilla | Create: the accented button's dark edge meets Create's
-                         resting bright one. -->
                     <Grid Grid.Column="2"
                           HorizontalAlignment="Right"
                           Width="3"
                           Margin="0,0,-3,0"
                           IsHitTestVisible="False">
                         <Rectangle Fill="{ThemeResource ButtonBackgroundThemeBrush}" />
-                        <Border x:Name="SupervanillaRightBevel"
+                        <Border BorderBrush="{ThemeResource FakeSplitButtonDarkBorderColor}"
                                 BorderThickness="3,0,0,0" />
                     </Grid>
 

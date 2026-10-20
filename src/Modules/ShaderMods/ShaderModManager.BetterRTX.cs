@@ -38,7 +38,7 @@ internal class ApiPresetData
 internal sealed partial class ShaderModManager
 {
     private const string ApiCacheFileName = "betterrtx_api_cache.json";
-    private const string API_LAST_FETCH_KEY = "BetterRTXManager_ApiLastFetchTimestamp";
+    private const string API_LAST_FETCH_KEY = "ShaderModManager_ApiLastFetchTimestamp";
     private const int API_REFETCH_INTERVAL_HOURS = 1;
     private static readonly TimeSpan ApiRequestTimeout = TimeSpan.FromSeconds(15);
 
