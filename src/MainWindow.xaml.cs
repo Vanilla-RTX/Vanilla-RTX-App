@@ -974,10 +974,6 @@ public sealed partial class MainWindow : Window
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e)
     {
-        // Chess draws over all three, so a titlebar button that would otherwise open beneath it
-        // clears it first.
-        ChessViewer.Close();
-
         if (SettingsPanel.IsOpen)
         {
             SettingsPanel.Hide();
@@ -1007,7 +1003,6 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private void HelpButton_Click(object sender, RoutedEventArgs e)
     {
-        ChessViewer.Close();
         if (SettingsPanel.IsOpen)
             SettingsPanel.Hide();
 
@@ -1017,7 +1012,6 @@ public sealed partial class MainWindow : Window
     }
     private void BugButton_Click(object sender, RoutedEventArgs e)
     {
-        ChessViewer.Close();
         if (SettingsPanel.IsOpen)
             SettingsPanel.Hide();
 
