@@ -817,27 +817,43 @@
         <!-- Handed to MainWindow's titlebar while this module is open - see ModuleOverlay. No
              size or alignment here: placement belongs to the control that hosts it. -->
         <Border x:Name="TitleBarActions">
-            <StackPanel Orientation="Horizontal">
-            <Button x:Name="ChangelogButton"
-                    FontFamily="{ThemeResource SymbolThemeFontFamily}"
-                    Style="{ThemeResource SubtleButtonStyle}"
-                    Content="&#xE81C;"
-                    FontSize="14"
-                    Width="40"
-                    Height="35"
-                    CornerRadius="0"
-                    Background="Transparent"
-                    BorderBrush="Transparent"
-                    Click="ChangelogButton_Click"
-                    IsTextScaleFactorEnabled="False"
-                    ToolTipService.ToolTip="Changelog: what changed in each version of Vanilla RTX." />
-            <Border Width="1"
-                    Margin="2,6,2,6"
-                    Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
             <Grid Background="Transparent"
                   BorderBrush="Transparent"
                   BorderThickness="1">
+                <Grid.ColumnDefinitions>
+                    <!-- Column 0: Changelog Button -->
+                    <ColumnDefinition Width="Auto" />
+                    <!-- Column 1: Vertical Separator Line -->
+                    <ColumnDefinition Width="Auto" />
+                    <!-- Column 2: Refresh Button -->
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Changelog Button -->
+                <Button x:Name="ChangelogButton"
+                        Grid.Column="0"
+                        FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                        Style="{ThemeResource SubtleButtonStyle}"
+                        Content="&#xE81C;"
+                        FontSize="14"
+                        Width="40"
+                        Height="35"
+                        CornerRadius="0"
+                        Background="Transparent"
+                        BorderBrush="Transparent"
+                        Click="ChangelogButton_Click"
+                        IsTextScaleFactorEnabled="False"
+                        ToolTipService.ToolTip="View Vanilla RTX changelog history, including the most recent release." />
+
+                <!-- Separator -->
+                <Border Grid.Column="1"
+                        Width="1"
+                        Margin="2,6,2,6"
+                        Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+                <!-- Refresh Button -->
                 <Button x:Name="RefreshButton"
+                        Grid.Column="2"
                         FontFamily="{ThemeResource SymbolThemeFontFamily}"
                         Style="{ThemeResource SubtleButtonStyle}"
                         Width="40"
@@ -866,7 +882,6 @@
                     </Grid>
                 </Button>
             </Grid>
-            </StackPanel>
         </Border>
 
     </Grid>
