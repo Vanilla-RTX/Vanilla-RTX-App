@@ -1026,6 +1026,23 @@ public sealed partial class MainWindow : Window
         _ = BlinkingLamp(true, true, 1.0, 1.0);
     }
 
+    /// <summary>
+    /// The pack updater's changelog button. A third document in the same overlay, so it follows
+    /// the same rules as Help and Bugs - a toggle, swapping with either, reopening where it was
+    /// left - and draws over the updater the way they draw over any module. Its button lives in
+    /// the module's titlebar strip rather than here, since it describes only what that module
+    /// downloads.
+    /// </summary>
+    public void ToggleVanillaRtxChangelog()
+    {
+        if (SettingsPanel.IsOpen)
+            SettingsPanel.Hide();
+
+        DocsOverlay.Show(url: Modules.PackUpdater.PackUpdater.ChangelogUrl, title: "Vanilla RTX Changelog", glyph: "", landingAnchor: DocumentLandingAnchor);
+
+        _ = BlinkingLamp(true, true, 1.0, 0.0);
+    }
+
 
 
     /// <summary>

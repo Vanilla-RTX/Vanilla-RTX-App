@@ -56,6 +56,14 @@ public class PackUpdater
     private const string VANILLA_RTX_OPUS_MANIFEST_URL = "https://raw.githubusercontent.com/vanilla-rtx/Vanilla-RTX/master/Vanilla-RTX-Opus/manifest.json";
     private const string VANILLA_RTX_REPO_ZIPBALL_URL = "https://github.com/vanilla-rtx/Vanilla-RTX/archive/refs/heads/master.zip";
 
+    /// <summary>
+    /// The changelog of the packs this module installs, shown in the document overlay. A blob
+    /// page rather than a raw URL, like Help and Bugs: the overlay fetches it from
+    /// raw.githubusercontent.com regardless, and the blob form is what its relative links resolve
+    /// against. Not a setting - it describes this repository and no other (§2h's rule).
+    /// </summary>
+    public const string ChangelogUrl = "https://github.com/vanilla-rtx/Vanilla-RTX/blob/master/CHANGELOG.md";
+
     // Remote version cache // how frequently to check the remote again for manifest's versions
     //
     // Not split by edition, and that is the point: everything this class fetches - the three

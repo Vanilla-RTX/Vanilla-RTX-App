@@ -116,6 +116,12 @@ public sealed partial class PackUpdaterOverlay : ModuleOverlay
     /// <para>Refused while an install is running. A refresh re-evaluates the cached zipball and
     /// can drop it, and that zipball is the file an install is reading out of.</para>
     /// </summary>
+    /// <summary>
+    /// Opens the Vanilla RTX changelog in MainWindow's document overlay, over this module - so
+    /// it swaps with Help and Bugs, remembers its place, and closing it returns here untouched.
+    /// </summary>
+    private void ChangelogButton_Click(object sender, RoutedEventArgs e) => Host.ToggleVanillaRtxChangelog();
+
     private async void RefreshButton_Click(object sender, RoutedEventArgs e)
     {
         if (_refreshInProgress || IsRefreshOnCooldown()) return;

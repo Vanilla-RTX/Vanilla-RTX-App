@@ -817,6 +817,23 @@
         <!-- Handed to MainWindow's titlebar while this module is open - see ModuleOverlay. No
              size or alignment here: placement belongs to the control that hosts it. -->
         <Border x:Name="TitleBarActions">
+            <StackPanel Orientation="Horizontal">
+            <Button x:Name="ChangelogButton"
+                    FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                    Style="{ThemeResource SubtleButtonStyle}"
+                    Content="&#xE81C;"
+                    FontSize="14"
+                    Width="40"
+                    Height="35"
+                    CornerRadius="0"
+                    Background="Transparent"
+                    BorderBrush="Transparent"
+                    Click="ChangelogButton_Click"
+                    IsTextScaleFactorEnabled="False"
+                    ToolTipService.ToolTip="Changelog: what changed in each version of Vanilla RTX." />
+            <Border Width="1"
+                    Margin="2,6,2,6"
+                    Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
             <Grid Background="Transparent"
                   BorderBrush="Transparent"
                   BorderThickness="1">
@@ -849,6 +866,7 @@
                     </Grid>
                 </Button>
             </Grid>
+            </StackPanel>
         </Border>
 
     </Grid>
