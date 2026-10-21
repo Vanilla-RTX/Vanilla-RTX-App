@@ -137,6 +137,10 @@ public sealed partial class MarkdownOverlay : UserControl
     private CancellationTokenSource? _fetchCts;
     private DispatcherTimer? _cooldownTimer;
     private Storyboard? _fadeStoryboard;
+    private DispatcherTimer? _resizeSettleTimer;
+
+    /// <summary>How long the width has to hold still before the document is re-wrapped to it - long enough to span the gap between two frames of a drag, short enough to read as the drag ending.</summary>
+    private const int RESIZE_SETTLE_MS = 150;
 
     private static bool AnimationsSuspended => EnvironmentVariables.Persistent.SuspendUIAnimations;
     /// <summary>
@@ -193,6 +197,46 @@ public sealed partial class MarkdownOverlay : UserControl
         ContentScrollViewer.AddHandler(KeyDownEvent, new KeyEventHandler((_, _) => _readerScrolled = true), true);
 
         Header.CloseClick += (_, _) => Close();
+    }
+
+    /// <summary>
+    /// Holds the document at its current width while the window is being resized, and re-wraps it
+    /// once, at the final width, when the resize stops.
+    ///
+    /// <para><b>Why:</b> the document is one non-virtualised tree, so a width change re-wraps
+    /// every paragraph in it, on screen or not - per frame of a drag, that is what made resizing
+    /// lag whenever the window was narrower than <c>MarkdownHost</c>'s MaxWidth (above it the
+    /// width doesn't change and nothing re-wraps). A fixed <c>Width</c> hands the content the
+    /// same measure constraint every frame, and layout skips a measure whose constraint is
+    /// unchanged. The cost is the drag itself: the text overflows or leaves a gap at the right
+    /// until the window holds still for <see cref="RESIZE_SETTLE_MS"/>.</para>
+    ///
+    /// <para>Hung on the area around the ScrollViewer rather than on the ScrollViewer: that one
+    /// is centred and sizes to its content, so with the content frozen it stops reporting the
+    /// window growing at all.</para>
+    /// </summary>
+    private void ContentArea_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        // Opening (from zero) or a height-only change re-wraps nothing.
+        if (e.PreviousSize.Width <= 0 || e.NewSize.Width == e.PreviousSize.Width) return;
+        if (ContentScrollViewer.Visibility != Visibility.Visible || MarkdownHost.ActualWidth <= 0) return;
+
+        if (double.IsNaN(MarkdownHost.Width))
+            MarkdownHost.Width = MarkdownHost.ActualWidth;
+
+        if (_resizeSettleTimer is null)
+        {
+            _resizeSettleTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(RESIZE_SETTLE_MS) };
+            _resizeSettleTimer.Tick += (_, _) =>
+            {
+                _resizeSettleTimer.Stop();
+                MarkdownHost.Width = double.NaN;
+            };
+        }
+
+        // Restarted by every frame of the drag, so it only fires once the size holds still.
+        _resizeSettleTimer.Stop();
+        _resizeSettleTimer.Start();
     }
 
     /// <summary>

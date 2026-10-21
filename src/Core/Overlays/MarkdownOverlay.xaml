@@ -130,7 +130,9 @@
                 </local:OverlayHeaderBar.Actions>
             </local:OverlayHeaderBar>
 
-            <Grid Grid.Row="1">
+            <Grid x:Name="ContentArea"
+                  Grid.Row="1"
+                  SizeChanged="ContentArea_SizeChanged">
                 <ScrollViewer x:Name="ContentScrollViewer"
                               Visibility="Collapsed"
                               Padding="32,0,32,0"
