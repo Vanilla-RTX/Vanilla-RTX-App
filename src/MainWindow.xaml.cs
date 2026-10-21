@@ -2247,7 +2247,7 @@ public sealed partial class MainWindow : Window
             LogLevel.Alchitex => "🟦 ",
             LogLevel.Cache => "💾 ",
             LogLevel.DLSS => "🫧 ",
-            LogLevel.ShaderMods => "🧈 ",
+            LogLevel.ShaderMods => "✨ ",
             LogLevel.LUT => "🎨 ",
             LogLevel.VanillaRTX => "⛏️ ",
             LogLevel.Package => "📦 ",
