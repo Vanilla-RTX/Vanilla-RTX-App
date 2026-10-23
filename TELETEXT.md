@@ -6,7 +6,7 @@ Maybe you'll find your name here next time!?
 # LogAnnouncements
 
 ### PSA 1
-🍂 Vanilla RTX now covers Minecraft's Wilderness Bound update! (26.50+)
+🕚 Something big is coming. Supervanilla RTX.
 
 # PackUpdateInfo
 
@@ -41,11 +41,8 @@ In other words: Minecraft updates can break BetterRTX, it depends on you to upda
 2. Wait until BetterRTX developers confirm they've updated the mod.
 3. Use the refresh button in the top left corner to refetch the latest files & continue installing your presets.
 
-## [cd:"120"] [glyph:"F78C"] Is it broken?
-As of MCBE 26.45, it is safe to install BetterRTX presets, the files were tested and the endpoint seems up-to-date for this game version, hit the refresh button in the top left corner just to be sure you're not installing old files, and continue to download/import & install presets, also ensure your game is up-to-date.
-
-## [cd:"120"] [glyph:"E7BA"] Is it broken?
-BetterRTX might not yet support Minecraft 26.50. Check back here every day until this text says otherwise. If your game crashes after installing a preset, revert back to the Default RTX backup preset.
+## [cd:"120"] [glyph:"E7BA"] Is it broken??
+BetterRTX's pre-built presets on the list are currently outdated and the API owner isn't updating them, please click `Create your own preset`, build a custom one with the defaults, and that should no longer crash in the latest version of Minecraft
 
 # ShaderModsInfo
 
