@@ -307,6 +307,7 @@ public sealed partial class SettingsOverlay : UserControl
             };
 
             SuspendAnimationsSwitch.IsOn = Persistent.SuspendUIAnimations;
+            CloseGameBeforeLaunchSwitch.IsOn = Persistent.CloseGameBeforeLaunch;
 
             RefreshPaths();
             foreach (var row in _pathRows) ShowPathHint(row, rejection: null);
@@ -683,6 +684,13 @@ public sealed partial class SettingsOverlay : UserControl
 
         _launchRows.Add(row);
         LaunchOptionRows.Children.Add(grid);
+    }
+
+    private void CloseGameBeforeLaunchSwitch_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_suppressCallbacks) return;
+
+        Persistent.CloseGameBeforeLaunch = CloseGameBeforeLaunchSwitch.IsOn;
     }
 
     private void AddLaunchOptionButton_Click(object sender, RoutedEventArgs e)

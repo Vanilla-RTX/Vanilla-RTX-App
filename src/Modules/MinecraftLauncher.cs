@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Vanilla_RTX_App.Core;
 
@@ -55,18 +56,146 @@ public class MinecraftLauncher
     /// (<see cref="EnvironmentVariables.Persistent.LaunchOptions"/>). This is what the Launch
     /// button calls.
     ///
+    /// <para>With <see cref="EnvironmentVariables.Persistent.CloseGameBeforeLaunch"/> on, the
+    /// edition's own running game is ended first (<see cref="CloseRunningGameAsync"/>). That runs
+    /// before options.txt is written, not after: a game still open would write its own options
+    /// back over ours on exit, and the write in between is what gives the closed process a moment
+    /// to let go before the protocol starts a new one.</para>
+    ///
     /// <para>An empty configured set is a deliberate choice, not an error: the user removed
     /// every row because they want the game launched with nothing touched. The plain protocol
     /// launch below is what that means, and it must not silently fall back to the defaults -
     /// doing so would rewrite options the user explicitly asked us to leave alone.</para>
     /// </summary>
-    public static Task<LaunchOutcome> LaunchConfiguredMinecraftRTXAsync(bool isTargetingPreview)
+    public static async Task<LaunchOutcome> LaunchConfiguredMinecraftRTXAsync(bool isTargetingPreview)
     {
+        var closeMessages = EnvironmentVariables.Persistent.CloseGameBeforeLaunch
+            ? await CloseRunningGameAsync(isTargetingPreview)
+            : new List<string>();
+
         var options = ParseOptions(EnvironmentVariables.Persistent.LaunchOptions);
 
-        return options.Length == 0
-            ? LaunchOnlyAsync(isTargetingPreview)
-            : LaunchWithOptionsAsync(isTargetingPreview, launchAfterUpdate: true, options);
+        var outcome = options.Length == 0
+            ? await LaunchOnlyAsync(isTargetingPreview)
+            : await LaunchWithOptionsAsync(isTargetingPreview, launchAfterUpdate: true, options);
+
+        return closeMessages.Count == 0
+            ? outcome
+            : outcome with { Log = string.Join("\n", closeMessages.Append(outcome.Log)) };
+    }
+
+    /// <summary>
+    /// The game's own executables, relative to an install folder <see cref="MinecraftGDKLocator"/>
+    /// resolved. <c>gamelaunchhelper.exe</c> is the GDK bootstrapper that starts and outlives
+    /// <c>Minecraft.Windows.exe</c>; a leftover one is as able to swallow a new launch as the game.
+    /// </summary>
+    private static readonly string[] GameExecutables =
+    {
+        Path.Combine("Content", "Minecraft.Windows.exe"),
+        Path.Combine("Content", "gamelaunchhelper.exe")
+    };
+
+    /// <summary>How long a killed process gets to actually exit before the launch carries on regardless.</summary>
+    private static readonly TimeSpan CloseTimeout = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// Ends every process whose executable is one of <see cref="GameExecutables"/> under the
+    /// install path the app holds for <paramref name="isPreview"/>'s edition, and returns what is
+    /// worth telling the user. Never throws; the launch goes ahead whatever happens here.
+    ///
+    /// <para><b>Matching is by full path and nothing else, deliberately.</b> Both editions run a
+    /// <c>Minecraft.Windows.exe</c>, and third-party launchers start more of them from their own
+    /// folders, so killing by name would close games the user never asked about. The install path
+    /// is one the locator validated and resolved to its physical location
+    /// (<see cref="Helpers.ResolveToPhysicalPath"/>), which is also the form Windows reports a process's image in, so a plain
+    /// case-insensitive comparison is exact. With no install path known nothing is closed.</para>
+    ///
+    /// <para>Reading another process's path fails for some (access denied, or exited mid-read),
+    /// so each is tried on its own and an unreadable one is left running.</para>
+    /// </summary>
+    private static async Task<List<string>> CloseRunningGameAsync(bool isPreview)
+    {
+        var messages = new List<string>();
+        var versionName = MinecraftUserDataLocator.GetVersionDisplayName(isPreview);
+
+        var installPath = isPreview
+            ? EnvironmentVariables.Persistent.MinecraftPreviewInstallPath
+            : EnvironmentVariables.Persistent.MinecraftInstallPath;
+
+        if (string.IsNullOrWhiteSpace(installPath))
+        {
+            messages.Add($"⚠️ Couldn't check whether {versionName} is already open: its install location isn't known. Set it in Settings to have it closed before launching.");
+            return messages;
+        }
+
+        HashSet<string> targets;
+        try
+        {
+            targets = new HashSet<string>(
+                GameExecutables.Select(exe => Path.GetFullPath(Path.Combine(installPath, exe))),
+                StringComparer.OrdinalIgnoreCase);
+        }
+        catch (Exception ex)
+        {
+            messages.Add($"⚠️ Couldn't check whether {versionName} is already open: {ex.Message}");
+            return messages;
+        }
+
+        var closed = 0;
+
+        foreach (var name in GameExecutables.Select(Path.GetFileNameWithoutExtension))
+        {
+            Process[] candidates;
+            try { candidates = Process.GetProcessesByName(name); }
+            catch (Exception ex)
+            {
+                Trace.WriteLine($"[MinecraftLauncher] Listing {name} processes failed: {ex.Message}");
+                continue;
+            }
+
+            foreach (var process in candidates)
+            {
+                using (process)
+                {
+                    string? imagePath;
+                    try { imagePath = process.MainModule?.FileName; }
+                    catch (Exception ex)
+                    {
+                        Trace.WriteLine($"[MinecraftLauncher] Couldn't read the path of {name} ({process.Id}), left running: {ex.Message}");
+                        continue;
+                    }
+
+                    if (imagePath is null || !targets.Contains(imagePath))
+                        continue;
+
+                    try
+                    {
+                        process.Kill();
+                        using var timeout = new CancellationTokenSource(CloseTimeout);
+                        await process.WaitForExitAsync(timeout.Token);
+                        closed++;
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // Exited between being listed and being killed - the outcome we wanted.
+                        closed++;
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        messages.Add($"⚠️ {Path.GetFileName(imagePath)} ({versionName}) didn't exit within {CloseTimeout.TotalSeconds:0} seconds of being closed; launching anyway.");
+                    }
+                    catch (Exception ex)
+                    {
+                        messages.Add($"⚠️ Couldn't close {Path.GetFileName(imagePath)} ({versionName}): {ex.Message}");
+                    }
+                }
+            }
+        }
+
+        if (closed > 0)
+            messages.Add($"Closed {closed} running {versionName} process(es) before launching.");
+
+        return messages;
     }
 
     /// <summary>

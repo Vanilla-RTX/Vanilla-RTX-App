@@ -527,6 +527,32 @@
 
                         <Grid>
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0"
+                                        Margin="0,0,10,0"
+                                        VerticalAlignment="Center">
+                                <TextBlock Text="Try to close the game if already open"
+                                           TextWrapping="Wrap"
+                                           IsTextScaleFactorEnabled="False" />
+                                <TextBlock Text="Sometimes Minecraft's executable remains active after manual closure and prevents the game from being launched by the app, enable for the app to terminate Minecraft before opening it."
+                                           Style="{StaticResource SettingsHintTextStyle}" />
+                            </StackPanel>
+
+                            <ToggleSwitch x:Name="CloseGameBeforeLaunchSwitch"
+                                          Grid.Column="1"
+                                          OnContent="On"
+                                          OffContent="Off"
+                                          VerticalAlignment="Center"
+                                          MinWidth="0"
+                                          Toggled="CloseGameBeforeLaunchSwitch_Toggled"
+                                          IsTextScaleFactorEnabled="False" />
+                        </Grid>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />

@@ -74,6 +74,10 @@ public static class EnvironmentVariables
         // empty configuration is stored as a marker instead of "".
         public static string LaunchOptions = Defaults.LaunchOptions;
 
+        // Whether a launch first ends that edition's own game processes - see
+        // MinecraftLauncher.CloseRunningGameAsync for what qualifies and why nothing else does.
+        public static bool CloseGameBeforeLaunch = Defaults.CloseGameBeforeLaunch;
+
         // Where the app goes for content it doesn't ship. Read these through Links, never
         // directly - that is what falls back to the built-in address when one has gone stale.
         public static string DocumentationUrl = Defaults.DocumentationUrl;
@@ -95,6 +99,8 @@ public static class EnvironmentVariables
 
         /// <summary>Serialized <see cref="Modules.MinecraftLauncher.DefaultOptions"/> - resolved once here so the stored form and the launcher's own defaults can never drift.</summary>
         public static readonly string LaunchOptions = Modules.MinecraftLauncher.SerializeOptions(Modules.MinecraftLauncher.DefaultOptions);
+
+        public const bool CloseGameBeforeLaunch = false;
 
         // ── Addresses ────────────────────────────────────────────────────────
         // The four things the app fetches from somewhere the user might reasonably want

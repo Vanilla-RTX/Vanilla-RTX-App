@@ -370,7 +370,7 @@ Where Minecraft and Minecraft Preview are installed, and where each keeps your w
 
 #### Launch options
 
-The `options.txt` settings [Launch Minecraft RTX](#launch-minecraft-rtx) or `vanillartx://` protocols write before starting the game. Edit any value, **Add option** for any other setting, or remove a row - the game then simply keeps whatever value it already has for it. With no options at all, the button just launches the game without changing anything. **Defaults** puts the original three back. 
+The `options.txt` settings [Launch Minecraft RTX](#launch-minecraft-rtx) or `vanillartx://` protocols write before starting the game. Edit any value, **Add option** for any other setting, or remove a row - the game then simply keeps whatever value it already has for it. With no options at all, the button just launches the game without changing anything. **Defaults** puts the original three back. **Try to close the game if already open** first closes that edition's game if it is still running - useful when Minecraft stays open in the background after you close it and won't launch again.
 > A useful example field you could add is `raytracing_viewdistance`, allowing you to override the 24 chunk ray tracing view distance cap. Minecraft settings have a tendency to occasionally revert, so creating a launch shortcut that goes through the Vanilla RTX App instead is a good assurance that your desired settings are always applied before each launch.
 
 #### Content sources

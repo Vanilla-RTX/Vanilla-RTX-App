@@ -2024,7 +2024,9 @@ public sealed partial class MainWindow : Window
     {
         if (!MinecraftUserDataLocator.RequireValidUserData(isPreview)) return false;
 
-        if (Helpers.IsMinecraftRunning())
+        // With closing enabled the launcher ends this edition's game itself and says so; the
+        // warning would describe a problem that is about to be dealt with.
+        if (!Persistent.CloseGameBeforeLaunch && Helpers.IsMinecraftRunning())
         {
             Log("Minecraft already seems to be open. Please restart the game for options.txt changes to take effect.", LogLevel.Warning);
         }
