@@ -101,9 +101,52 @@ public static partial class Helpers
             return false;
         }
 
+        var scriptLines = new List<string> { "@echo off" };
+        foreach (var (sourcePath, destPath) in filesToReplace)
+            scriptLines.Add($"copy /Y \"{sourcePath}\" \"{destPath}\" >nul 2>&1");
+        scriptLines.Add("exit %ERRORLEVEL%");
+
+        return await RunElevatedBatchAsync(scriptLines, logPrefix, tempFilePrefix);
+    }
+
+    /// <summary>
+    /// Force-ends the given processes from one elevated batch script (one UAC prompt), for a
+    /// process the app's own token isn't allowed to terminate. The caller has already decided
+    /// which processes qualify; this only ends them.
+    ///
+    /// <para>Each line names the PID <b>and</b> the image name it was matched as, so a PID the
+    /// system reused for something else in the seconds before the prompt was answered is not
+    /// what dies. Returns whether the script ran and exited 0; the caller should check the
+    /// processes themselves, since <c>taskkill</c> also fails on one that exited meanwhile.</para>
+    ///
+    /// <para>Shares <see cref="ReplaceFilesWithElevation"/>'s one-at-a-time rule and flag: the
+    /// invariant is one UAC prompt at a time, whatever it is for.</para>
+    /// </summary>
+    public static async Task<bool> KillProcessesWithElevation(IReadOnlyCollection<(int Pid, string ImageName)> processes,
+        string logPrefix = "[Helpers]")
+    {
+        if (processes == null || processes.Count == 0)
+            return false;
+
+        var scriptLines = new List<string> { "@echo off", "set rc=0" };
+        foreach (var (pid, imageName) in processes)
+            scriptLines.Add($"taskkill /F /PID {pid} /FI \"IMAGENAME eq {imageName}\" >nul 2>&1 || set rc=1");
+        scriptLines.Add("exit %rc%");
+
+        return await RunElevatedBatchAsync(scriptLines, logPrefix, "process_kill");
+    }
+
+    /// <summary>
+    /// Writes <paramref name="scriptLines"/> to a temp .bat and runs it in an elevated, hidden
+    /// cmd, holding the process-wide one-elevated-action flag for the whole run, UAC prompt
+    /// included. Returns true only for exit code 0; false for a refused overlap, a declined
+    /// prompt or any failure, none of which throw.
+    /// </summary>
+    private static async Task<bool> RunElevatedBatchAsync(List<string> scriptLines, string logPrefix, string tempFilePrefix)
+    {
         if (Interlocked.CompareExchange(ref _elevatedReplaceInFlight, 1, 0) != 0)
         {
-            Trace.WriteLine($"{logPrefix} An elevated replace is already running - refusing this one rather than queueing a second UAC prompt");
+            Trace.WriteLine($"{logPrefix} An elevated action is already running - refusing this one rather than queueing a second UAC prompt");
             return false;
         }
 
@@ -111,11 +154,6 @@ public static partial class Helpers
         {
             return await Task.Run(() =>
             {
-                var scriptLines = new List<string> { "@echo off" };
-                foreach (var (sourcePath, destPath) in filesToReplace)
-                    scriptLines.Add($"copy /Y \"{sourcePath}\" \"{destPath}\" >nul 2>&1");
-                scriptLines.Add("exit %ERRORLEVEL%");
-
                 var batchScript = string.Join("\r\n", scriptLines);
                 var tempBatchPath = Path.Combine(
                     Path.GetTempPath(),
@@ -165,7 +203,7 @@ public static partial class Helpers
         {
             // Includes the user declining the UAC prompt, which Process.Start surfaces as a
             // Win32Exception rather than a null process.
-            Trace.WriteLine($"{logPrefix} Error in ReplaceFilesWithElevation: {ex.Message}");
+            Trace.WriteLine($"{logPrefix} Elevated action failed: {ex.Message}");
             return false;
         }
         finally
@@ -261,6 +299,53 @@ public static partial class Helpers
     private static extern SafeFileHandle CreateFileW(string lpFileName, uint dwDesiredAccess,
         uint dwShareMode, IntPtr lpSecurityAttributes, uint dwCreationDisposition,
         uint dwFlagsAndAttributes, IntPtr hTemplateFile);
+
+    /// <summary>
+    /// Opens <paramref name="pid"/> with only <c>PROCESS_QUERY_LIMITED_INFORMATION</c> and
+    /// <c>SYNCHRONIZE</c>, or returns null. That right is granted for almost every process a user
+    /// can see, where <see cref="Process.MainModule"/> needs to read the target's memory and is
+    /// refused by games run through the Xbox app. Holding the handle pins the process object, so
+    /// a check made through it cannot land on a different process that reused the PID.
+    /// </summary>
+    public static SafeProcessHandle? OpenProcessForQuery(int pid)
+    {
+        var handle = OpenProcess(ProcessQueryLimitedInformation | Synchronize, false, pid);
+        if (!handle.IsInvalid) return handle;
+
+        Trace.WriteLine($"[Helpers] OpenProcess({pid}) failed: error {Marshal.GetLastPInvokeError()}");
+        handle.Dispose();
+        return null;
+    }
+
+    /// <summary>The full Win32 path of the process's executable, or null if it can't be read.</summary>
+    public static string? GetProcessImagePath(SafeProcessHandle handle)
+    {
+        var buffer = new char[32768];
+        var length = (uint)buffer.Length;
+        if (QueryFullProcessImageNameW(handle, 0, buffer, ref length))
+            return new string(buffer, 0, (int)length);
+
+        Trace.WriteLine($"[Helpers] QueryFullProcessImageName failed: error {Marshal.GetLastPInvokeError()}");
+        return null;
+    }
+
+    /// <summary>Waits up to <paramref name="timeout"/> for the process to end; true if it has.</summary>
+    public static Task<bool> WaitForProcessExitAsync(SafeProcessHandle handle, TimeSpan timeout) =>
+        Task.Run(() => WaitForSingleObject(handle, (uint)timeout.TotalMilliseconds) == WaitObject0);
+
+    private const uint ProcessQueryLimitedInformation = 0x1000;
+    private const uint Synchronize = 0x00100000;
+    private const uint WaitObject0 = 0;
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern SafeProcessHandle OpenProcess(uint dwDesiredAccess, bool bInheritHandle, int dwProcessId);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern bool QueryFullProcessImageNameW(SafeProcessHandle hProcess, uint dwFlags,
+        [Out] char[] lpExeName, ref uint lpdwSize);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern uint WaitForSingleObject(SafeProcessHandle hHandle, uint dwMilliseconds);
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern uint GetFinalPathNameByHandleW(SafeFileHandle hFile, [Out] char[] lpszFilePath,

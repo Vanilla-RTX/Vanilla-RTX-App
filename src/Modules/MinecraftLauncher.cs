@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Win32.SafeHandles;
 using Vanilla_RTX_App.Core;
 
 namespace Vanilla_RTX_App.Modules;
@@ -110,8 +111,15 @@ public class MinecraftLauncher
     /// (<see cref="Helpers.ResolveToPhysicalPath"/>), which is also the form Windows reports a process's image in, so a plain
     /// case-insensitive comparison is exact. With no install path known nothing is closed.</para>
     ///
-    /// <para>Reading another process's path fails for some (access denied, or exited mid-read),
-    /// so each is tried on its own and an unreadable one is left running.</para>
+    /// <para>Paths are read through a query-only handle (<see cref="Helpers.OpenProcessForQuery"/>):
+    /// <see cref="Process.MainModule"/> needs to read the target's memory, which a game run
+    /// through the Xbox app refuses, and every process then reads as "unknown" and nothing is ever
+    /// closed. A process whose path still can't be read is left running and said so in the log.</para>
+    ///
+    /// <para>A kill the app's own token is refused falls back to
+    /// <see cref="Helpers.KillProcessesWithElevation"/>, one UAC prompt for all of them, by PID -
+    /// so the path check above is still what decides. Success is judged by waiting on the handles
+    /// opened during the check, never by exit codes, since a process may also simply exit.</para>
     /// </summary>
     private static async Task<List<string>> CloseRunningGameAsync(bool isPreview)
     {
@@ -141,62 +149,99 @@ public class MinecraftLauncher
             return messages;
         }
 
-        var closed = 0;
+        var matched = new List<(Process Process, SafeProcessHandle Handle, string FileName)>();
 
-        foreach (var name in GameExecutables.Select(Path.GetFileNameWithoutExtension))
+        try
         {
-            Process[] candidates;
-            try { candidates = Process.GetProcessesByName(name); }
-            catch (Exception ex)
+            foreach (var name in GameExecutables.Select(Path.GetFileNameWithoutExtension))
             {
-                Trace.WriteLine($"[MinecraftLauncher] Listing {name} processes failed: {ex.Message}");
-                continue;
-            }
-
-            foreach (var process in candidates)
-            {
-                using (process)
+                Process[] candidates;
+                try { candidates = Process.GetProcessesByName(name); }
+                catch (Exception ex)
                 {
-                    string? imagePath;
-                    try { imagePath = process.MainModule?.FileName; }
-                    catch (Exception ex)
+                    Trace.WriteLine($"[MinecraftLauncher] Listing {name} processes failed: {ex.Message}");
+                    continue;
+                }
+
+                foreach (var process in candidates)
+                {
+                    var handle = Helpers.OpenProcessForQuery(process.Id);
+                    var imagePath = handle is null ? null : Helpers.GetProcessImagePath(handle);
+
+                    if (handle is null || imagePath is null)
                     {
-                        Trace.WriteLine($"[MinecraftLauncher] Couldn't read the path of {name} ({process.Id}), left running: {ex.Message}");
+                        messages.Add($"⚠️ Found {name}.exe (process {process.Id}) but couldn't read where it runs from, so it was left open.");
+                        handle?.Dispose();
+                        process.Dispose();
                         continue;
                     }
 
-                    if (imagePath is null || !targets.Contains(imagePath))
+                    if (!targets.Contains(imagePath))
+                    {
+                        Trace.WriteLine($"[MinecraftLauncher] {imagePath} ({process.Id}) is not {versionName}'s own, left running.");
+                        handle.Dispose();
+                        process.Dispose();
                         continue;
+                    }
 
-                    try
-                    {
-                        process.Kill();
-                        using var timeout = new CancellationTokenSource(CloseTimeout);
-                        await process.WaitForExitAsync(timeout.Token);
-                        closed++;
-                    }
-                    catch (InvalidOperationException)
-                    {
-                        // Exited between being listed and being killed - the outcome we wanted.
-                        closed++;
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        messages.Add($"⚠️ {Path.GetFileName(imagePath)} ({versionName}) didn't exit within {CloseTimeout.TotalSeconds:0} seconds of being closed; launching anyway.");
-                    }
-                    catch (Exception ex)
-                    {
-                        messages.Add($"⚠️ Couldn't close {Path.GetFileName(imagePath)} ({versionName}): {ex.Message}");
-                    }
+                    Trace.WriteLine($"[MinecraftLauncher] Closing {imagePath} ({process.Id}).");
+                    matched.Add((process, handle, Path.GetFileName(imagePath)));
                 }
             }
+
+            if (matched.Count == 0)
+                return messages;
+
+            var denied = new List<(int Pid, string ImageName)>();
+
+            foreach (var (process, _, fileName) in matched)
+            {
+                try { process.Kill(); }
+                catch (Win32Exception ex) when (ex.NativeErrorCode == ErrorAccessDenied)
+                {
+                    denied.Add((process.Id, fileName));
+                }
+                catch (InvalidOperationException)
+                {
+                    // Exited between being listed and being killed - the outcome we wanted.
+                }
+                catch (Exception ex)
+                {
+                    messages.Add($"⚠️ Couldn't close {fileName} ({versionName}): {ex.Message}");
+                }
+            }
+
+            if (denied.Count > 0)
+            {
+                messages.Add($"Windows wouldn't let the app close {versionName} directly - asking for administrator permission.");
+                await Helpers.KillProcessesWithElevation(denied, "[MinecraftLauncher]");
+            }
+
+            var exited = await Task.WhenAll(matched.Select(m => Helpers.WaitForProcessExitAsync(m.Handle, CloseTimeout)));
+
+            for (var i = 0; i < matched.Count; i++)
+            {
+                if (!exited[i])
+                    messages.Add($"⚠️ {matched[i].FileName} ({versionName}) is still running after trying to close it; launching anyway.");
+            }
+
+            var closed = exited.Count(e => e);
+            if (closed > 0)
+                messages.Add($"Closed {closed} running {versionName} process(es) before launching.");
+
+            return messages;
         }
-
-        if (closed > 0)
-            messages.Add($"Closed {closed} running {versionName} process(es) before launching.");
-
-        return messages;
+        finally
+        {
+            foreach (var (process, handle, _) in matched)
+            {
+                handle.Dispose();
+                process.Dispose();
+            }
+        }
     }
+
+    private const int ErrorAccessDenied = 5;
 
     /// <summary>
     /// Reads the persisted <c>name=value;name=value</c> form back into options. Anything
