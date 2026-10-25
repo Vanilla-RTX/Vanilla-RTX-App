@@ -299,7 +299,7 @@
                                           Margin="0,3,0,0"
                                           VerticalAlignment="Center"
                                           IsTextScaleFactorEnabled="False" />
-                                <TextBlock Text="Supervanilla RTX for older versions"
+                                <TextBlock Text="Supervanilla RTX for other versions"
                                            FontWeight="SemiBold"
                                            FontSize="14"
                                            TextWrapping="Wrap"

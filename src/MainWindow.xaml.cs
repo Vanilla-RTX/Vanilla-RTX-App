@@ -2442,17 +2442,10 @@ public sealed partial class MainWindow : Window
 
 /* ### BACKLOG/TODO OF HIGHCORTISOLSOFTWARE LLC (STRICTLY CONFIDENTIAL)
 
-- Hook onto game's exe, when it closes, do a blink in app, would be fun and cheap to do, probably
-you're already tracking the process being open to give warnings, so, worth expanding on that and doing it more properly
-
-- Version History integeration
-complete the CHANGELOG.md, append the missing versios' changelogs, put it on the repo, link it in the app, new button in pack updater menu
-
 - Campfire:
 A public lobby "chatroom" of sorts in the app for people to ask questions and get answers.
 Get away from Discord. Maybe Ko-Fi members get something special in there too.
 Slowly close down the Discord and move away to github discussions or this public chatplace lobby thing
-
 
 - Figure a way to expose an option to auto-activate a Vanilla RTX pack.
 Maybe this:
