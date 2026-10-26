@@ -186,7 +186,7 @@
             </ScrollViewer>
 
             <!-- ══════════════════════════════════════════
-                Import manually | Supervanilla RTX downloads | Create your own preset
+                Import manually | Supervanilla RTX downloads | Customize a BetterRTX preset
             ═══════════════════════════════════════════ -->
             <Border Grid.Row="2"
                     Margin="0"
@@ -210,7 +210,7 @@
                         <ColumnDefinition Width="1*" />
                         <!-- Gap 6 px -->
                         <ColumnDefinition Width="6" />
-                        <!-- Create your own preset -->
+                        <!-- Customize a BetterRTX preset -->
                         <ColumnDefinition Width="1*" />
                     </Grid.ColumnDefinitions>
 
@@ -270,7 +270,7 @@
                     </Button>
 
                     <!-- ── SUPERVANILLA RTX DOWNLOADS ─────────── -->
-                    <!-- Built exactly like Create your own preset beside it: a solid backdrop under
+                    <!-- Built exactly like Customize a BetterRTX preset beside it: a solid backdrop under
                          a HyperlinkButton, whose own background is too translucent on its own. -->
                     <Rectangle Grid.Column="2"
                                Fill="{ThemeResource CardBackgroundFillColorDefaultBrush}"
@@ -317,7 +317,7 @@
                         </StackPanel>
                     </HyperlinkButton>
 
-                    <!-- ── CREATE YOUR OWN PRESET ─────────────── -->
+                    <!-- ── Customize a BetterRTX preset ─────────────── -->
                     <!-- Solid backdrop behind the hyperlink button: HyperlinkButton's own
                          background is too translucent against the window now that it's
                          not sitting on top of the Add button anymore. This mimics a
@@ -350,7 +350,7 @@
                                           Margin="0,3,0,0"
                                           VerticalAlignment="Center"
                                           IsTextScaleFactorEnabled="False" />
-                                <TextBlock Text="Create your own preset"
+                                <TextBlock Text="Customize a BetterRTX preset"
                                            FontWeight="SemiBold"
                                            FontSize="14"
                                            VerticalAlignment="Center"
