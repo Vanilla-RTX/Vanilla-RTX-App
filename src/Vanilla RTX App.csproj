@@ -49,15 +49,15 @@
     <None Include="..\LICENSE.txt" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Magick.NET-Q16-AnyCPU" Version="14.17.2" />
-    <PackageReference Include="Magick.NET.Core" Version="14.17.2" />
-    <PackageReference Include="Magick.NET.SystemDrawing" Version="8.0.28" />
-    <PackageReference Include="Markdig" Version="1.4.0" />
-    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4191.47" />
-    <PackageReference Include="Microsoft.Win32.SystemEvents" Version="10.0.12" />
+    <PackageReference Include="Magick.NET-Q16-AnyCPU" Version="15.0.0" />
+    <PackageReference Include="Magick.NET.Core" Version="15.0.0" />
+    <PackageReference Include="Magick.NET.SystemDrawing" Version="9.0.0" />
+    <PackageReference Include="Markdig" Version="1.5.0" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />
+    <PackageReference Include="Microsoft.Win32.SystemEvents" Version="10.0.14" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2705" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
-    <PackageReference Include="System.Drawing.Common" Version="10.0.12" />
+    <PackageReference Include="System.Drawing.Common" Version="10.0.14" />
     <PackageReference Include="WinUIEx" Version="2.9.3" />
   </ItemGroup>
   <ItemGroup>
@@ -133,7 +133,7 @@
 
   <!-- Publish Properties -->
   <PropertyGroup>
-    <VersionPrefix>4.0.0.0</VersionPrefix>  <!-- SET ASSEMBLY VERSION HERE -->
+    <VersionPrefix>4.1.0.0</VersionPrefix>  <!-- SET ASSEMBLY VERSION HERE -->
     <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
     <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
     <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>

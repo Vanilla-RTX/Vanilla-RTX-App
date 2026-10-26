@@ -124,7 +124,7 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
     // ── Collapsible sections ──
     private const string SectionDefault = "Default";
     private const string SectionSupervanilla = "Supervanilla RTX";
-    private const string SectionBetterRTX = "BetterRTX";
+    private const string SectionBetterRTX = "BetterRTX & Others";
 
     /// <summary>
     /// Which sections are folded away, by title. Remembered across opens because it is a
@@ -237,8 +237,6 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
     /// </summary>
     private void ApplyNotices()
     {
-        PreviewWarningCard.Visibility = _isPreview ? Visibility.Visible : Visibility.Collapsed;
-
         bool showDefaultMissing = DefaultMissingText.Text.Length > 0;
         DefaultMissingCard.Visibility = showDefaultMissing ? Visibility.Visible : Visibility.Collapsed;
     }

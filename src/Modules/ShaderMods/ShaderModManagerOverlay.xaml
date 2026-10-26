@@ -129,48 +129,8 @@
                           VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
                 <!-- Wrapped both panels in a single parent StackPanel -->
-                
+
                 <StackPanel>
-                    <!-- Pinned by hand rather than fetched like other Teletext, its just visually similar -->
-                    <Border x:Name="PreviewWarningCard"
-                            Margin="20,12,24,0"
-                            Visibility="Collapsed"
-                            CornerRadius="6"
-                            Padding="6"
-                            Translation="0,0,32"
-                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-                        <Border.Shadow>
-                            <ThemeShadow />
-                        </Border.Shadow>
-
-                        <Grid HorizontalAlignment="Stretch"
-                              VerticalAlignment="Top"
-                              Margin="16,8,16,8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-
-                            <FontIcon Grid.Column="0"
-                                      Glyph="&#xE7BA;"
-                                      FontFamily="{ThemeResource SymbolThemeFontFamily}"
-                                      FontSize="20"
-                                      VerticalAlignment="Top"
-                                      Margin="0,5,0,0"
-                                      IsHitTestVisible="False"
-                                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-
-                            <TextBlock Grid.Column="1"
-                                       TextWrapping="Wrap"
-                                       FontSize="14"
-                                       Margin="12,0,0,0"
-                                       Opacity="0.95"
-                                       VerticalAlignment="Center"
-                                       IsTextScaleFactorEnabled="False"
-                                       Text="Supervanilla RTX publishes builds made for Minecraft Preview - &quot;Get latest Supervanilla RTX (Preview)&quot; below fetches the newest one.&#x0a;&#x0a;BetterRTX presets are built for and tested against stable Minecraft Release only. You can install them into MC Preview regardless, but Preview moves ahead of Release, so the game may refuse to start or crash. If that happens, come back here and roll back to the &quot;Default RTX (Preview)&quot; preset, your backed up defaults." />
-                        </Grid>
-                    </Border>
-
                     <!-- Per-content horizontal margins leave room for card shadows. Collapse
                          an empty panel so its vertical margin does not add a phantom gap. -->
                     <StackPanel x:Name="ShaderModsInfoPanel"
@@ -230,7 +190,7 @@
                             DragEnter="AddPresetButton_DragEnter"
                             DragLeave="AddPresetButton_DragLeave"
                             Drop="AddPresetButton_Drop"
-                            ToolTipService.ToolTip="Drag and drop or browse for .rtpack preset files - Supervanilla RTX builds or presets exported from the BetterRTX website">
+                            ToolTipService.ToolTip="Drag and drop or browse for .rtpack preset files - Supervanilla RTX builds or presets exported from the BetterRTX website, or others">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="96" />

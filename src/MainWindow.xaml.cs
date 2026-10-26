@@ -2442,6 +2442,16 @@ public sealed partial class MainWindow : Window
 
 /* ### BACKLOG/TODO OF HIGHCORTISOLSOFTWARE LLC (STRICTLY CONFIDENTIAL)
 
+- Look into heavier modding capabilities via DLL injection, though it is likely a no-go for msstore apps.
+So, dig more... the goal is to open up path to fix cpu side issues like flickering, unlock more capabilities,
+and get something like DLSS RR working
+
+- Give a way to get all addons and extensions at once, in bulk, in one click
+Pull all from vanilla-rtx-extras
+Could use the existing pack updater backend for this, and update each pack individually, have them listed in pack update menu
+
+- Why is age rating of TS manager 3!? but Vanilla RTX App 7? and it can't go lower? they're the same in essence, see what you can do to lower it with future publishes
+
 - Campfire:
 A public lobby "chatroom" of sorts in the app for people to ask questions and get answers.
 Get away from Discord. Maybe Ko-Fi members get something special in there too.
@@ -2459,8 +2469,6 @@ Some apps are doing it how?
 
 - Make background of settings menu fade in faster as to make it clickable earlier? i.e. rapidly opening and closing by clicking the background
 it feels like it is a little irresponsive if you mash it so, look into it, make it feel better.
-
-- Adding formatting clearer before desc appending in pack desc Alchitex, log those other ideas from the piece of paper later
 
 - remove shadow from lamp on splash screen?! or weaken it so it is more like titlebar lamp.
 the thing is the shadow does make sense it is just too strong. It's the lamp casting light on the background, not a Halo as the name suggests
@@ -2483,14 +2491,7 @@ its just an edit of Gamescom iirc that looked a lot like BetterRTX 1.4.4 default
 weaker sun/skylight was a part of it that made the sun texture look a lot more similar
 diminished highlights around the sun sprite, etc...
 
-- Changelogs markdown overlay in PackUpdater overlay
-a Markdown page similar to the others that contains a table and changelogs of every single Vanilla RTX version, especially post 1.6+ modern era
-push refresh button further to the front.
-It'd be nice to keep a Concentrated place with a table of updates out for everyone... a clear place to follow updates
-May it also serve as a reminder of your 5 years of effort, it is easy for it to be lost and forgotten, those updates didn't get made overnight, to be forgotten overnight.
-
-Once that is implemented, and changelogs no longer clog up a huge vertical space,
-- Future plans for PackUpdat menu:
+- Future plans for PackUpdate menu:
 Find a way to scale.
 Allow for More packs to appear after extensions/addons section, but in the same style, and derived from a
 an listing somewhere.
@@ -2499,7 +2500,8 @@ at least a good bit of effort put into them and are actively maintained. A markd
 
 A system for automatically updating ANY pack doesn't seem feasible, there is no repository to take this from
 Look into CurseForge api?! will it give you the packs? look into that ticket you sent their support long ago
-they said their API allows but, was it loose or did it need auth?
+they said their API allows but, was it loose or did it need auth? Something like LeviLauncher is already doing this fantastically
+so, you may not need to as broadly, but it would be good to unify everything, either under github, or CF.
 
 - restructure main window to be less sloppy and more correct whilst looking the same by the end.
 the layout works perfectly but is wrong in many spots, with many dumb margins
@@ -2525,7 +2527,7 @@ The MAIN, BIG benefit of the current design is, you fade back into main window v
 The complications executing this idea could introduce may not be worth the benefits, after all. the current system WORKS
 Don't touch it. unless a greater redesign is planned... (next)
 
-- How would a greater redesign of Mainwindow even work? (for 5.0?)
+- How would a greater redesign of Mainwindow even work? (for 5.0)
 Where would tuning go. what'd happen to logs
 a redesign must be thought thoroughly
 maybe navigation view? like every other winui 3.0 app on the planet, or something more clever that keeps the app's visual design
@@ -2554,6 +2556,5 @@ more magic numbers
 - Should settings overlay save on EVERY hide or... instead of saving everything, save only changed values?!
 the latter introduces more risk if not done correctly, but is it worth it? assess.
 
-- i18n, once all english texts are definitely settled and you're not making any more changes, right?!
-
+- i18n, once all english texts are definitely settled and you're not making any more changes, right?! This isn't really something you can commit to.
  */

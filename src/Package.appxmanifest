@@ -13,7 +13,7 @@
   <Identity
     Name="Cubeir.VanillaRTXApp"
     Publisher="CN=7F2D29F8-D1F9-46A7-9DFB-595D98E11214"
-    Version="4.0.0.0" />
+    Version="4.1.0.0" />
 
   <mp:PhoneIdentity PhoneProductId="14d771a9-af30-450d-a688-01bb3e8bc3bc" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
