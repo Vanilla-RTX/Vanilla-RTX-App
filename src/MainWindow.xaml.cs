@@ -2442,6 +2442,11 @@ public sealed partial class MainWindow : Window
 
 /* ### BACKLOG/TODO OF HIGHCORTISOLSOFTWARE LLC (STRICTLY CONFIDENTIAL)
 
+- Look into https://github.com/Vanilla-RTX/Vanilla-RTX-App/issues/13 and get BetterRTX to work properly
+
+- Change win11-only glyphs to things that'd display on older seg fluent icons on windows 10 too
+e.g. shader mod manager  -> &#xEA38;, asterisk
+
 - Look into heavier modding capabilities via DLL injection, though it is likely a no-go for msstore apps.
 So, dig more... the goal is to open up path to fix cpu side issues like flickering, unlock more capabilities,
 and get something like DLSS RR working
