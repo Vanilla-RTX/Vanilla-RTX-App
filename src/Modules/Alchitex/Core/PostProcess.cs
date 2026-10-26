@@ -701,7 +701,7 @@ public static class PostProcess
 
             if (wasPlaceholder)
             {
-                var description = string.IsNullOrEmpty(resolvedDescription) ? tag : $"{resolvedDescription}\n{tag}";
+                var description = string.IsNullOrEmpty(resolvedDescription) ? tag : AppendLine(resolvedDescription, tag);
                 header["description"] = description;
                 module["description"] = description;
                 finalName = resolvedName + NameSuffix;
@@ -933,8 +933,12 @@ public static class PostProcess
         return (Helpers.StripMinecraftFormatting(name ?? rawName), description, true);
     }
 
+    /// <summary>
+    /// Appends <paramref name="line"/> on a new line, led by <c>§r</c> so a colour or style code
+    /// left open earlier in the pack's own description doesn't carry over onto our tag.
+    /// </summary>
     private static string AppendLine(string? existing, string line)
-        => string.IsNullOrEmpty(existing) ? line : $"{existing}\n{line}";
+        => string.IsNullOrEmpty(existing) ? line : $"{existing}\n§r{line}";
 
     /// <summary>
     /// Credits us in metadata.authors (kept, ahead of whoever the pack already credited),
