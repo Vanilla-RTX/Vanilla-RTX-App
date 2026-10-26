@@ -636,7 +636,8 @@ public static class PostProcess
     /// rule: capabilities are a v2+ concept, so a v1 manifest that kept v1 would silently
     /// ignore the "raytraced" capability this method just added. It is the cost of an edit we
     /// do make, not an uninvited improvement. A v2 or v3 manifest is left exactly where it
-    /// is.</para>
+    /// is. The bump brings the one field v2 requires that v1 doesn't - see
+    /// <see cref="EnsureFormatVersion"/>.</para>
     ///
     /// Every field access below degrades gracefully instead of throwing on a missing or
     /// unexpectedly-shaped value (a quoted "format_version": "2" instead of a number, a
@@ -688,7 +689,7 @@ public static class PostProcess
                 return null;
             }
 
-            EnsureFormatVersion(root);
+            EnsureFormatVersion(root, header);
 
             var (resolvedName, resolvedDescription, wasPlaceholder) = ResolvePackName(header, manifestPath);
 
@@ -860,11 +861,36 @@ public static class PostProcess
     /// not coercible to an int.</summary>
     private static int? TryGetInt(JsonNode? node) => MinecraftJson.GetInt(node);
 
-    private static void EnsureFormatVersion(JsonObject root)
+    /// <summary>
+    /// Raises format_version to 2 when it is below that, and gives the header the
+    /// <c>min_engine_version</c> v2 requires when the manifest it raised had none - the game
+    /// refuses a v2 pack without one, and v1 never needed it, so every v1 pack arrives without
+    /// it. Like the bump itself this is owed to an edit we make, which is why it happens only
+    /// on the bump and only when the field is absent: a v1 manifest that already carries one
+    /// keeps the author's value, and a v2/v3 manifest is never touched.
+    ///
+    /// <para>The value is <see cref="LegacyMinEngineVersion"/>, the same fixed default a
+    /// promoted legacy manifest gets, for the same reason: nothing in the pack says what it
+    /// targets. It goes straight after <c>header.version</c>, where the game's own manifests
+    /// keep it.</para>
+    /// </summary>
+    private static void EnsureFormatVersion(JsonObject root, JsonObject header)
     {
         var current = TryGetInt(root["format_version"]);
-        if (current is null or < 2)
-            root["format_version"] = 2;
+        if (current is not (null or < 2)) return;
+
+        root["format_version"] = 2;
+
+        if (header.ContainsKey("min_engine_version")) return;
+
+        var minEngine = new JsonArray();
+        foreach (var part in LegacyMinEngineVersion) minEngine.Add((JsonNode?)JsonValue.Create(part));
+
+        var versionIndex = header.IndexOf("version");
+        if (versionIndex >= 0)
+            header.Insert(versionIndex + 1, "min_engine_version", minEngine);
+        else
+            header["min_engine_version"] = minEngine;
     }
 
     /// <summary>
