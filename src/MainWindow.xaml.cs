@@ -266,7 +266,7 @@ public sealed partial class MainWindow : Window
         );
 
         Previewer.Instance.InitializeButton(LaunchShaderModManagerButton,
-            "ms-appx:///Assets/previews/brtx.png"
+            "ms-appx:///Assets/previews/svrtx.png"
         );
 
         Previewer.Instance.InitializeButton(LaunchDLSSSwapperButton,
