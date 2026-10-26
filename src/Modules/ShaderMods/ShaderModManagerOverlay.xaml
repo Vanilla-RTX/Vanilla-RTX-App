@@ -352,6 +352,7 @@
                                           IsTextScaleFactorEnabled="False" />
                                 <TextBlock Text="Customize a BetterRTX preset"
                                            FontWeight="SemiBold"
+                                           x:Name="BetterRTXWebsiteButtonText"
                                            FontSize="14"
                                            VerticalAlignment="Center"
                                            IsTextScaleFactorEnabled="False" />

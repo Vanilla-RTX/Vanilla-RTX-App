@@ -128,8 +128,13 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
 
     /// <summary>
     /// Which sections are folded away, by title. Remembered across opens because it is a
-    /// preference about the list ("I never use BetterRTX"), not about one visit. A convenience, so a
-    /// settings store that can't be read just starts everything expanded.
+    /// preference about the list ("I never use Supervanilla RTX's older builds"), not about one
+    /// visit. A convenience, so a settings store that can't be read just starts everything expanded.
+    ///
+    /// <para><b>BetterRTX is the exception: folded at every open and never saved.</b> Its presets
+    /// often lag the game (see <see cref="CreateBetterRTXNotice"/>), so its list is something a user
+    /// opens deliberately rather than lands on. Within one visit it stays as the user leaves it,
+    /// redraws included.</para>
     /// </summary>
     private const string COLLAPSED_SECTIONS_KEY = "ShaderModManager_CollapsedSections";
     private readonly HashSet<string> _collapsedSections = LoadCollapsedSections();
@@ -739,7 +744,11 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
             int betterRtxCount = betterRtxRows.Count;
             if (betterRtxCount == 0)
                 betterRtxRows.Add(CreateSectionNote(DescribeEmptyBetterRTX()));
-            AddSection(SectionBetterRTX, betterRtxRows, betterRtxCount);
+
+            // The notice folds the section it sits in, so it needs the fold AddSection builds.
+            Action? foldBetterRtx = null;
+            betterRtxRows.Insert(0, CreateBetterRTXNotice(() => foldBetterRtx?.Invoke()));
+            foldBetterRtx = AddSection(SectionBetterRTX, betterRtxRows, betterRtxCount);
         }
         catch (Exception ex)
         {
@@ -945,8 +954,11 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
     /// <para><paramref name="count"/> is the number of rows the header shows beside the title, so a
     /// folded section still says what is inside it. Null shows none - Default, which is always
     /// exactly one row. A section note (an empty section's explanation) is not a row.</para>
+    ///
+    /// <para>Returns an action that folds the section, animated, and does nothing when it is
+    /// already folded - for a control inside the section that should put it away.</para>
     /// </summary>
-    private void AddSection(string title, IReadOnlyList<FrameworkElement> content, int? count)
+    private Action AddSection(string title, IReadOnlyList<FrameworkElement> content, int? count)
     {
         var body = new StackPanel { Spacing = 12 };
         foreach (var element in content) body.Children.Add(element);
@@ -963,6 +975,12 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
 
         PresetListContainer.Children.Add(header);
         PresetListContainer.Children.Add(host);
+
+        return () =>
+        {
+            if (!_collapsedSections.Contains(title))
+                ToggleSection(title, host, body, chevron);
+        };
     }
 
     /// <summary>
@@ -1057,15 +1075,15 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
         try
         {
             if (ApplicationData.Current.LocalSettings.Values[COLLAPSED_SECTIONS_KEY] is string stored)
-                return new HashSet<string>(stored.Split('|', StringSplitOptions.RemoveEmptyEntries));
+                return new HashSet<string>(stored.Split('|', StringSplitOptions.RemoveEmptyEntries)) { SectionBetterRTX };
         }
         catch { }
-        return new HashSet<string>();
+        return new HashSet<string> { SectionBetterRTX };
     }
 
     private void SaveCollapsedSections()
     {
-        try { ApplicationData.Current.LocalSettings.Values[COLLAPSED_SECTIONS_KEY] = string.Join('|', _collapsedSections); }
+        try { ApplicationData.Current.LocalSettings.Values[COLLAPSED_SECTIONS_KEY] = string.Join('|', _collapsedSections.Where(t => t != SectionBetterRTX)); }
         catch { }
     }
 
@@ -1176,6 +1194,83 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
         IsTextScaleFactorEnabled = false,
         Style = (Style)Application.Current.Resources["ThemedSecondaryTextStyle"]
     };
+
+    /// <summary>
+    /// The card at the top of the BetterRTX section: a warning, drawn as a preset row so it reads as
+    /// part of the list rather than as chrome around it. bedrock.graphics regularly serves presets
+    /// built for an older game, and an outdated preset is one that can crash the game - the one
+    /// failure this manager otherwise works to rule out. The card points at the two ways round it.
+    ///
+    /// <para>Clicking it folds the section (<paramref name="fold"/>): the card has said its piece, and
+    /// a user who reads it and decides against BetterRTX is left with the list put away.</para>
+    /// </summary>
+    private FrameworkElement CreateBetterRTXNotice(Action fold)
+    {
+        var button = new Button
+        {
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Padding = new Thickness(0, 12, 24, 12),
+            BorderThickness = new Thickness(0),
+            Margin = new Thickness(0, 0, 0, 4),
+            MinHeight = 96,
+            CornerRadius = new CornerRadius(5),
+            IsTextScaleFactorEnabled = false,
+            Translation = new System.Numerics.Vector3(0, 0, 32)
+        };
+
+        var shadow = new ThemeShadow();
+        button.Shadow = shadow;
+        button.Loaded += (_, _) =>
+        {
+            if (ShadowReceiverGrid != null)
+                shadow.Receivers.Add(ShadowReceiverGrid);
+        };
+
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(96) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var glyph = new FontIcon
+        {
+            Glyph = "\uE7BA",
+            FontSize = 44,
+            FontWeight = FontWeights.ExtraLight,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            IsTextScaleFactorEnabled = false
+        };
+        grid.Children.Add(glyph);
+
+        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        text.Children.Add(new TextBlock
+        {
+            Text = "BetterRTX presets may crash the game",
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            TextWrapping = TextWrapping.Wrap,
+            IsTextScaleFactorEnabled = false
+        });
+        text.Children.Add(new TextBlock
+        {
+            Text = "The presets bedrock.graphics serves are often built for an older version of Minecraft, "
+                 + "and an outdated preset can crash the game.\nTo use BetterRTX on the latest version, build a fresh preset with "
+                 + $"\"{BetterRTXWebsiteButtonText.Text}\" below.\n"
+                 + "Supervanilla RTX is recommended instead: it does more, is supported by Vanilla RTX's "
+                 + "developer, and works better with the rest of the Vanilla RTX ecosystem.",
+            FontSize = 12,
+            Opacity = 0.75,
+            Margin = new Thickness(0, 4, 0, 0),
+            TextWrapping = TextWrapping.Wrap,
+            IsTextScaleFactorEnabled = false
+        });
+        Grid.SetColumn(text, 2);
+        grid.Children.Add(text);
+
+        button.Content = grid;
+        button.Click += (_, _) => fold();
+        return button;
+    }
 
     private FrameworkElement CreatePresetButton(object presetData, Dictionary<string, string> currentInstalledHashes, bool isDefault)
     {
