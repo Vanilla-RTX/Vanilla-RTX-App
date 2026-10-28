@@ -6,7 +6,7 @@ Maybe you'll find your name here next time!?
 # LogAnnouncements
 
 ### PSA 1
-🕚 Something big is coming. Supervanilla RTX.
+❇️ Supervanilla RTX, a true-to-vanilla 2.0 upgrade to Minecraft RTX will be coming to the Vanilla RTX App later this November.
 
 # PackUpdateInfo
 
