@@ -231,7 +231,7 @@ public class MinecraftLauncher
 
             var closed = exited.Count(e => e);
             if (closed > 0)
-                messages.Add($"Closed {closed} running {versionName} process(es) before launching.");
+                messages.Add($"Closed {closed} running {versionName} process{(closed > 1 ? "es" : "")} before launching.");
 
             return messages;
         }
@@ -390,7 +390,7 @@ public class MinecraftLauncher
         if (filesProcessed == 0)
             return new(false, string.Join("\n", allStatusMessages.Append("❗ No options files could be processed due to access issues.")));
 
-        allStatusMessages.Add($"Processed {filesProcessed} options file(s).");
+        allStatusMessages.Add($"Processed {filesProcessed} options file{(filesProcessed > 1 ? "s" : "")}.");
 
         if (!launchAfterUpdate)
             return new(false, string.Join("\n", allStatusMessages));
