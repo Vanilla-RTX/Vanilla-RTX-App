@@ -86,14 +86,15 @@ public class MinecraftLauncher
     }
 
     /// <summary>
-    /// The game's own executables, relative to an install folder <see cref="MinecraftGDKLocator"/>
-    /// resolved. <c>gamelaunchhelper.exe</c> is the GDK bootstrapper that starts and outlives
-    /// <c>Minecraft.Windows.exe</c>; a leftover one is as able to swallow a new launch as the game.
+    /// The game's own executables. Both sit directly in the folder <see cref="MinecraftGDKLocator"/>
+    /// caches, which is already the install's <c>Content</c> folder. <c>gamelaunchhelper.exe</c>
+    /// is the GDK bootstrapper that starts and outlives <c>Minecraft.Windows.exe</c>; a leftover
+    /// one is as able to swallow a new launch as the game.
     /// </summary>
     private static readonly string[] GameExecutables =
     {
-        Path.Combine("Content", "Minecraft.Windows.exe"),
-        Path.Combine("Content", "gamelaunchhelper.exe")
+        "Minecraft.Windows.exe",
+        "gamelaunchhelper.exe"
     };
 
     /// <summary>How long a killed process gets to actually exit before the launch carries on regardless.</summary>
@@ -106,10 +107,11 @@ public class MinecraftLauncher
     ///
     /// <para><b>Matching is by full path and nothing else, deliberately.</b> Both editions run a
     /// <c>Minecraft.Windows.exe</c>, and third-party launchers start more of them from their own
-    /// folders, so killing by name would close games the user never asked about. The install path
-    /// is one the locator validated and resolved to its physical location
-    /// (<see cref="Helpers.ResolveToPhysicalPath"/>), which is also the form Windows reports a process's image in, so a plain
-    /// case-insensitive comparison is exact. With no install path known nothing is closed.</para>
+    /// folders, so killing by name would close games the user never asked about. Both sides are
+    /// compared as physical paths, case-insensitively: the install path is cached that way, and
+    /// the process's goes through <see cref="ToPhysicalImagePath"/>, because a GDK game's package
+    /// folder in <c>WindowsApps</c> is a junction into that same <c>Content</c> folder and some
+    /// process APIs report the image through it. With no install path known nothing is closed.</para>
     ///
     /// <para>Paths are read through a query-only handle (<see cref="Helpers.OpenProcessForQuery"/>):
     /// <see cref="Process.MainModule"/> needs to read the target's memory, which a game run
@@ -175,6 +177,8 @@ public class MinecraftLauncher
                         process.Dispose();
                         continue;
                     }
+
+                    imagePath = ToPhysicalImagePath(imagePath);
 
                     if (!targets.Contains(imagePath))
                     {
@@ -242,6 +246,21 @@ public class MinecraftLauncher
     }
 
     private const int ErrorAccessDenied = 5;
+
+    /// <summary>
+    /// <paramref name="imagePath"/> with its folder resolved through any link, e.g.
+    /// <c>WindowsApps\Microsoft.MinecraftWindowsBeta_..._x64__8wekyb3d8bbwe\Minecraft.Windows.exe</c>
+    /// to <c>Microsoft Games\Minecraft Preview for Windows\Content\Minecraft.Windows.exe</c>.
+    /// The folder rather than the file, since <see cref="Helpers.ResolveToPhysicalPath"/> resolves
+    /// directories only; the result is unchanged when nothing along the way is a link.
+    /// </summary>
+    private static string ToPhysicalImagePath(string imagePath)
+    {
+        var folder = Path.GetDirectoryName(imagePath);
+        return folder is null
+            ? imagePath
+            : Path.Combine(Helpers.ResolveToPhysicalPath(folder).TrimEnd('\\'), Path.GetFileName(imagePath));
+    }
 
     /// <summary>
     /// Reads the persisted <c>name=value;name=value</c> form back into options. Anything
