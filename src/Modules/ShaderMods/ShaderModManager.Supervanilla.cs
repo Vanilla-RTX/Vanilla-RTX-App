@@ -30,11 +30,15 @@ internal sealed record SupervanillaBuild(bool IsPreview, string? FileName, int? 
     };
 }
 
-/// <summary>One build in an index.json. <see cref="Url"/> is as the server wrote it - site-relative today.</summary>
-internal sealed record SupervanillaIndexEntry(string Name, string Url, string? Version, long? Size, string? Date)
+/// <summary>
+/// One build in an index.json. <see cref="Url"/> is as the server wrote it - site-relative today. The
+/// server's own <see cref="Version"/> and <see cref="Release"/> fields win over what the name says; the
+/// name is read only for an index that predates them.
+/// </summary>
+internal sealed record SupervanillaIndexEntry(string Name, string Url, string? Version, int? Release, long? Size, string? Date)
 {
     public SupervanillaBuild ToBuild(bool isPreview) =>
-        new(isPreview, Name, ShaderModManager.ReleaseFromName(Name), Version ?? ShaderModManager.VersionFromFileName(Name));
+        new(isPreview, Name, Release ?? ShaderModManager.ReleaseFromName(Name), Version ?? ShaderModManager.VersionFromFileName(Name));
 }
 
 internal sealed record SupervanillaIndex(SupervanillaIndexEntry? Latest, IReadOnlyList<SupervanillaIndexEntry> Files);
@@ -56,9 +60,10 @@ internal sealed partial class ShaderModManager
 
     /// <summary>
     /// Whether the builds listed in index.json are drawn in the list. The index is fetched and cached
-    /// either way, and the download path for an entry is complete - this gates only the rows. Off
-    /// while Supervanilla RTX publishes one build per game version, which the Get latest row already
-    /// covers; flip it the day the index carries variants worth choosing between.
+    /// either way, and the download path for an entry is complete - this gates only the rows. The index
+    /// keeps older releases, several per game version among them, but installing upgrades whichever
+    /// build is held for the game it lands on (CLAUDE.md §2n), so the newest is the one worth having and
+    /// the Get latest row already offers it. The rest stay on the downloads page.
     /// </summary>
     public const bool ShowSupervanillaIndexPresets = false;
 
@@ -318,11 +323,67 @@ internal sealed partial class ShaderModManager
             .ToList();
 
         // Builds whose version can't be read sort below those whose can, then by name - a stable
-        // order rather than whatever the comparer happens to do with an incomparable pair.
+        // order rather than whatever the comparer happens to do with an incomparable pair. The same
+        // game version and release twice is a rebuild, and the one that arrived last is the newer.
         var readable = held.Where(p => CompareVersions(p.Supervanilla!.Version, "0") is not null).ToList();
-        readable.Sort((a, b) => -(CompareBuilds(a.Supervanilla!, b.Supervanilla!) ?? 0));
+        readable.Sort((a, b) => CompareBuilds(b.Supervanilla!, a.Supervanilla!) is int c and not 0
+            ? c
+            : ArrivedUtc(b).CompareTo(ArrivedUtc(a)));
         var rest = SmartPresetSorter.SafeOrderByName(held.Except(readable), p => p.Name);
         return readable.Concat(rest).ToList();
+    }
+
+    private static DateTime ArrivedUtc(LocalPresetData preset)
+    {
+        try { return preset.PresetPath is { } path ? Directory.GetLastWriteTimeUtc(path) : DateTime.MinValue; }
+        catch { return DateTime.MinValue; }
+    }
+
+    /// <summary>
+    /// Deletes this edition's other copies of the build that just landed in <paramref name="arrived"/>:
+    /// the same game version and the same release (none counting as 0). The site rebuilds a release in
+    /// place under the same name, each build with a fresh UUID, so without this every rebuild would sit
+    /// beside the one it replaced, under one label. The installed copy is spared - deleting it would leave
+    /// nothing reading as installed - and so is any build whose version can't be read, such as the
+    /// factory's dev builds, since nothing says what it is a copy of.
+    /// </summary>
+    private void RetireEarlierCopies(string arrived, string? manifestName)
+    {
+        try
+        {
+            // Unattached - the headless import from Explorer - there is no game to tell the installed
+            // copy by, so nothing is retired; the next import with a window open tidies up.
+            if (string.IsNullOrEmpty(GameMaterialsPath)) return;
+
+            var build = ReadSupervanillaBuild(arrived, manifestName);
+            if (build.Version is null) return;
+
+            var prefix = EditionFolderPrefix(build.IsPreview);
+            var installed = GetCurrentlyInstalledHashes();
+            foreach (var folder in Directory.GetDirectories(CacheFolder, prefix + "*"))
+            {
+                if (string.Equals(Path.GetFullPath(folder), Path.GetFullPath(arrived), StringComparison.OrdinalIgnoreCase)) continue;
+
+                var manifest = Directory.GetFiles(folder, "manifest.json", SearchOption.AllDirectories).FirstOrDefault();
+                var other = ReadSupervanillaBuild(folder, manifest != null ? PackManifest.FromFile(manifest)?.HeaderName : null);
+                if (other.Version is null || CompareVersions(other.Version, build.Version) != 0 || (other.Release ?? 0) != (build.Release ?? 0))
+                    continue;
+                if (IsInstalledFolder(folder, installed)) continue;
+
+                Directory.Delete(folder, true);
+                Trace.WriteLine($"[ShaderMods] [Supervanilla] Replaced the earlier copy of {build.Label}: {Path.GetFileName(folder)}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Trace.WriteLine($"[ShaderMods] [Supervanilla] Couldn't retire earlier copies beside {arrived}: {ex.Message}");
+        }
+    }
+
+    private bool IsInstalledFolder(string folder, Dictionary<string, string> installed)
+    {
+        var bins = Directory.GetFiles(folder, "*.bin", SearchOption.AllDirectories).ToList();
+        return bins.Count > 0 && AreHashesMatching(installed, GetExpectedInstalledHashes(bins));
     }
 
     /// <summary>
@@ -507,6 +568,7 @@ internal sealed partial class ShaderModManager
 
             return new SupervanillaIndexEntry(name, url,
                 MinecraftJson.GetString(o["version"]),
+                MinecraftJson.GetInt(o["release"]),
                 MinecraftJson.GetInt(o["size"]),
                 MinecraftJson.GetString(o["date"]));
         }
@@ -651,6 +713,7 @@ internal sealed partial class ShaderModManager
             stagingFolder = null;
 
             WriteSupervanillaBuild(destination, fileName);
+            RetireEarlierCopies(destination, parsed.Name);
             Trace.WriteLine($"[ShaderMods] [Supervanilla] ✓ \"{parsed.Name}\" ({fileName}) in place at {destination}");
             return true;
         }

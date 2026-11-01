@@ -547,6 +547,15 @@
                                        IsTextScaleFactorEnabled="False" />
                         </Grid>
                     </Border>
+
+                    <!-- Only during the check: stopping it there leaves nothing behind. Once the UAC
+                         prompt is up, Windows' own No is the way out. -->
+                    <Button x:Name="InstallCancelButton"
+                            Content="Cancel"
+                            MinWidth="96"
+                            HorizontalAlignment="Right"
+                            IsTextScaleFactorEnabled="False"
+                            Click="InstallCancelButton_Click" />
                 </StackPanel>
             </Border>
         </Grid>

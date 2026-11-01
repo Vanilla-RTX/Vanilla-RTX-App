@@ -144,7 +144,11 @@ internal sealed partial class ShaderModManager
 
     private const string CacheFolderName = "RTX_Cache";
 
-    public const string DISCLAIMER_KEY = "ShaderModsDisclaimerAgreed_Key";
+    /// <summary>
+    /// Records that the notice was accepted. The notice says what the manager downloads to the user's
+    /// machine, so a change to that list gets a new key here: whoever accepted the older text is asked again.
+    /// </summary>
+    public const string DISCLAIMER_KEY = "ShaderModsDisclaimerAgreed_v2";
 
 
     /// <summary>
@@ -798,7 +802,10 @@ internal sealed partial class ShaderModManager
             stagingFolder = null; // moved successfully, nothing left to clean up
 
             if (supervanillaPreview is not null)
+            {
                 WriteSupervanillaBuild(destinationFolder, fileName);
+                RetireEarlierCopies(destinationFolder, parsed.Name);
+            }
 
             Trace.WriteLine($"[ShaderMods] [CustomImport] ✓ Imported \"{parsed.Name}\" ({(supervanillaPreview is bool e ? $"Supervanilla RTX {EditionLabel(e)}" : "BetterRTX")}) to: {destinationFolder}");
             return new ImportResult(true, supervanillaPreview is bool p

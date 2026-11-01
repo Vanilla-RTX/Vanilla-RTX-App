@@ -321,7 +321,11 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
                 Text = "Shader mods replace Minecraft RTX's own shader files. There are two types:\n" +
                     "- Supervanilla RTX, from the maker of Vanilla RTX (vanillartx.net).\n" +
                     "- BetterRTX, provided by https://bedrock.graphics/api\n\n" +
-                    "Either can break with Minecraft updates. Vanilla RTX App takes extensive measures to mitigate any issues that may arise, such as giving a way to quickly revert to your defaults." +
+                    "Either can break with Minecraft updates. Vanilla RTX App takes extensive measures to mitigate that: it backs up your game's own shader files so Default RTX can always put them back, " +
+                    "and before installing a preset it checks it against your game, repackaging one made for an older version so it matches.\n\n" +
+                    "That check needs two more downloads the first time it's used, about 25 MB together, kept in the app's own data folder and kept up to date by the app:\n" +
+                    "- A private copy of Python, from python.org. A Python you may already have installed is never used or changed.\n" +
+                    "- lazurite, an open-source tool for Minecraft's shader files (github.com/veka0/lazurite), from PyPI." +
                     "\n\nPlease pay attention to the info panels to keep updated and help steer yourself away from potential issues.",
                 TextWrapping = TextWrapping.Wrap,
                 IsTextScaleFactorEnabled = false
@@ -2098,6 +2102,11 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
     /// <para>The converter's own setup narrates through <see cref="LazuriteToolchain.Activity"/> as well as
     /// through the check's messages; hearing from it at all is what reveals the overlay's note that this
     /// wait is the long one.</para>
+    ///
+    /// <para>The overlay's Cancel and closing the module both cancel the check through one token. The manager
+    /// answers a cancelled check as CannotCheck, so it is the token, not the verdict, that says the user
+    /// stopped it - otherwise Cancel would be met with the "couldn't check" question. A background setup
+    /// the check was waiting behind is not cancelled with it; it finishes for the next install.</para>
     /// </summary>
     private async Task<UpgradeVerdict?> PrepareInstallAsync(LocalPresetData preset, string displayName)
     {
@@ -2106,20 +2115,29 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
             if (_installStep == InstallStep.Checking) FirstTimeNote.Visibility = Visibility.Visible;
         });
 
+        using var check = CancellationTokenSource.CreateLinkedTokenSource(_closingCts.Token);
+        _checkCts = check;
+
         UpgradeOutcome outcome;
         LazuriteToolchain.Activity += OnSetup;
         try
         {
             outcome = await _manager.PrepareInstallAsync(preset, displayName,
                 message => DispatcherQueue.TryEnqueue(() => CheckStepDetail.Text = message),
-                _closingCts.Token);
+                check.Token);
         }
         finally
         {
             LazuriteToolchain.Activity -= OnSetup;
+            _checkCts = null;
         }
 
         if (_isClosing) return null;
+        if (check.IsCancellationRequested)
+        {
+            Trace.WriteLine($"[ShaderMods] Install of {displayName} cancelled during the check");
+            return null;
+        }
         CheckStepDetail.Text = outcome.Summary;
 
         switch (outcome.Verdict)
@@ -2203,6 +2221,16 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
     private enum InstallStep { Checking, Installing }
 
     private InstallStep _installStep;
+
+    /// <summary>The running check's token source, for the overlay's Cancel. Null outside a check.</summary>
+    private CancellationTokenSource? _checkCts;
+
+    private void InstallCancelButton_Click(object sender, RoutedEventArgs e)
+    {
+        InstallCancelButton.IsEnabled = false;
+        CheckStepDetail.Text = "Cancelling...";
+        _checkCts?.Cancel();
+    }
     private Storyboard? _installOverlayFade;
     private const double INSTALL_OVERLAY_FADE_MS = 150;
 
@@ -2239,6 +2267,8 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
 
         SetStepState(CheckStepGlyph, CheckStepRing, running: checking, done: !checking);
         SetStepState(InstallStepGlyph, InstallStepRing, running: !checking, done: false);
+        InstallCancelButton.Visibility = checking ? Visibility.Visible : Visibility.Collapsed;
+        InstallCancelButton.IsEnabled = true;
 
         FadeInstallOverlay(visible: true);
     }
