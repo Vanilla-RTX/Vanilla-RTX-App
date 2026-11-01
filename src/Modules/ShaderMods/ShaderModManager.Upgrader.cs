@@ -390,8 +390,8 @@ internal sealed partial class ShaderModManager
         if (unreadable.Count > 0)
             return new(new(UpgradeVerdict.CannotCheck,
                 gameSide
-                    ? $"lazurite {LazuriteToolchain.AdoptedVersion} can't read {gameLabel}'s shader files yet - it likely needs an update for this game version."
-                    : $"lazurite can't read {displayName}'s shader files.", unreadable), work, gameSide);
+                    ? $"Lazurite {LazuriteToolchain.AdoptedVersion} can't read {gameLabel}'s shader files yet - it likely needs an update for this game version."
+                    : $"Lazurite can't read {displayName}'s shader files.", unreadable), work, gameSide);
 
         if (upgraded == 0)
             return new(new(UpgradeVerdict.Current, $"Already packaged for {gameLabel}.", []), work, false);

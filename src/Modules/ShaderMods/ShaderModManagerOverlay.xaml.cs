@@ -2179,7 +2179,7 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
                     "Couldn't check this preset",
                     $"{outcome.Summary}{reasons}\n\n" +
                     $"It can still be installed exactly as it was shipped. If it was made for an older game version, Minecraft may crash when ray tracing is turned on - Default RTX puts your game back either way.",
-                    primary: "Install as shipped");
+                    primary: "Install anyway");
 
                 if (install)
                     MainWindow.Log($"Installing {displayName} unchecked: {outcome.Summary}", MainWindow.LogLevel.Warning);
