@@ -2147,8 +2147,7 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
                 return outcome.Verdict;
 
             case UpgradeVerdict.Upgraded:
-                MainWindow.Log($"{displayName} was packaged for an older game version, so the app upgraded it for {GameLabel}: " +
-                               $"{outcome.Summary} The preset itself is unchanged, and Default RTX still restores your game's own shaders.",
+                MainWindow.Log($"{displayName} was packaged for an older game version, so the app upgraded it for {GameLabel}.",
                                MainWindow.LogLevel.ShaderMods);
                 return outcome.Verdict;
 
