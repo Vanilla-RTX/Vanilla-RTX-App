@@ -1340,7 +1340,7 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
             bool showDownloadGlyph = !isDefault && !isDownloaded;
             iconBorder.Child = new FontIcon
             {
-                Glyph = showDownloadGlyph ? "\uE896" : "\uEABC",
+                Glyph = showDownloadGlyph ? "\uE896" : "\uE950",
                 FontSize = 44, // scaled up to match larger icon container
                 FontWeight = FontWeights.ExtraLight,
                 HorizontalAlignment = HorizontalAlignment.Center,
