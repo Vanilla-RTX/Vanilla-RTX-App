@@ -885,7 +885,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        _ = BlinkingLamp(true, true, 1.0, 0.1);
+        _ = BlinkingLamp(true, true, 1.0, 0.05);
 
         if (RuntimeFlags.Set("Lamp_Chess_Hint"))
             Log("Hold shift and click again to launch Vanilla RTX Chess!", LogLevel.VanillaRTX);
