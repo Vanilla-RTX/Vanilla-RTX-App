@@ -255,7 +255,7 @@
                                         HorizontalAlignment="Center"
                                         Spacing="8">
                                 <FontIcon Glyph="&#xE81C;"
-                                          FontSize="20"
+                                          FontSize="18"
                                           Margin="0,3,0,0"
                                           VerticalAlignment="Center"
                                           IsTextScaleFactorEnabled="False" />
