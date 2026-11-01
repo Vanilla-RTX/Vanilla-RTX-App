@@ -255,9 +255,9 @@ The list is split into three sections:
 
 The installed preset is highlighted, whichever section it's in. Along the bottom:
 
-- **Add customized preset** - import `.rtpack` files, by browsing, dragging them onto the button, or opening them with the app from File Explorer. Each lands in the section it belongs to - a file with Supervanilla RTX (or SVRTX) in its name goes under Supervanilla RTX, anything else under BetterRTX. Imported presets, and every Supervanilla RTX build, can be deleted with the button (bin icon) beside them.
-- **Supervanilla RTX for older versions** - opens the Supervanilla RTX downloads page inside the app, where you can pick a build for any game version. Download one, click **Done**, and it's imported automatically.
-- **Create your own preset** - opens the BetterRTX preset creator inside the app. Customize a preset, export it as `.rtpack`, then click **Done** and it will be imported automatically!
+- **Import manually (.rtpack)** - import `.rtpack` files, by browsing, dragging them onto the button, or opening them with the app from File Explorer. Each lands in the section it belongs to - a preset named Supervanilla RTX (or SVRTX) goes under Supervanilla RTX, anything else under BetterRTX. Imported presets, and every Supervanilla RTX build, can be deleted with the button (bin icon) beside them.
+- **Download Supervanilla RTX manually** - opens the Supervanilla RTX downloads page inside the app. Download a build, click **Done**, and it's imported automatically. You rarely need it: Get latest fetches the newest build, and installing it upgrades it for your game version.
+- **Customize a BetterRTX preset** - opens the BetterRTX preset creator inside the app. Customize a preset, export it as `.rtpack`, then click **Done** and it will be imported automatically!
 - **Refresh** (title bar) - clears downloaded and imported presets and fetches both lists again. If one of the two sites can't be reached, its presets are left as they were. It never clears the Default RTX preset. It can be used once a minute, and shows a countdown for that minute after it has been used.
 
 The app goes to great lengths to make sure you never install stale files, and that your Default backup always matches your game - mostly without you having to do anything:
@@ -273,7 +273,7 @@ On **Minecraft Preview**, use Get latest Supervanilla RTX (Preview): it fetches 
 
 Minecraft updates often change how its shader files are packaged without changing the shaders themselves - and a preset packaged for the old game then crashes Minecraft as soon as ray tracing is turned on. So before installing, the app checks the preset against your game, and when only the packaging is out of date it **upgrades** it: it rebuilds your game's own shader files with the preset's shaders moved in, and installs that copy instead. The preset itself is never changed, and the installed preset's row says *Auto-upgraded for Minecraft ...*. Presets built for your exact game version (like the newest Supervanilla RTX build) install straight away without any check.
 
-While it works, a card above the list says what it's doing, then Windows asks for permission to install as usual. The first check needs a one-time download of about 25 MB (Python and [lazurite](https://github.com/veka0/lazurite), the tool that reads and writes Minecraft's shader files); the app keeps lazurite up to date by itself, and only switches to a new version after testing it on your own game's files.
+While it works, the app shows what it's doing and why, then Windows asks for permission to install as usual. The first check needs a one-time download of about 25 MB (Python and [lazurite](https://github.com/veka0/lazurite), the tool that reads and writes Minecraft's shader files); the app keeps lazurite up to date by itself, and only switches to a new version after testing it on your own game's files.
 
 It's a safety net, not a guarantee:
 

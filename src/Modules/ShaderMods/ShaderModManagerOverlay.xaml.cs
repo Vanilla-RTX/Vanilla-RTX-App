@@ -56,7 +56,7 @@ internal class DownloadQueueItem
 ///
 /// <para><b>The list is three sections, in a fixed order</b>: Default, Supervanilla RTX, BetterRTX.
 /// Which section a preset is drawn in is never decided here - it is
-/// <see cref="ShaderModManager.ClassifyFolder"/>'s answer, the same one that decides which
+/// <see cref="ShaderModManager.IsSupervanillaFolderName"/>'s answer, the same one that decides which
 /// provider's wipes may delete it, so a preset can never sit in one section while being cleared
 /// with the other's.</para>
 /// </summary>
@@ -130,11 +130,6 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
     /// Which sections are folded away, by title. Remembered across opens because it is a
     /// preference about the list ("I never use Supervanilla RTX's older builds"), not about one
     /// visit. A convenience, so a settings store that can't be read just starts everything expanded.
-    ///
-    /// <para><b>BetterRTX is the exception: folded at every open and never saved.</b> Its presets
-    /// often lag the game (see <see cref="CreateBetterRTXNotice"/>), so its list is something a user
-    /// opens deliberately rather than lands on. Within one visit it stays as the user leaves it,
-    /// redraws included.</para>
     /// </summary>
     private const string COLLAPSED_SECTIONS_KEY = "ShaderModManager_CollapsedSections";
     private readonly HashSet<string> _collapsedSections = LoadCollapsedSections();
@@ -751,11 +746,7 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
             int betterRtxCount = betterRtxRows.Count;
             if (betterRtxCount == 0)
                 betterRtxRows.Add(CreateSectionNote(DescribeEmptyBetterRTX()));
-
-            // The notice folds the section it sits in, so it needs the fold AddSection builds.
-            Action? foldBetterRtx = null;
-            betterRtxRows.Insert(0, CreateBetterRTXNotice(() => foldBetterRtx?.Invoke()));
-            foldBetterRtx = AddSection(SectionBetterRTX, betterRtxRows, betterRtxCount);
+            AddSection(SectionBetterRTX, betterRtxRows, betterRtxCount);
         }
         catch (Exception ex)
         {
@@ -962,10 +953,8 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
     /// folded section still says what is inside it. Null shows none - Default, which is always
     /// exactly one row. A section note (an empty section's explanation) is not a row.</para>
     ///
-    /// <para>Returns an action that folds the section, animated, and does nothing when it is
-    /// already folded - for a control inside the section that should put it away.</para>
     /// </summary>
-    private Action AddSection(string title, IReadOnlyList<FrameworkElement> content, int? count)
+    private void AddSection(string title, IReadOnlyList<FrameworkElement> content, int? count)
     {
         var body = new StackPanel { Spacing = 12 };
         foreach (var element in content) body.Children.Add(element);
@@ -982,12 +971,6 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
 
         PresetListContainer.Children.Add(header);
         PresetListContainer.Children.Add(host);
-
-        return () =>
-        {
-            if (!_collapsedSections.Contains(title))
-                ToggleSection(title, host, body, chevron);
-        };
     }
 
     /// <summary>
@@ -1082,15 +1065,15 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
         try
         {
             if (ApplicationData.Current.LocalSettings.Values[COLLAPSED_SECTIONS_KEY] is string stored)
-                return new HashSet<string>(stored.Split('|', StringSplitOptions.RemoveEmptyEntries)) { SectionBetterRTX };
+                return new HashSet<string>(stored.Split('|', StringSplitOptions.RemoveEmptyEntries));
         }
         catch { }
-        return new HashSet<string> { SectionBetterRTX };
+        return new HashSet<string>();
     }
 
     private void SaveCollapsedSections()
     {
-        try { ApplicationData.Current.LocalSettings.Values[COLLAPSED_SECTIONS_KEY] = string.Join('|', _collapsedSections.Where(t => t != SectionBetterRTX)); }
+        try { ApplicationData.Current.LocalSettings.Values[COLLAPSED_SECTIONS_KEY] = string.Join('|', _collapsedSections); }
         catch { }
     }
 
@@ -1201,83 +1184,6 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
         IsTextScaleFactorEnabled = false,
         Style = (Style)Application.Current.Resources["ThemedSecondaryTextStyle"]
     };
-
-    /// <summary>
-    /// The card at the top of the BetterRTX section: a warning, drawn as a preset row so it reads as
-    /// part of the list rather than as chrome around it. bedrock.graphics regularly serves presets
-    /// built for an older game, and an outdated preset is one that can crash the game - the one
-    /// failure this manager otherwise works to rule out. The card points at the two ways round it.
-    ///
-    /// <para>Clicking it folds the section (<paramref name="fold"/>): the card has said its piece, and
-    /// a user who reads it and decides against BetterRTX is left with the list put away.</para>
-    /// </summary>
-    private FrameworkElement CreateBetterRTXNotice(Action fold)
-    {
-        var button = new Button
-        {
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            HorizontalContentAlignment = HorizontalAlignment.Stretch,
-            Padding = new Thickness(0, 12, 24, 12),
-            BorderThickness = new Thickness(0),
-            Margin = new Thickness(0, 0, 0, 4),
-            MinHeight = 96,
-            CornerRadius = new CornerRadius(5),
-            IsTextScaleFactorEnabled = false,
-            Translation = new System.Numerics.Vector3(0, 0, 32)
-        };
-
-        var shadow = new ThemeShadow();
-        button.Shadow = shadow;
-        button.Loaded += (_, _) =>
-        {
-            if (ShadowReceiverGrid != null)
-                shadow.Receivers.Add(ShadowReceiverGrid);
-        };
-
-        var grid = new Grid();
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(96) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-        var glyph = new FontIcon
-        {
-            Glyph = "\uE7BA",
-            FontSize = 44,
-            FontWeight = FontWeights.ExtraLight,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            IsTextScaleFactorEnabled = false
-        };
-        grid.Children.Add(glyph);
-
-        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-        text.Children.Add(new TextBlock
-        {
-            Text = "BetterRTX presets may crash the game",
-            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-            TextWrapping = TextWrapping.Wrap,
-            IsTextScaleFactorEnabled = false
-        });
-        text.Children.Add(new TextBlock
-        {
-            Text = "The presets bedrock.graphics serves are often built for an older version of Minecraft, "
-                 + "and an outdated preset can crash the game.\nTo use BetterRTX on the latest version, build a fresh preset with "
-                 + $"\"{BetterRTXWebsiteButtonText.Text}\" below.\n"
-                 + "Supervanilla RTX is recommended instead: it does more, is supported by Vanilla RTX's "
-                 + "developer, and works better with the rest of the Vanilla RTX ecosystem.",
-            FontSize = 12,
-            Opacity = 0.75,
-            Margin = new Thickness(0, 4, 0, 0),
-            TextWrapping = TextWrapping.Wrap,
-            IsTextScaleFactorEnabled = false
-        });
-        Grid.SetColumn(text, 2);
-        grid.Children.Add(text);
-
-        button.Content = grid;
-        button.Click += (_, _) => fold();
-        return button;
-    }
 
     private FrameworkElement CreatePresetButton(object presetData, Dictionary<string, string> currentInstalledHashes, bool isDefault)
     {
@@ -1639,13 +1545,15 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
         var supervanillaPage = EnvironmentVariables.LinkLabel(ShaderModManager.SupervanillaDownloadsPageUrl, includePath: false);
         SupervanillaDownloadsTargetText.Text = $"Visit {supervanillaPage}";
         ToolTipService.SetToolTip(SupervanillaDownloadsLink,
-            $"Browse every Supervanilla RTX build on {supervanillaPage}, for any game version, right here - " +
-            "whatever you download is imported automatically when you click Done.");
+            $"Browse the Supervanilla RTX downloads on {supervanillaPage} right here - whatever you download is " +
+            "imported automatically when you click Done. Get latest above is usually all you need: installing a " +
+            "build upgrades it for your game version.");
     }
 
     /// <summary>
-    /// The way to every Supervanilla RTX build the Get latest row doesn't offer - older ones for an
-    /// older game, mostly. Same flow as Create your own preset, onto the site's minimal
+    /// The site's Supervanilla RTX builds as files, for picking one by hand. Not a way to match an
+    /// older game: the game only moves forward, and installing upgrades a build for the game it lands
+    /// on, so the Get latest row is the usual route. Same flow as Create your own preset, onto the site's minimal
     /// <c>?app</c> layout; the difference is that everything downloaded there is Supervanilla RTX
     /// by construction, so the import is told so rather than left to guess from the file name.
     /// </summary>
@@ -1655,7 +1563,7 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
             url: ShaderModManager.SupervanillaDownloadsPageUrl,
             title: "Supervanilla RTX downloads",
             glyph: "\uE81C",
-            guideText: "Download the Supervanilla RTX build for the game version you play. Once it downloads, click Done; It'll auto-import & you can install it.",
+            guideText: "Download a Supervanilla RTX build, then click Done - it's imported automatically, ready to install.",
             stagingTag: "Supervanilla",
             watchedExtensions: ShaderModManager.SupportedCustomPresetExtensions,
             onFilesReady: files => ImportCustomPresetsAsync(files, forceSupervanilla: true));
@@ -2111,11 +2019,12 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
                         var preset = _manager.FindLoadedPreset(presetToApply.PresetPath) ?? presetToApply;
                         var displayName = presetToApply.Name ?? preset.Name ?? "this preset";
 
+                        ShowInstallProgress(displayName);
                         var upgrade = await PrepareInstallAsync(preset, displayName);
                         if (upgrade == null || _isClosing) return;
 
-                        ShowInstallProgress($"Installing {displayName}",
-                            "Approve the Windows permission prompt to let the app write into the game's folder...");
+                        // A question answered on the way here took the overlay down; this brings it back.
+                        ShowInstallProgress(displayName, InstallStep.Installing);
 
                         var success = await _manager.ApplyPresetAsync(preset);
 
@@ -2182,19 +2091,36 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
     /// to, how it installs. Returns the verdict to install under, or null to install nothing.
     ///
     /// <para><b>Only a problem stops for the user.</b> A preset that needed nothing, or whose packaging was
-    /// upgraded, goes straight on to the UAC prompt with the card saying what happened - the user already
+    /// upgraded, goes straight on to the UAC prompt with the overlay saying what happened - the user already
     /// asked for the install, and an upgrade is the app keeping that promise. A changed interface or a
     /// preset that couldn't be checked asks, and both default to not installing.</para>
+    ///
+    /// <para>The converter's own setup narrates through <see cref="LazuriteToolchain.Activity"/> as well as
+    /// through the check's messages; hearing from it at all is what reveals the overlay's note that this
+    /// wait is the long one.</para>
     /// </summary>
     private async Task<UpgradeVerdict?> PrepareInstallAsync(LocalPresetData preset, string displayName)
     {
-        ShowInstallProgress($"Preparing {displayName}", $"Checking it against {GameLabel}...");
+        void OnSetup(string _) => DispatcherQueue.TryEnqueue(() =>
+        {
+            if (_installStep == InstallStep.Checking) FirstTimeNote.Visibility = Visibility.Visible;
+        });
 
-        var outcome = await _manager.PrepareInstallAsync(preset, displayName,
-            message => DispatcherQueue.TryEnqueue(() => InstallProgressDetail.Text = message),
-            _closingCts.Token);
+        UpgradeOutcome outcome;
+        LazuriteToolchain.Activity += OnSetup;
+        try
+        {
+            outcome = await _manager.PrepareInstallAsync(preset, displayName,
+                message => DispatcherQueue.TryEnqueue(() => CheckStepDetail.Text = message),
+                _closingCts.Token);
+        }
+        finally
+        {
+            LazuriteToolchain.Activity -= OnSetup;
+        }
 
         if (_isClosing) return null;
+        CheckStepDetail.Text = outcome.Summary;
 
         switch (outcome.Verdict)
         {
@@ -2203,7 +2129,6 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
                 return outcome.Verdict;
 
             case UpgradeVerdict.Upgraded:
-                InstallProgressDetail.Text = outcome.Summary;
                 MainWindow.Log($"{displayName} was packaged for an older game version, so the app upgraded it for {GameLabel}: " +
                                $"{outcome.Summary} The preset itself is unchanged, and Default RTX still restores your game's own shaders.",
                                MainWindow.LogLevel.ShaderMods);
@@ -2275,18 +2200,111 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
         }
     }
 
-    private void ShowInstallProgress(string title, string detail)
+    private enum InstallStep { Checking, Installing }
+
+    private InstallStep _installStep;
+    private Storyboard? _installOverlayFade;
+    private const double INSTALL_OVERLAY_FADE_MS = 150;
+
+    /// <summary>
+    /// Puts the install overlay up at <paramref name="step"/>, or moves it there if it is already up. Opening
+    /// at <see cref="InstallStep.Checking"/> starts a fresh install: the check's detail and the setup note
+    /// are cleared. Opening straight at <see cref="InstallStep.Installing"/> - after a question took the
+    /// overlay down - keeps what the check said, which is the reason the user just answered.
+    /// </summary>
+    private void ShowInstallProgress(string displayName, InstallStep step = InstallStep.Checking)
     {
-        InstallProgressTitle.Text = title;
-        InstallProgressDetail.Text = detail;
-        InstallProgressRing.IsActive = true;
-        InstallProgressCard.Visibility = Visibility.Visible;
+        _installStep = step;
+        bool checking = step == InstallStep.Checking;
+
+        if (checking)
+        {
+            CheckStepTitle.Text = $"Check it against {GameLabel}";
+            CheckStepDetail.Text = "";
+            InstallStepDetail.Text = "Windows will ask for permission to write into the game's folder.";
+        }
+        else
+        {
+            FirstTimeNote.Visibility = Visibility.Collapsed;
+            InstallStepDetail.Text = "Waiting for you to approve the Windows permission prompt. If you can't see it, look for it on the taskbar.";
+        }
+
+        InstallProgressTitle.Text = checking ? $"Getting {displayName} ready" : $"Installing {displayName}";
+        InstallProgressExplanation.Text = checking
+            ? "Minecraft updates often repackage the game's shader files, and a preset packaged for an older version " +
+              "can crash the game as soon as ray tracing is turned on. So the app first checks this preset against your " +
+              "game and, if it's out of date, repackages it to match - in a temporary folder, without touching your game yet."
+            : "Windows will now ask for permission to let the app write into Minecraft's install folder. " +
+              "Choose Yes to finish - the preset is installed the moment you do.";
+
+        SetStepState(CheckStepGlyph, CheckStepRing, running: checking, done: !checking);
+        SetStepState(InstallStepGlyph, InstallStepRing, running: !checking, done: false);
+
+        FadeInstallOverlay(visible: true);
     }
 
     private void HideInstallProgress()
     {
-        InstallProgressRing.IsActive = false;
-        InstallProgressCard.Visibility = Visibility.Collapsed;
+        CheckStepRing.IsActive = false;
+        InstallStepRing.IsActive = false;
+        FadeInstallOverlay(visible: false);
+    }
+
+    /// <summary>A step's icon slot: a ring while it runs, a tick once done, a faint circle until then.</summary>
+    private static void SetStepState(FontIcon glyph, ProgressRing ring, bool running, bool done)
+    {
+        ring.IsActive = running;
+        ring.Visibility = running ? Visibility.Visible : Visibility.Collapsed;
+        glyph.Visibility = running ? Visibility.Collapsed : Visibility.Visible;
+        glyph.Glyph = done ? "\uE73E" : "\uEA3A";
+        glyph.Opacity = done ? 1.0 : 0.45;
+    }
+
+    /// <summary>
+    /// Fades the install overlay in or out, or snaps under <c>SuspendUIAnimations</c>. Each fade starts from
+    /// the opacity on screen and ends by writing its end state as base values - a storyboard that is merely
+    /// stopped reverts to whatever base the property still has, which would undo a fade-out the moment the
+    /// next fade-in stopped it.
+    /// </summary>
+    private void FadeInstallOverlay(bool visible)
+    {
+        _installOverlayFade?.Stop();
+        _installOverlayFade = null;
+
+        double from = InstallOverlay.Visibility == Visibility.Visible ? InstallOverlay.Opacity : 0;
+        double to = visible ? 1 : 0;
+        InstallOverlay.Visibility = Visibility.Visible;
+
+        if (EnvironmentVariables.Persistent.SuspendUIAnimations || from == to)
+        {
+            InstallOverlay.Opacity = to;
+            InstallOverlay.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+            return;
+        }
+
+        InstallOverlay.Opacity = from;
+        var fade = new DoubleAnimation
+        {
+            From = from,
+            To = to,
+            Duration = new Duration(TimeSpan.FromMilliseconds(INSTALL_OVERLAY_FADE_MS)),
+            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+        };
+        Storyboard.SetTarget(fade, InstallOverlay);
+        Storyboard.SetTargetProperty(fade, "Opacity");
+
+        var storyboard = new Storyboard();
+        storyboard.Children.Add(fade);
+        storyboard.Completed += (_, _) =>
+        {
+            if (_installOverlayFade != storyboard) return;
+            _installOverlayFade = null;
+            storyboard.Stop();
+            InstallOverlay.Opacity = to;
+            InstallOverlay.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        };
+        _installOverlayFade = storyboard;
+        storyboard.Begin();
     }
 
 

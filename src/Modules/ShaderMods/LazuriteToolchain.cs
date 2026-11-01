@@ -119,7 +119,13 @@ internal static class LazuriteToolchain
     private static string PythonFolder => Path.Combine(Root, "python");
     private static string PythonExe => Path.Combine(PythonFolder, "python.exe");
     private static string PythonMarker => Path.Combine(PythonFolder, "vanillartx-python.txt");
-    private static string SiteFolder(string version) => Path.Combine(Root, "site", version);
+    /// <summary>
+    /// One lazurite version's packages, for the pinned Python. Keyed by both: pycryptodome and pyjson5 are
+    /// compiled for one CPython, so an app update that moves <see cref="PythonVersion"/> must not find the
+    /// old Python's packages and call them installed.
+    /// </summary>
+    private static string SiteFolderName(string version) => $"{version}-py{PythonVersion}";
+    private static string SiteFolder(string version) => Path.Combine(Root, "site", SiteFolderName(version));
     private static string ScriptsFolder(string id) => Path.Combine(Root, "scripts", id);
     private static string WorkRoot => Path.Combine(Root, "work");
     private static string StatePath => Path.Combine(Root, "toolchain.json");
@@ -663,7 +669,7 @@ internal static class LazuriteToolchain
     private static void PruneUnused(State state)
     {
         foreach (var dir in SafeDirectories(Path.Combine(Root, "site")))
-            if (!Path.GetFileName(dir).Equals(state.Lazurite, StringComparison.OrdinalIgnoreCase))
+            if (state.Lazurite == null || !Path.GetFileName(dir).Equals(SiteFolderName(state.Lazurite), StringComparison.OrdinalIgnoreCase))
                 TryDelete(dir);
         foreach (var dir in SafeDirectories(Path.Combine(Root, "scripts")))
             if (!Path.GetFileName(dir).Equals(state.Scripts, StringComparison.OrdinalIgnoreCase))

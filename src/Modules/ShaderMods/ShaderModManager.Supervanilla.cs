@@ -135,29 +135,35 @@ internal sealed partial class ShaderModManager
         (name.Contains("supervanilla", StringComparison.OrdinalIgnoreCase) ||
          name.Contains("svrtx", StringComparison.OrdinalIgnoreCase));
 
-    /// <summary>
-    /// Whose an .rtpack of unknown origin is. A Supervanilla RTX pack carries nothing a BetterRTX
-    /// one does not - same files, same manifest shape - so its name is the only evidence there is.
-    /// Either the file's name or the manifest's counts.
-    /// </summary>
-    public static PresetSource ClassifyImport(string? fileName, string? manifestName) =>
-        LooksLikeSupervanilla(fileName) || LooksLikeSupervanilla(manifestName)
-            ? PresetSource.Supervanilla
-            : PresetSource.BetterRTX;
+    private static bool SaysPreview(string? name) =>
+        name?.Contains("preview", StringComparison.OrdinalIgnoreCase) ?? false;
 
     /// <summary>
-    /// Which edition an imported Supervanilla RTX build is for. Builds are named
-    /// <c>Supervanilla-RTX-Preview-R1-…</c> for Preview and <c>Supervanilla-RTX-R1-…</c> for
-    /// Release, and that convention is the only evidence there is, so "preview" anywhere in the file
-    /// or manifest name decides it. Fragile by nature, and accepted: the naming is ours and fixed.
+    /// Whose an imported .rtpack is, and for Supervanilla RTX which edition: null for BetterRTX,
+    /// true for a Preview build, false for a Release one. Decided once, at import, and from then on
+    /// recorded only in the folder name it lands under (<see cref="IsSupervanillaFolderName"/>).
+    ///
+    /// <para><b>Names are the only evidence.</b> A Supervanilla RTX pack carries the same files and
+    /// manifest shape a BetterRTX one does, and its released builds get a fresh UUID every time.
+    /// What the factory does fix is the manifest's name - the file's own name with spaces for dashes,
+    /// "Supervanilla RTX Preview R2 1.26.7020.0", with "Preview" in it for exactly the Preview
+    /// channel's builds - so the manifest is asked first: it survives the
+    /// user renaming the file, and a file name saying "preview" can't move a build whose own manifest
+    /// says otherwise. The file name (<c>Supervanilla-RTX-[Preview-]R&lt;n&gt;-&lt;version&gt;</c>) is the
+    /// fallback for a manifest that doesn't name us.</para>
+    ///
+    /// <para><paramref name="knownSupervanilla"/> is for the caller that knows where the file came
+    /// from - the Supervanilla RTX downloads page - and skips the ownership test; the edition is still
+    /// read off the names, since that page offers both channels' builds.</para>
     /// </summary>
-    public static bool IsPreviewBuildName(string? fileName, string? manifestName) =>
-        (fileName?.Contains("preview", StringComparison.OrdinalIgnoreCase) ?? false) ||
-        (manifestName?.Contains("preview", StringComparison.OrdinalIgnoreCase) ?? false);
-
-    /// <summary>Whose a folder already in the cache is - decided entirely by its name.</summary>
-    public static PresetSource ClassifyFolder(string folderName) =>
-        IsSupervanillaFolderName(folderName) ? PresetSource.Supervanilla : PresetSource.BetterRTX;
+    public static bool? ClassifyImport(string? fileName, string? manifestName, bool knownSupervanilla = false)
+    {
+        if (LooksLikeSupervanilla(manifestName))
+            return SaysPreview(manifestName);
+        if (knownSupervanilla || LooksLikeSupervanilla(fileName))
+            return SaysPreview(manifestName) || SaysPreview(fileName);
+        return null;
+    }
 
     /// <summary>
     /// Deletes every Supervanilla RTX build held for one edition - however it arrived. The other
@@ -248,7 +254,10 @@ internal sealed partial class ShaderModManager
 
     /// <summary>
     /// What is known about the build in one Supervanilla RTX folder: its edition from the folder
-    /// name, its release and version from the recorded file name, else from the manifest name.
+    /// name, its release and version from the manifest name, else from the recorded file name. A
+    /// released build's manifest is named after its file ("Supervanilla RTX Preview R2 1.26.7020.0"),
+    /// and unlike the file it can't have been renamed; a dev build's carries neither, and has no
+    /// sidecar either.
     /// </summary>
     private static SupervanillaBuild ReadSupervanillaBuild(string folder, string? manifestName)
     {
@@ -264,12 +273,11 @@ internal sealed partial class ShaderModManager
             Trace.WriteLine($"[ShaderMods] [Supervanilla] Unreadable sidecar in {folder}: {ex.Message}");
         }
 
-        var source = fileName ?? manifestName;
         return new SupervanillaBuild(
             EditionOfFolder(Path.GetFileName(folder)) ?? false,
             fileName,
-            ReleaseFromName(source) ?? ReleaseFromName(manifestName),
-            VersionFromFileName(source) ?? VersionFromFileName(manifestName));
+            ReleaseFromName(manifestName) ?? ReleaseFromName(fileName),
+            VersionFromFileName(manifestName) ?? VersionFromFileName(fileName));
     }
 
     private static void WriteSupervanillaBuild(string folder, string fileName)

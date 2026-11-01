@@ -119,53 +119,6 @@
                 </Grid>
             </Border>
 
-            <!-- What an install is doing while the list is greyed: checking the preset against the
-                 game, setting up or updating the converter, upgrading, waiting for the UAC prompt.
-                 Shares row 0 with the no-backup card, which can never be up during an install -
-                 nothing installs without a backup. -->
-            <Border x:Name="InstallProgressCard"
-                    Grid.Row="0"
-                    Margin="20,12,24,0"
-                    Visibility="Collapsed"
-                    CornerRadius="6"
-                    Padding="6"
-                    Translation="0,0,32"
-                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-                <Border.Shadow>
-                    <ThemeShadow />
-                </Border.Shadow>
-
-                <Grid Margin="16,10,16,10">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-
-                    <ProgressRing x:Name="InstallProgressRing"
-                                  Grid.Column="0"
-                                  IsActive="False"
-                                  Width="24"
-                                  Height="24"
-                                  VerticalAlignment="Center" />
-
-                    <StackPanel Grid.Column="1"
-                                Margin="14,0,0,0"
-                                Spacing="2"
-                                VerticalAlignment="Center">
-                        <TextBlock x:Name="InstallProgressTitle"
-                                   FontSize="14"
-                                   FontWeight="SemiBold"
-                                   TextWrapping="Wrap"
-                                   IsTextScaleFactorEnabled="False" />
-                        <TextBlock x:Name="InstallProgressDetail"
-                                   FontSize="13"
-                                   Opacity="0.8"
-                                   TextWrapping="Wrap"
-                                   IsTextScaleFactorEnabled="False" />
-                    </StackPanel>
-                </Grid>
-            </Border>
-
             <!-- Shadow receiver sits behind the scroll content -->
             <Grid x:Name="ShadowReceiverGrid"
                   Grid.Row="1" />
@@ -213,7 +166,7 @@
                         <ColumnDefinition Width="1.5*" />
                         <!-- Gap 6 px -->
                         <ColumnDefinition Width="6" />
-                        <!-- Supervanilla RTX for older versions -->
+                        <!-- Download Supervanilla RTX manually -->
                         <ColumnDefinition Width="1*" />
                         <!-- Gap 6 px -->
                         <ColumnDefinition Width="6" />
@@ -306,7 +259,7 @@
                                           Margin="0,3,0,0"
                                           VerticalAlignment="Center"
                                           IsTextScaleFactorEnabled="False" />
-                                <TextBlock Text="Supervanilla RTX for other versions"
+                                <TextBlock Text="Download Supervanilla RTX manually"
                                            FontWeight="SemiBold"
                                            FontSize="14"
                                            TextWrapping="Wrap"
@@ -463,6 +416,140 @@
                 </Button>
             </Grid>
         </Border>
+
+        <!-- ══ Install overlay ═══════════════════════════════════════════════
+             Covers the module for the whole of an install, from checking the preset against
+             the game to the UAC prompt, because nothing on screen otherwise moves for that time:
+             the first check can sit for a minute setting up the converter, and the UAC prompt
+             can open behind the window. The scrim takes every click; the card says which of the
+             two steps is running, why, and what comes next. See ShowInstallProgress.
+             ═══════════════════════════════════════════════════════════════════ -->
+        <Grid x:Name="InstallOverlay"
+              Visibility="Collapsed"
+              Opacity="0">
+            <Border Background="{ThemeResource SmokeFillColorDefaultBrush}" />
+
+            <Border MaxWidth="580"
+                    Margin="24"
+                    Padding="28,24,28,24"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    CornerRadius="8"
+                    BorderThickness="1"
+                    BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}"
+                    Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
+                    Translation="0,0,64">
+                <Border.Shadow>
+                    <ThemeShadow />
+                </Border.Shadow>
+
+                <StackPanel Spacing="18">
+                    <TextBlock x:Name="InstallProgressTitle"
+                               FontSize="20"
+                               FontWeight="SemiBold"
+                               TextWrapping="Wrap"
+                               IsTextScaleFactorEnabled="False" />
+
+                    <TextBlock x:Name="InstallProgressExplanation"
+                               FontSize="14"
+                               Opacity="0.9"
+                               TextWrapping="Wrap"
+                               IsTextScaleFactorEnabled="False" />
+
+                    <!-- The two steps every install goes through. Each icon slot holds a glyph
+                         (waiting, done) and a ring (running); SetInstallStep picks one. -->
+                    <StackPanel Spacing="12">
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="22" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid VerticalAlignment="Top"
+                                  Margin="0,1,0,0">
+                                <FontIcon x:Name="CheckStepGlyph"
+                                          FontSize="18"
+                                          IsTextScaleFactorEnabled="False" />
+                                <ProgressRing x:Name="CheckStepRing"
+                                              Width="18"
+                                              Height="18"
+                                              IsActive="False" />
+                            </Grid>
+                            <StackPanel Grid.Column="1"
+                                        Spacing="2">
+                                <TextBlock x:Name="CheckStepTitle"
+                                           FontSize="14"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap"
+                                           IsTextScaleFactorEnabled="False" />
+                                <TextBlock x:Name="CheckStepDetail"
+                                           FontSize="13"
+                                           Opacity="0.75"
+                                           TextWrapping="Wrap"
+                                           IsTextScaleFactorEnabled="False" />
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="22" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid VerticalAlignment="Top"
+                                  Margin="0,1,0,0">
+                                <FontIcon x:Name="InstallStepGlyph"
+                                          FontSize="18"
+                                          IsTextScaleFactorEnabled="False" />
+                                <ProgressRing x:Name="InstallStepRing"
+                                              Width="18"
+                                              Height="18"
+                                              IsActive="False" />
+                            </Grid>
+                            <StackPanel Grid.Column="1"
+                                        Spacing="2">
+                                <TextBlock Text="Install it into the game"
+                                           FontSize="14"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap"
+                                           IsTextScaleFactorEnabled="False" />
+                                <TextBlock x:Name="InstallStepDetail"
+                                           FontSize="13"
+                                           Opacity="0.75"
+                                           TextWrapping="Wrap"
+                                           IsTextScaleFactorEnabled="False" />
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+
+                    <!-- Only while the converter is being set up or updated - the one wait that runs
+                         to a minute, and the one a user can't guess the reason for. -->
+                    <Border x:Name="FirstTimeNote"
+                            Visibility="Collapsed"
+                            CornerRadius="6"
+                            Padding="14,10,14,10"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderThickness="1"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Glyph="&#xE946;"
+                                      FontSize="16"
+                                      Margin="0,2,0,0"
+                                      VerticalAlignment="Top"
+                                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                      IsTextScaleFactorEnabled="False" />
+                            <TextBlock Grid.Column="1"
+                                       Text="This takes longer the first time. The app is setting up the tool it repackages presets with (Python and lazurite, about 25 MB), which usually takes under a minute. After this, installs take a few seconds."
+                                       FontSize="13"
+                                       TextWrapping="Wrap"
+                                       IsTextScaleFactorEnabled="False" />
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Border>
+        </Grid>
 
         <core:WebImportOverlay x:Name="WebImportOverlay" />
     </Grid>

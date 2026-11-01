@@ -19,12 +19,6 @@ namespace Vanilla_RTX_App.Modules.ShaderMods;
 // think it through later. for now, things are tesetd and good, no reason to change the approach, it is robust, it works, it backs up the files literally!
 
 
-/// <summary>
-/// Who a preset in the cache belongs to. Decides both which section of the list it is drawn in
-/// and which provider's wipes may delete it - see <see cref="ShaderModManager.ClassifyFolder"/>.
-/// </summary>
-internal enum PresetSource { BetterRTX, Supervanilla }
-
 internal class LocalPresetData
 {
     public LocalPresetData() { }
@@ -92,7 +86,7 @@ internal readonly record struct ImportResult(bool Success, string Message, bool?
 /// <see cref="RTXFiles"/> - so everything from the cache inwards is provider-neutral: backup,
 /// install, detection and rollback do not know or care where a preset came from. What differs is
 /// how presets arrive and what invalidates them, and that is why ownership is tracked per folder
-/// (<see cref="ClassifyFolder"/>) rather than being a matter of which section draws it.</para>
+/// (<see cref="IsSupervanillaFolderName"/>) rather than being a matter of which section draws it.</para>
 ///
 /// <para><b>Why it's separate from the window.</b> The proof is
 /// <see cref="ImportPresetFilesHeadlessAsync"/>: a .rtpack double-clicked in Explorer has to
@@ -757,11 +751,8 @@ internal sealed partial class ShaderModManager
     ///
     /// <para><b>Who it belongs to is decided here, once</b>, and recorded in the folder name it
     /// lands under: a bare UUID for BetterRTX, <c>SVRTX_&lt;Edition&gt;_&lt;uuid&gt;</c> for
-    /// Supervanilla RTX (<see cref="ClassifyImport"/>, <see cref="IsPreviewBuildName"/>).
-    /// <paramref name="forceSupervanilla"/> is for the caller that knows where the file came from -
-    /// the Supervanilla RTX downloads page - and skips the name test, which is only a guess for a
-    /// file whose origin is unknown. The edition is still read off the name in that case: the page
-    /// offers both channels' builds.</para>
+    /// Supervanilla RTX (<see cref="ClassifyImport"/>). <paramref name="forceSupervanilla"/> is for
+    /// the Supervanilla RTX downloads page, which knows where its files came from.</para>
     ///
     /// <para>Only ever touches <see cref="CacheFolder"/>, which is why the headless import path
     /// can run this on an instance that was never attached to a Minecraft install at all.
@@ -792,10 +783,7 @@ internal sealed partial class ShaderModManager
                 return new ImportResult(false, $"'{fileName}' is not a valid shader mod preset (no readable manifest).", null);
             }
 
-            var source = forceSupervanilla ? PresetSource.Supervanilla : ClassifyImport(fileName, parsed.Name);
-            bool? supervanillaPreview = source == PresetSource.Supervanilla
-                ? IsPreviewBuildName(fileName, parsed.Name)
-                : null;
+            bool? supervanillaPreview = ClassifyImport(fileName, parsed.Name, forceSupervanilla);
 
             // Named after the pack's own UUID either way, so bringing in the same pack again
             // replaces it in place.
@@ -812,7 +800,7 @@ internal sealed partial class ShaderModManager
             if (supervanillaPreview is not null)
                 WriteSupervanillaBuild(destinationFolder, fileName);
 
-            Trace.WriteLine($"[ShaderMods] [CustomImport] ✓ Imported \"{parsed.Name}\" ({source}) to: {destinationFolder}");
+            Trace.WriteLine($"[ShaderMods] [CustomImport] ✓ Imported \"{parsed.Name}\" ({(supervanillaPreview is bool e ? $"Supervanilla RTX {EditionLabel(e)}" : "BetterRTX")}) to: {destinationFolder}");
             return new ImportResult(true, supervanillaPreview is bool p
                 ? $"Imported \"{parsed.Name}\" as a Supervanilla RTX build for Minecraft {EditionLabel(p)}."
                 : $"Imported \"{parsed.Name}\".", supervanillaPreview);
