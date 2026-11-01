@@ -1,0 +1,11 @@
+// The developer's switches for the app's install-time preset upgrader (LazuriteToolchain).
+// Every copy of the app reads this from GitHub at most twice a day, so an edit here reaches users within hours.
+//   enabled  false turns upgrading off everywhere; presets then install exactly as they were shipped
+//   pin      one lazurite version to use instead of the newest on PyPI, e.g. "0.12.0" (null = newest)
+//   blocked  lazurite versions never to adopt; a blocked version already in use is replaced
+// A pinned or newest version is still only used once it has passed the app's own test on the user's game files.
+{
+  "enabled": true,
+  "pin": null,
+  "blocked": []
+}

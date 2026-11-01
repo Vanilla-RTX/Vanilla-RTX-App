@@ -270,6 +270,7 @@ internal sealed partial class ShaderModManager
     {
         IsPreview = isPreview;
         GameMaterialsPath = Path.Combine(minecraftPath, "data", "renderer", "materials");
+        GameVersion = GameVersionDetector.ReadGameVersion(minecraftPath);
 
         if (!Directory.Exists(GameMaterialsPath))
             return AttachFailure.MaterialsFolderMissing;
@@ -400,7 +401,7 @@ internal sealed partial class ShaderModManager
     /// <summary>
     /// BetterRTX's soft wipe: deletes every folder BetterRTX owns - its downloads and every import
     /// not recognised as Supervanilla RTX - and the API cache JSON. <b>Both</b> editions' Default
-    /// folders are preserved (see <see cref="IsDefaultFolderName"/>), and so is everything of
+    /// folders and the upgraded copies are preserved (see <see cref="IsReservedFolderName"/>), and so is everything of
     /// Supervanilla RTX's: the API changing says nothing about a different provider's files.
     /// </summary>
     public async Task WipeBetterRTXPresetsAsync()
@@ -408,7 +409,7 @@ internal sealed partial class ShaderModManager
         Trace.WriteLine("[ShaderMods] [SoftWipe] Starting BetterRTX soft cache wipe...");
 
         int deletedCount = DeleteCacheFolders(name =>
-            !IsDefaultFolderName(name) && !IsSupervanillaFolderName(name), "[SoftWipe]");
+            !IsReservedFolderName(name) && !IsSupervanillaFolderName(name), "[SoftWipe]");
 
         Trace.WriteLine($"[ShaderMods] [SoftWipe] Deleted {deletedCount} BetterRTX preset folder(s) (downloaded + custom-imported alike)");
 
@@ -482,11 +483,11 @@ internal sealed partial class ShaderModManager
                 return;
             }
 
-            // Every folder except the two Default backups. Excluding them by name is what
-            // guarantees the other edition's default can never surface in this one's list,
-            // whatever its contents look like.
+            // Every folder except the two Default backups and the upgraded copies. Excluding them by
+            // name is what guarantees the other edition's default can never surface in this one's
+            // list, whatever its contents look like.
             var presetFolders = Directory.GetDirectories(CacheFolder)
-                .Where(d => !IsDefaultFolderName(Path.GetFileName(d)))
+                .Where(d => !IsReservedFolderName(Path.GetFileName(d)))
                 .ToList();
 
             foreach (var folder in presetFolders)
@@ -1062,6 +1063,10 @@ internal sealed partial class ShaderModManager
     /// no backup of it and therefore no way to undo it, which is the one thing this feature
     /// may never do (see <see cref="EnsureDefaultBackedUp"/>). Installing one would also put
     /// a file in the game that no rollback, not even Default, could ever clear.</para>
+    ///
+    /// <para><b>A preset upgraded for this game installs as its upgraded copy</b>
+    /// (<see cref="FindUpgradedFiles"/>), file by file, so detection asks about the same bytes the
+    /// install wrote.</para>
     /// </summary>
     private List<(string sourcePath, string destPath)> BuildInstallSet(LocalPresetData preset) =>
         BuildInstallSet(preset.BinFiles ?? new List<string>());
@@ -1070,11 +1075,15 @@ internal sealed partial class ShaderModManager
     private List<(string sourcePath, string destPath)> BuildInstallSet(List<string> presetFiles)
     {
         var filesToApply = new List<(string sourcePath, string destPath)>();
+        var upgraded = FindUpgradedFiles(presetFiles);
 
         foreach (var fileName in RTXFiles)
         {
             var fromPreset = presetFiles.FirstOrDefault(f =>
                 Path.GetFileName(f).Equals(fileName, StringComparison.OrdinalIgnoreCase));
+
+            if (fromPreset != null && upgraded != null && upgraded.TryGetValue(fileName, out var upgradedCopy))
+                fromPreset = upgradedCopy;
 
             var source = fromPreset ?? Path.Combine(DefaultFolder, fileName);
             if (!File.Exists(source)) continue;
@@ -1703,6 +1712,27 @@ public static class GameVersionDetector
             Trace.WriteLine("[ShaderMods] 🔥 Exception occurred - CACHE INVALIDATION (safe default)");
             Trace.WriteLine("[ShaderMods] === GAME VERSION DETECTION END (exception) ===");
             return true; // Invalidate cache on any error (safe default)
+        }
+    }
+
+    /// <summary>
+    /// The game's version as its <c>MicrosoftGame.Config</c> states it (<c>&lt;Identity Version="1.26.6005.0"&gt;</c>),
+    /// or null. A label only - <see cref="HasGameVersionChanged"/> hashes the whole file to decide whether
+    /// the game changed.
+    /// </summary>
+    public static string? ReadGameVersion(string minecraftInstallPath)
+    {
+        try
+        {
+            var configPath = FindFileRecursively(minecraftInstallPath, "MicrosoftGame.Config", 2);
+            if (configPath == null) return null;
+            var match = System.Text.RegularExpressions.Regex.Match(File.ReadAllText(configPath), @"<Identity[^>]*\sVersion=""([\d.]+)""");
+            return match.Success ? match.Groups[1].Value : null;
+        }
+        catch (Exception ex)
+        {
+            Trace.WriteLine($"[ShaderMods] Could not read the game version: {ex.Message}");
+            return null;
         }
     }
 

@@ -90,6 +90,9 @@
     <None Update="Modules\LUT\Presets\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="Modules\ShaderMods\Lazurite\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <!--
       MATERIALS.md is private documentation for hand-tuning materials.json
     -->

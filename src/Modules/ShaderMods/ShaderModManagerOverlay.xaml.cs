@@ -255,6 +255,15 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
         var state = _manager.EnsureDefaultBackedUp();
         _defaultReady = state == ShaderModManager.DefaultBackupState.Ready;
 
+        // The upgrader proves itself against these backups, so its background setup or daily
+        // update starts only once one is confirmed - and copies made for a game no backup holds
+        // any more can go.
+        if (_defaultReady)
+        {
+            _manager.PruneUpgradedCopies();
+            _manager.WarmUpUpgrader();
+        }
+
         DefaultMissingText.Text = state switch
         {
             ShaderModManager.DefaultBackupState.Ready => "",
@@ -1341,6 +1350,12 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
         if (isCurrent)
         {
             name += " (Currently Installed)";
+
+            // An upgraded preset is running as a copy the app made, which is worth saying where
+            // the user looks first if the game misbehaves.
+            var binFiles = (presetData as LocalPresetData)?.BinFiles ?? (presetData as DisplayPresetData)?.BinFiles;
+            if (!isDefault && _manager.DescribeUpgrade(binFiles) is { } upgrade)
+                description = $"{upgrade} - {description}";
         }
 
         // Decided up front so the button's own corner radius, margin and shadow can be set
@@ -2091,7 +2106,18 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
                     {
                         SetPresetListBusy(true);
 
-                        var success = await _manager.ApplyPresetAsync(presetToApply);
+                        // Rows are drawn from copies; the loaded preset is what carries everything
+                        // parsed about it, such as the Supervanilla RTX build it is.
+                        var preset = _manager.FindLoadedPreset(presetToApply.PresetPath) ?? presetToApply;
+                        var displayName = presetToApply.Name ?? preset.Name ?? "this preset";
+
+                        var upgrade = await PrepareInstallAsync(preset, displayName);
+                        if (upgrade == null || _isClosing) return;
+
+                        ShowInstallProgress($"Installing {displayName}",
+                            "Approve the Windows permission prompt to let the app write into the game's folder...");
+
+                        var success = await _manager.ApplyPresetAsync(preset);
 
                         // The elevated replace has been through either way by here, and the
                         // user has just dismissed a UAC prompt - so whichever way it went is
@@ -2101,13 +2127,24 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
                         if (success)
                         {
                             OperationSuccessful = true;
-                            StatusMessage = $"Installed {presetToApply.Name} successfully";
+                            StatusMessage = upgrade switch
+                            {
+                                UpgradeVerdict.Upgraded => $"Installed {displayName}, auto-upgraded for {GameLabel}",
+                                UpgradeVerdict.InterfaceChanged or UpgradeVerdict.CannotCheck =>
+                                    $"Installed {displayName} as shipped, unchecked against {GameLabel} - if the game misbehaves, install Default RTX",
+                                _ => $"Installed {displayName} successfully"
+                            };
                             Trace.WriteLine(StatusMessage);
+
+                            // Upgrading changed what installing this preset writes, so its expected
+                            // hashes are recomputed before the list is redrawn against the game.
+                            _manager.RefreshInstallState(preset);
                             await DisplayPresetsAsync();
                         }
                     }
                     finally
                     {
+                        HideInstallProgress();
                         SetPresetListBusy(false);
                         _applyInProgress = false;
                     }
@@ -2136,6 +2173,120 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
     {
         PresetListContainer.IsHitTestVisible = !busy;
         PresetListContainer.Opacity = busy ? 0.5 : 1.0;
+    }
+
+    private string GameLabel => _manager.GameVersion is { } v ? $"Minecraft {v}" : "this game version";
+
+    /// <summary>
+    /// Runs the install-time upgrader for <paramref name="preset"/> and settles, with the user where it has
+    /// to, how it installs. Returns the verdict to install under, or null to install nothing.
+    ///
+    /// <para><b>Only a problem stops for the user.</b> A preset that needed nothing, or whose packaging was
+    /// upgraded, goes straight on to the UAC prompt with the card saying what happened - the user already
+    /// asked for the install, and an upgrade is the app keeping that promise. A changed interface or a
+    /// preset that couldn't be checked asks, and both default to not installing.</para>
+    /// </summary>
+    private async Task<UpgradeVerdict?> PrepareInstallAsync(LocalPresetData preset, string displayName)
+    {
+        ShowInstallProgress($"Preparing {displayName}", $"Checking it against {GameLabel}...");
+
+        var outcome = await _manager.PrepareInstallAsync(preset, displayName,
+            message => DispatcherQueue.TryEnqueue(() => InstallProgressDetail.Text = message),
+            _closingCts.Token);
+
+        if (_isClosing) return null;
+
+        switch (outcome.Verdict)
+        {
+            case UpgradeVerdict.NotNeeded:
+            case UpgradeVerdict.Current:
+                return outcome.Verdict;
+
+            case UpgradeVerdict.Upgraded:
+                InstallProgressDetail.Text = outcome.Summary;
+                MainWindow.Log($"{displayName} was packaged for an older game version, so the app upgraded it for {GameLabel}: " +
+                               $"{outcome.Summary} The preset itself is unchanged, and Default RTX still restores your game's own shaders.",
+                               MainWindow.LogLevel.ShaderMods);
+                return outcome.Verdict;
+
+            case UpgradeVerdict.InterfaceChanged:
+            {
+                HideInstallProgress();
+                var shown = outcome.Details.Take(6).Select(d => "- " + d).ToList();
+                if (outcome.Details.Count > shown.Count) shown.Add($"- and {outcome.Details.Count - shown.Count} more");
+
+                bool install = await AskAsync(
+                    "This preset needs an update from its author",
+                    $"{displayName} was built for an older version of Minecraft, and {GameLabel} changed what the RTX shaders are given by the game. " +
+                    "The app can repackage a preset for a new game version, but it can't change what its shaders expect - installing it would most likely crash the game or draw it wrong.\n\n" +
+                    "Wait for an update to this preset made for this game version.\n\nWhat changed:\n" + string.Join("\n", shown),
+                    primary: "Install anyway");
+
+                if (install)
+                    MainWindow.Log($"Installing {displayName} as shipped despite it being built for an older game ({outcome.Details.Count} interface change(s)). If the game misbehaves, install Default RTX.",
+                                   MainWindow.LogLevel.Warning);
+                return install ? outcome.Verdict : null;
+            }
+
+            default:
+            {
+                HideInstallProgress();
+                var reasons = outcome.Details.Count > 0 ? "\n\n" + string.Join("\n", outcome.Details.Take(4).Select(d => "- " + d)) : "";
+
+                bool install = await AskAsync(
+                    "Couldn't check this preset",
+                    $"{outcome.Summary}{reasons}\n\n" +
+                    $"It can still be installed exactly as it was shipped. If it was made for an older game version, Minecraft may crash when ray tracing is turned on - Default RTX puts your game back either way.",
+                    primary: "Install as shipped");
+
+                if (install)
+                    MainWindow.Log($"Installing {displayName} unchecked: {outcome.Summary}", MainWindow.LogLevel.Warning);
+                return install ? outcome.Verdict : null;
+            }
+        }
+    }
+
+    /// <summary>A two-button question whose default answer is no.</summary>
+    private async Task<bool> AskAsync(string title, string message, string primary)
+    {
+        try
+        {
+            var dialog = new ContentDialog
+            {
+                Title = title,
+                Content = new ScrollViewer
+                {
+                    Content = new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap, IsTextScaleFactorEnabled = false },
+                    MaxHeight = 420
+                },
+                PrimaryButtonText = primary,
+                CloseButtonText = "Don't install",
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = this.XamlRoot,
+                RequestedTheme = this.ActualTheme,
+                IsTextScaleFactorEnabled = false
+            };
+            return await dialog.ShowAsync() == ContentDialogResult.Primary;
+        }
+        catch (Exception ex)
+        {
+            Trace.WriteLine($"[ShaderMods] Dialog failed: {ex.Message}");
+            return false;
+        }
+    }
+
+    private void ShowInstallProgress(string title, string detail)
+    {
+        InstallProgressTitle.Text = title;
+        InstallProgressDetail.Text = detail;
+        InstallProgressRing.IsActive = true;
+        InstallProgressCard.Visibility = Visibility.Visible;
+    }
+
+    private void HideInstallProgress()
+    {
+        InstallProgressRing.IsActive = false;
+        InstallProgressCard.Visibility = Visibility.Collapsed;
     }
 
 

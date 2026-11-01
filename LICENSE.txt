@@ -30,6 +30,14 @@ https://github.com/dotMorten/WinUIEx/blob/main/LICENSE
 Markdig:
 https://github.com/xoofx/markdig/blob/main/license.txt
 
+Downloaded by the shader mod manager the first time a preset needs upgrading, not shipped with the app:
+
+Python (embeddable CPython, Python Software Foundation License):
+https://docs.python.org/3/license.html
+
+lazurite, by veka0 (GNU Lesser General Public License v3), and its dependencies from PyPI:
+https://github.com/veka0/lazurite/blob/main/LICENSE
+
                              - - -  
 
 Vanilla RTX App - Copyright (c) June 2025 Cubeir

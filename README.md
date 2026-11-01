@@ -269,6 +269,18 @@ The app goes to great lengths to make sure you never install stale files, and th
 
 On **Minecraft Preview**, use Get latest Supervanilla RTX (Preview): it fetches a build made for Preview. BetterRTX works there too but isn't recommended: its presets are built for the regular release, and Preview can refuse to start with them. If that happens, roll back to **Default RTX (Preview)**.
 
+### Presets made for an older game version
+
+Minecraft updates often change how its shader files are packaged without changing the shaders themselves - and a preset packaged for the old game then crashes Minecraft as soon as ray tracing is turned on. So before installing, the app checks the preset against your game, and when only the packaging is out of date it **upgrades** it: it rebuilds your game's own shader files with the preset's shaders moved in, and installs that copy instead. The preset itself is never changed, and the installed preset's row says *Auto-upgraded for Minecraft ...*. Presets built for your exact game version (like the newest Supervanilla RTX build) install straight away without any check.
+
+While it works, a card above the list says what it's doing, then Windows asks for permission to install as usual. The first check needs a one-time download of about 25 MB (Python and [lazurite](https://github.com/veka0/lazurite), the tool that reads and writes Minecraft's shader files); the app keeps lazurite up to date by itself, and only switches to a new version after testing it on your own game's files.
+
+It's a safety net, not a guarantee:
+
+- If the update changed **what the shaders receive** from the game, no repackaging can fix that. The app tells you the preset needs an update from its author, and doesn't install it unless you choose **Install anyway**.
+- If the preset or your game's files **can't be checked** - lazurite doesn't know a brand-new game format yet, or you're offline the first time - it says so and offers to install the preset exactly as it was shipped.
+- An upgraded preset *probably* works. If the game misbehaves, roll back to Default RTX.
+
 If a preset makes the game crash, roll back to Default RTX. You can use the [RTX LUT manager](#rtx-lut-manager) to give Minecraft RTX a different look in the meantime.
 
 # DLSS swapper
@@ -400,7 +412,7 @@ Your computer may not have the link/protocol Minecraft uses to be launched. Just
 
 ### Minecraft crashes after installing a shader preset
 
-Roll back to **Default RTX** in the Shader mod manager. Shader mods sometimes take a while to catch up with Minecraft updates. Meanwhile, the [RTX LUT manager](#rtx-lut-manager) changes the look of Minecraft RTX reliably without depending on updates. Keep an eye on the in-app announcements and news as I usually update those to communicate whether the current version of BetterRTX supports the latest game version, or not.
+Roll back to **Default RTX** in the Shader mod manager. Shader mods sometimes take a while to catch up with Minecraft updates - the app [upgrades presets made for an older game](#presets-made-for-an-older-game-version) where it safely can, but not every update can be bridged that way. Meanwhile, the [RTX LUT manager](#rtx-lut-manager) changes the look of Minecraft RTX reliably without depending on updates. Keep an eye on the in-app announcements and news as I usually update those to communicate whether the current version of BetterRTX supports the latest game version, or not.
 
 ### Known limitations
 

@@ -119,6 +119,53 @@
                 </Grid>
             </Border>
 
+            <!-- What an install is doing while the list is greyed: checking the preset against the
+                 game, setting up or updating the converter, upgrading, waiting for the UAC prompt.
+                 Shares row 0 with the no-backup card, which can never be up during an install -
+                 nothing installs without a backup. -->
+            <Border x:Name="InstallProgressCard"
+                    Grid.Row="0"
+                    Margin="20,12,24,0"
+                    Visibility="Collapsed"
+                    CornerRadius="6"
+                    Padding="6"
+                    Translation="0,0,32"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                <Border.Shadow>
+                    <ThemeShadow />
+                </Border.Shadow>
+
+                <Grid Margin="16,10,16,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <ProgressRing x:Name="InstallProgressRing"
+                                  Grid.Column="0"
+                                  IsActive="False"
+                                  Width="24"
+                                  Height="24"
+                                  VerticalAlignment="Center" />
+
+                    <StackPanel Grid.Column="1"
+                                Margin="14,0,0,0"
+                                Spacing="2"
+                                VerticalAlignment="Center">
+                        <TextBlock x:Name="InstallProgressTitle"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   TextWrapping="Wrap"
+                                   IsTextScaleFactorEnabled="False" />
+                        <TextBlock x:Name="InstallProgressDetail"
+                                   FontSize="13"
+                                   Opacity="0.8"
+                                   TextWrapping="Wrap"
+                                   IsTextScaleFactorEnabled="False" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
             <!-- Shadow receiver sits behind the scroll content -->
             <Grid x:Name="ShadowReceiverGrid"
                   Grid.Row="1" />
