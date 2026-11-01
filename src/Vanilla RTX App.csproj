@@ -136,7 +136,7 @@
 
   <!-- Publish Properties -->
   <PropertyGroup>
-    <VersionPrefix>4.1.0.0</VersionPrefix>  <!-- SET ASSEMBLY VERSION HERE -->
+    <VersionPrefix>4.2.0.0</VersionPrefix>  <!-- SET ASSEMBLY VERSION HERE -->
     <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
     <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
     <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
