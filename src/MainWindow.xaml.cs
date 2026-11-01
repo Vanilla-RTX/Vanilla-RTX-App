@@ -875,16 +875,17 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private void LampInteraction_Click(object sender, RoutedEventArgs e)
     {
-        _ = BlinkingLamp(true, true, 1.0, 0.1);
-
         var shiftHeld = Microsoft.UI.Input.InputKeyboardSource
             .GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift)
             .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
         if (shiftHeld)
         {
             _ = OpenVanillaRtxChessAsync();
+            _ = BlinkingLamp(true, true, 1.0, 1.0);
             return;
         }
+
+        _ = BlinkingLamp(true, true, 1.0, 0.1);
 
         if (RuntimeFlags.Set("Lamp_Chess_Hint"))
             Log("Hold shift and click again to launch Vanilla RTX Chess!", LogLevel.VanillaRTX);
