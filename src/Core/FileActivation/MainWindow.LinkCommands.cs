@@ -57,8 +57,7 @@ public sealed partial class MainWindow
         ["packbrowser"] = new("Select other packs", w => w.BrowsePacksButton, typeof(Modules.PackBrowser.PackBrowserOverlay)),
         ["rtxreactor"] = new("RTX Reactor", w => w.LaunchAlchitexButton, typeof(Modules.Alchitex.Alchitex)),
         ["shadermods"] = new("Shader mod manager", w => w.LaunchShaderModManagerButton, typeof(Modules.ShaderMods.ShaderModManagerOverlay)),
-        // The module's name before it took a second provider. Kept because links already
-        // published on web pages and in announcements still say it.
+        ["supervanilla"] = new("Shader mod manager", w => w.LaunchShaderModManagerButton, typeof(Modules.ShaderMods.ShaderModManagerOverlay)),
         ["betterrtx"] = new("Shader mod manager", w => w.LaunchShaderModManagerButton, typeof(Modules.ShaderMods.ShaderModManagerOverlay)),
         ["dlss"] = new("DLSS swapper", w => w.LaunchDLSSSwapperButton, typeof(Modules.DLSS.DLSSSwapperOverlay)),
         ["lut"] = new("RTX LUT manager", w => w.LaunchLUTManagerButton, typeof(Modules.LUT.LUTManagerOverlay)),

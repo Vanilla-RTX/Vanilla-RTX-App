@@ -33,37 +33,24 @@ It is time to update (if you haven't already!) Simply hover their images, and cl
 
 # BetterRTXInfo
 
-## [glyph:"E730"] [cd:"10000"] Warning
-Reminder: If your preset list has been auto-reset since your last visit, or this is your first visit:
-It is a good idea to wait and check from the BetterRTX Discord whether it has been updated for the latest game version before installing a preset. Installing presets while it serves outdated files could result in crashes and visual glitches. In this scenario, revert to Default RTX, and once BetterRTX is updated, use the refresh button in the top left corner. 
-In other words: Minecraft updates can break BetterRTX, it depends on you to update Minecraft, and BetterRTX's maintainer to update it for that game version just in time for everything to continue to work smoothly. If installing BetterRTX causes issues for you, follow these steps:
-1. Revert to Default RTX for now
-2. Wait until BetterRTX developers confirm they've updated the mod.
-3. Use the refresh button in the top left corner to refetch the latest files & continue installing your presets.
+## [glyph:"E730"] [cd:"E95B"] Temp text
+The next Vanilla RTX App update (4.2 coming later this November) will add client-side repackaging of shaders:
+This means they'll likely to continue to work with future Minecraft updates without requiring new builds from shader providers.
+Hang in there!
 
 ## [cd:"360"] [glyph:"F78C"] Is it broken?
 As of MCBE 26.52, it is safe to install BetterRTX presets, the files were tested and the endpoint seems up-to-date for this game version, hit the refresh button in the top left corner just to be sure you're not installing old files, and continue to download/import & install presets, also ensure your game is up-to-date.
 
-Update #2: Minecraft 26.60 rolled out and BetterRTX is crashing Minecraft again, wait until they update.
+Update #2: Minecraft 26.60 rolled out and BetterRTX is crashing Minecraft again, wait until they update. The next app update (4.2) is also going to solve this. For now, try getting a customized preset from the bottom right corner.
 
 # ShaderModsInfo
 
-## [glyph:"E730"] [cd:"10000"] Warning
-Reminder: If your preset list has been auto-reset since your last visit, or this is your first visit:
-It is a good idea to wait and check from the BetterRTX Discord whether it has been updated for the latest game version before installing a preset. Installing presets while it serves outdated files could result in crashes and visual glitches. In this scenario, revert to Default RTX, and once BetterRTX is updated, use the refresh button in the top left corner. 
-In other words: Minecraft updates can break BetterRTX, it depends on you to update Minecraft, and BetterRTX's maintainer to update it for that game version just in time for everything to continue to work smoothly. If installing BetterRTX causes issues for you, follow these steps:
-1. Revert to Default RTX for now
-2. Wait until BetterRTX developers confirm they've updated the mod.
-3. Use the refresh button in the top left corner to refetch the latest files & continue installing your presets.
-
-## [cd:"360"] [glyph:"F78C"] Is it broken?
-As of MCBE 26.52, it is safe to install BetterRTX presets, the files were tested and the endpoint seems up-to-date for this game version, hit the refresh button in the top left corner just to be sure you're not installing old files, and continue to download/import & install presets, also ensure your game is up-to-date.
 
 # LutManagerInfo 
 Look up tables provide a simple way to improve or further customize Minecraft RTX, which works across all game versions reliably and without a performance hit as oppposed to heavier modifications such as BetterRTX. Select from the list of available presets and hit install. You can always revert back to defaults by installing the default preset.
 
 ## [glyph:"E7BA"] [cd:"40000"] Warning
-This feature will not work if you're using a BetterRTX Preset. Use Default/Unmodified RTX if you want to use LUT presets.
+This feature will not work wtih a BetterRTX preset installed. Use Supervanilla RTX or Defaults if you want to use a LUT preset.
 
 # DLSSInfo
 ### Useful fact

@@ -166,7 +166,7 @@
                         <ColumnDefinition Width="1.5*" />
                         <!-- Gap 6 px -->
                         <ColumnDefinition Width="6" />
-                        <!-- Download Supervanilla RTX manually -->
+                        <!-- Supervanilla RTX builds -->
                         <ColumnDefinition Width="1*" />
                         <!-- Gap 6 px -->
                         <ColumnDefinition Width="6" />
@@ -259,7 +259,7 @@
                                           Margin="0,3,0,0"
                                           VerticalAlignment="Center"
                                           IsTextScaleFactorEnabled="False" />
-                                <TextBlock Text="Download Supervanilla RTX manually"
+                                <TextBlock Text="Supervanilla RTX builds"
                                            FontWeight="SemiBold"
                                            FontSize="14"
                                            TextWrapping="Wrap"
