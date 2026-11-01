@@ -98,6 +98,11 @@
             "invert_roughness": false
         }
     },
+    "angler_pottery_pattern": {
+        "mer": {
+            "roughness_min": 161
+        }
+    },
     "anvil_base": {
         "mer": {
             "metal_min": 133,
@@ -132,6 +137,16 @@
             "roughness_min": 47,
             "roughness_max": 110,
             "invert_metal": true
+        }
+    },
+    "archer_pottery_pattern": {
+        "mer": {
+            "roughness_min": 161
+        }
+    },
+    "arms_up_pottery_pattern": {
+        "mer": {
+            "roughness_min": 161
         }
     },
     "azalea_leaves": {
@@ -206,6 +221,14 @@
         "sss": {
             "min": 128,
             "max": 248
+        }
+    },
+    "bamboo": {
+        "mer": {
+            "roughness_min": 124
+        },
+        "sss": {
+            "max": 222
         }
     },
     "bamboo_block": {
@@ -341,6 +364,19 @@
             "roughness_min": 136
         }
     },
+    "barrier": {
+        "mer": {
+            "metal_min": 108,
+            "metal_max": 194,
+            "emissive_min": 8,
+            "emissive_max": 8,
+            "roughness_min": 238
+        },
+        "sss": {
+            "min": 255,
+            "max": 255
+        }
+    },
     "basalt_side": {
         "mer": {
             "roughness_min": 139,
@@ -472,6 +508,30 @@
             "roughness_max": 209
         }
     },
+    "bell_bottom": {
+        "mer": {
+            "metal_min": 139,
+            "metal_max": 193,
+            "roughness_min": 13,
+            "roughness_max": 29
+        }
+    },
+    "bell_side": {
+        "mer": {
+            "metal_min": 125,
+            "metal_max": 169,
+            "roughness_min": 15,
+            "roughness_max": 35
+        }
+    },
+    "bell_top": {
+        "mer": {
+            "metal_min": 125,
+            "metal_max": 169,
+            "roughness_min": 15,
+            "roughness_max": 35
+        }
+    },
     "big_dripleaf_side1": {
         "mer": {
             "roughness_min": 168,
@@ -591,6 +651,11 @@
             "max": 167
         }
     },
+    "blade_pottery_pattern": {
+        "mer": {
+            "roughness_min": 161
+        }
+    },
     "blast_furnace_front_off": {
         "mer": {
             "metal_max": 55,
@@ -689,6 +754,11 @@
             "roughness_max": 245
         }
     },
+    "brewer_pottery_pattern": {
+        "mer": {
+            "roughness_min": 161
+        }
+    },
     "brewing_stand": {
         "mer": {
             "metal_min": 32,
@@ -755,6 +825,186 @@
             "max": 167
         }
     },
+    "bubble_column_down_top_a": {
+        "mer": {
+            "roughness_min": 0,
+            "roughness_max": 0
+        },
+        "sss": {
+            "min": 255,
+            "max": 255
+        }
+    },
+    "bubble_column_down_top_b": {
+        "mer": {
+            "roughness_min": 0,
+            "roughness_max": 0
+        },
+        "sss": {
+            "min": 255,
+            "max": 255
+        }
+    },
+    "bubble_column_down_top_c": {
+        "mer": {
+            "roughness_min": 0,
+            "roughness_max": 0
+        },
+        "sss": {
+            "min": 255,
+            "max": 255
+        }
+    },
+    "bubble_column_down_top_d": {
+        "mer": {
+            "roughness_min": 0,
+            "roughness_max": 0
+        },
+        "sss": {
+            "min": 255,
+            "max": 255
+        }
+    },
+    "bubble_column_inner_a": {
+        "mer": {
+            "roughness_min": 0,
+            "roughness_max": 0
+        },
+        "sss": {
+            "min": 255,
+            "max": 255
+        }
+    },
+    "bubble_column_inner_b": {
+        "mer": {
+            "roughness_min": 0,
+            "roughness_max": 0
+        },
+        "sss": {
+            "min": 255,
+            "max": 255
+        }
+    },
+    "bubble_column_outer_a": {
+        "mer": {
+            "roughness_min": 0,
+            "roughness_max": 0
+        },
+        "sss": {
+            "min": 255,
+            "max": 255
+        }
+    },
+    "bubble_column_outer_b": {
+        "mer": {
+            "roughness_min": 0,
+            "roughness_max": 0
+        },
+        "sss": {
+            "min": 255,
+            "max": 255
+        }
+    },
+    "bubble_column_outer_c": {
+        "mer": {
+            "roughness_min": 0,
+            "roughness_max": 0
+        },
+        "sss": {
+            "min": 255,
+            "max": 255
+        }
+    },
+    "bubble_column_outer_d": {
+        "mer": {
+            "roughness_min": 0,
+            "roughness_max": 0
+        },
+        "sss": {
+            "min": 255,
+            "max": 255
+        }
+    },
+    "bubble_column_outer_e": {
+        "mer": {
+            "roughness_min": 0,
+            "roughness_max": 0
+        },
+        "sss": {
+            "min": 255,
+            "max": 255
+        }
+    },
+    "bubble_column_outer_f": {
+        "mer": {
+            "roughness_min": 0,
+            "roughness_max": 0
+        },
+        "sss": {
+            "min": 255,
+            "max": 255
+        }
+    },
+    "bubble_column_outer_g": {
+        "mer": {
+            "roughness_min": 0,
+            "roughness_max": 0
+        },
+        "sss": {
+            "min": 255,
+            "max": 255
+        }
+    },
+    "bubble_column_outer_h": {
+        "mer": {
+            "roughness_min": 0,
+            "roughness_max": 0
+        },
+        "sss": {
+            "min": 255,
+            "max": 255
+        }
+    },
+    "bubble_column_up_top_a": {
+        "mer": {
+            "roughness_min": 0,
+            "roughness_max": 0
+        },
+        "sss": {
+            "min": 255,
+            "max": 255
+        }
+    },
+    "bubble_column_up_top_b": {
+        "mer": {
+            "roughness_min": 0,
+            "roughness_max": 0
+        },
+        "sss": {
+            "min": 255,
+            "max": 255
+        }
+    },
+    "bubble_column_up_top_c": {
+        "mer": {
+            "roughness_min": 0,
+            "roughness_max": 0
+        },
+        "sss": {
+            "min": 255,
+            "max": 255
+        }
+    },
+    "bubble_column_up_top_d": {
+        "mer": {
+            "roughness_min": 0,
+            "roughness_max": 0
+        },
+        "sss": {
+            "min": 255,
+            "max": 255
+        }
+    },
     "budding_amethyst": {
         "mer": {
             "metal_min": 111,
@@ -780,6 +1030,11 @@
             "metal_max": 32,
             "roughness_min": 29,
             "roughness_max": 252
+        }
+    },
+    "burn_pottery_pattern": {
+        "mer": {
+            "roughness_min": 161
         }
     },
     "bush": {
@@ -1059,6 +1314,16 @@
             "max": 167
         }
     },
+    "carried_waterlily": {
+        "mer": {
+            "roughness_min": 121,
+            "roughness_max": 166
+        },
+        "sss": {
+            "min": 64,
+            "max": 192
+        }
+    },
     "carrots_stage_0": {
         "mer": {
             "roughness_min": 162,
@@ -1268,6 +1533,14 @@
             "strength": 192
         }
     },
+    "chain": {
+        "mer": {
+            "metal_min": 185,
+            "metal_max": 211,
+            "roughness_min": 49,
+            "roughness_max": 71
+        }
+    },
     "chain1": {
         "mer": {
             "metal_min": 185,
@@ -1443,6 +1716,24 @@
         "mer": {
             "roughness_min": 124,
             "roughness_max": 240
+        }
+    },
+    "chest_front": {
+        "mer": {
+            "roughness_min": 116,
+            "roughness_max": 242
+        }
+    },
+    "chest_side": {
+        "mer": {
+            "roughness_min": 137,
+            "roughness_max": 242
+        }
+    },
+    "chest_top": {
+        "mer": {
+            "roughness_min": 137,
+            "roughness_max": 230
         }
     },
     "chiseled_bookshelf_a": {
@@ -2636,6 +2927,20 @@
             "intensity": 0.1
         }
     },
+    "conduit_base": {
+        "mer": {
+            "emissive_max": 1,
+            "roughness_min": 129
+        },
+        "invisible_emission": {
+            "color": [
+                180,
+                139,
+                110
+            ],
+            "strength": 1
+        }
+    },
     "copper_bars": {
         "mer": {
             "metal_min": 248,
@@ -2699,6 +3004,14 @@
             "invert_roughness": false
         }
     },
+    "copper_chain": {
+        "mer": {
+            "metal_min": 252,
+            "metal_max": 255,
+            "roughness_min": 7,
+            "roughness_max": 15
+        }
+    },
     "copper_chain1": {
         "mer": {
             "metal_min": 252,
@@ -2731,6 +3044,29 @@
         "normal": {
             "intensity": 0.15,
             "padding_type": "vertical"
+        }
+    },
+    "copper_chest_inventory_front": {
+        "mer": {
+            "metal_max": 255,
+            "roughness_min": 10,
+            "roughness_max": 175
+        }
+    },
+    "copper_chest_inventory_side": {
+        "mer": {
+            "metal_min": 245,
+            "metal_max": 255,
+            "roughness_min": 10,
+            "roughness_max": 23
+        }
+    },
+    "copper_chest_inventory_top": {
+        "mer": {
+            "metal_min": 245,
+            "metal_max": 255,
+            "roughness_min": 10,
+            "roughness_max": 23
         }
     },
     "copper_door_bottom": {
@@ -3582,6 +3918,11 @@
             "max": 167
         }
     },
+    "danger_pottery_pattern": {
+        "mer": {
+            "roughness_min": 161
+        }
+    },
     "dark_oak_shelf": {
         "mer": {
             "roughness_min": 132,
@@ -3623,6 +3964,16 @@
         "sss": {
             "min": 8,
             "max": 192
+        }
+    },
+    "decorated_pot_base": {
+        "mer": {
+            "roughness_min": 161
+        }
+    },
+    "decorated_pot_side": {
+        "mer": {
+            "roughness_min": 161
         }
     },
     "deepslate": {
@@ -3803,6 +4154,56 @@
         "mer": {
             "roughness_min": 185,
             "roughness_max": 241
+        }
+    },
+    "destroy_stage_0": {
+        "mer": {
+            "roughness_min": 225
+        }
+    },
+    "destroy_stage_1": {
+        "mer": {
+            "roughness_min": 225
+        }
+    },
+    "destroy_stage_2": {
+        "mer": {
+            "roughness_min": 225
+        }
+    },
+    "destroy_stage_3": {
+        "mer": {
+            "roughness_min": 225
+        }
+    },
+    "destroy_stage_4": {
+        "mer": {
+            "roughness_min": 225
+        }
+    },
+    "destroy_stage_5": {
+        "mer": {
+            "roughness_min": 225
+        }
+    },
+    "destroy_stage_6": {
+        "mer": {
+            "roughness_min": 225
+        }
+    },
+    "destroy_stage_7": {
+        "mer": {
+            "roughness_min": 225
+        }
+    },
+    "destroy_stage_8": {
+        "mer": {
+            "roughness_min": 225
+        }
+    },
+    "destroy_stage_9": {
+        "mer": {
+            "roughness_min": 225
         }
     },
     "diamond_block": {
@@ -4027,6 +4428,15 @@
             "padding_type": "horizontal"
         }
     },
+    "double_plant_fern_carried": {
+        "mer": {
+            "roughness_min": 232
+        },
+        "sss": {
+            "min": 134,
+            "max": 221
+        }
+    },
     "double_plant_fern_top": {
         "mer": {
             "roughness_min": 232
@@ -4049,6 +4459,15 @@
         },
         "normal": {
             "padding_type": "horizontal"
+        }
+    },
+    "double_plant_grass_carried": {
+        "mer": {
+            "roughness_min": 232
+        },
+        "sss": {
+            "min": 134,
+            "max": 247
         }
     },
     "double_plant_grass_top": {
@@ -5784,6 +6203,26 @@
             "roughness_min": 7
         }
     },
+    "ender_chest_front": {
+        "mer": {
+            "metal_max": 178,
+            "emissive_max": 5,
+            "roughness_min": 10,
+            "roughness_max": 203
+        }
+    },
+    "ender_chest_side": {
+        "mer": {
+            "roughness_min": 12,
+            "roughness_max": 56
+        }
+    },
+    "ender_chest_top": {
+        "mer": {
+            "roughness_min": 12,
+            "roughness_max": 50
+        }
+    },
     "endframe_eye": {
         "mer": {
             "metal_min": 10,
@@ -5911,6 +6350,40 @@
             "invert_metal": true
         }
     },
+    "end_gateway": {
+        "mer": {
+            "metal_min": 255,
+            "metal_max": 255,
+            "emissive_min": 1,
+            "emissive_max": 48,
+            "roughness_min": 255
+        },
+        "invisible_emission": {
+            "color": [
+                2,
+                4,
+                7
+            ],
+            "strength": 7
+        }
+    },
+    "end_portal": {
+        "mer": {
+            "metal_min": 255,
+            "metal_max": 255,
+            "emissive_min": 1,
+            "emissive_max": 48,
+            "roughness_min": 255
+        },
+        "invisible_emission": {
+            "color": [
+                12,
+                30,
+                34
+            ],
+            "strength": 8
+        }
+    },
     "end_rod": {
         "mer": {
             "metal_min": 6,
@@ -5931,6 +6404,11 @@
             "roughness_min": 101,
             "roughness_max": 196,
             "invert_metal": true
+        }
+    },
+    "explorer_pottery_pattern": {
+        "mer": {
+            "roughness_min": 161
         }
     },
     "exposed_chiseled_copper": {
@@ -6059,6 +6537,14 @@
             }
         ]
     },
+    "exposed_copper_chain": {
+        "mer": {
+            "metal_min": 221,
+            "metal_max": 221,
+            "roughness_min": 56,
+            "roughness_max": 148
+        }
+    },
     "exposed_copper_chain1": {
         "mer": {
             "metal_min": 221,
@@ -6109,6 +6595,29 @@
         "normal": {
             "intensity": 0.15,
             "padding_type": "vertical"
+        }
+    },
+    "exposed_copper_chest_inventory_front": {
+        "mer": {
+            "metal_max": 221,
+            "roughness_min": 45,
+            "roughness_max": 175
+        }
+    },
+    "exposed_copper_chest_inventory_side": {
+        "mer": {
+            "metal_min": 221,
+            "metal_max": 221,
+            "roughness_min": 45,
+            "roughness_max": 105
+        }
+    },
+    "exposed_copper_chest_inventory_top": {
+        "mer": {
+            "metal_min": 221,
+            "metal_max": 221,
+            "roughness_min": 45,
+            "roughness_max": 105
         }
     },
     "exposed_copper_door_bottom": {
@@ -6259,6 +6768,17 @@
             }
         ]
     },
+    "eyeblossom_blooming": {
+        "mer": {
+            "metal_max": 27,
+            "emissive_max": 16,
+            "roughness_min": 40,
+            "roughness_max": 233
+        },
+        "sss": {
+            "max": 35
+        }
+    },
     "eyeblossom_dormant": {
         "mer": {
             "roughness_min": 128,
@@ -6347,6 +6867,15 @@
         "normal": {
             "intensity": 0.05,
             "padding_type": "colorfill"
+        }
+    },
+    "fern_carried": {
+        "mer": {
+            "roughness_min": 236
+        },
+        "sss": {
+            "min": 8,
+            "max": 247
         }
     },
     "firefly_bush": {
@@ -6686,6 +7215,16 @@
             "padding_type": "horizontal"
         }
     },
+    "flow_pottery_pattern": {
+        "mer": {
+            "roughness_min": 161
+        }
+    },
+    "friend_pottery_pattern": {
+        "mer": {
+            "roughness_min": 161
+        }
+    },
     "frogspawn": {
         "mer": {
             "roughness_min": 27,
@@ -6696,6 +7235,16 @@
             "max": 224
         },
         "blend_suitable": true
+    },
+    "frogspawn_carried": {
+        "mer": {
+            "roughness_min": 27,
+            "roughness_max": 96
+        },
+        "sss": {
+            "min": 185,
+            "max": 224
+        }
     },
     "frosted_ice_0": {
         "mer": {
@@ -6713,6 +7262,16 @@
             "intensity": 0.1
         },
         "blend_suitable": true
+    },
+    "frosted_ice_0_carried": {
+        "mer": {
+            "roughness_min": 0,
+            "roughness_max": 24
+        },
+        "sss": {
+            "min": 239,
+            "max": 247
+        }
     },
     "frosted_ice_1": {
         "mer": {
@@ -7761,6 +8320,11 @@
             }
         ]
     },
+    "grass_carried": {
+        "mer": {
+            "roughness_min": 221
+        }
+    },
     "grass_path_side": {
         "mer": {
             "metal_max": 16,
@@ -7785,6 +8349,12 @@
         },
         "normal": {
             "padding_type": "horizontal"
+        }
+    },
+    "grass_side_carried": {
+        "mer": {
+            "metal_max": 16,
+            "roughness_min": 92
         }
     },
     "grass_side_snowed": {
@@ -7882,6 +8452,11 @@
         },
         "normal": {
             "padding_type": "colorfill"
+        }
+    },
+    "guster_pottery_pattern": {
+        "mer": {
+            "roughness_min": 161
         }
     },
     "hanging_roots": {
@@ -8408,6 +8983,16 @@
             "max": 154
         }
     },
+    "heartbreak_pottery_pattern": {
+        "mer": {
+            "roughness_min": 161
+        }
+    },
+    "heart_pottery_pattern": {
+        "mer": {
+            "roughness_min": 161
+        }
+    },
     "heavy_core": {
         "mer": {
             "metal_min": 145,
@@ -8460,6 +9045,18 @@
         },
         "blend_suitable": true
     },
+    "honey_bottom_carried": {
+        "mer": {
+            "metal_min": 6,
+            "metal_max": 7,
+            "roughness_min": 15,
+            "roughness_max": 29
+        },
+        "sss": {
+            "min": 244,
+            "max": 255
+        }
+    },
     "honey_side": {
         "mer": {
             "metal_min": 5,
@@ -8481,6 +9078,18 @@
         },
         "blend_suitable": true
     },
+    "honey_side_carried": {
+        "mer": {
+            "metal_min": 5,
+            "metal_max": 6,
+            "roughness_min": 17,
+            "roughness_max": 52
+        },
+        "sss": {
+            "min": 244,
+            "max": 255
+        }
+    },
     "honey_top": {
         "mer": {
             "metal_min": 5,
@@ -8501,6 +9110,18 @@
             "intensity": 0.075
         },
         "blend_suitable": true
+    },
+    "honey_top_carried": {
+        "mer": {
+            "metal_min": 5,
+            "metal_max": 6,
+            "roughness_min": 17,
+            "roughness_max": 52
+        },
+        "sss": {
+            "min": 244,
+            "max": 255
+        }
     },
     "hopper_inside": {
         "mer": {
@@ -8535,6 +9156,11 @@
             "invert_metal": true
         }
     },
+    "howl_pottery_pattern": {
+        "mer": {
+            "roughness_min": 161
+        }
+    },
     "ice": {
         "mer": {
             "roughness_min": 0,
@@ -8549,6 +9175,16 @@
         },
         "normal": {
             "intensity": 0.2
+        }
+    },
+    "ice_carried": {
+        "mer": {
+            "roughness_min": 0,
+            "roughness_max": 17
+        },
+        "sss": {
+            "min": 239,
+            "max": 247
         }
     },
     "ice_packed": {
@@ -8962,6 +9598,16 @@
             "max": 244
         }
     },
+    "leaves_acacia_carried": {
+        "mer": {
+            "roughness_min": 112,
+            "roughness_max": 172
+        },
+        "sss": {
+            "min": 64,
+            "max": 244
+        }
+    },
     "leaves_acacia_opaque": {
         "mer": {
             "roughness_min": 112,
@@ -8982,6 +9628,16 @@
             "max": 244
         }
     },
+    "leaves_big_oak_carried": {
+        "mer": {
+            "roughness_min": 103,
+            "roughness_max": 166
+        },
+        "sss": {
+            "min": 64,
+            "max": 244
+        }
+    },
     "leaves_big_oak_opaque": {
         "mer": {
             "roughness_min": 103,
@@ -8993,6 +9649,16 @@
         }
     },
     "leaves_birch": {
+        "mer": {
+            "roughness_min": 105,
+            "roughness_max": 158
+        },
+        "sss": {
+            "min": 64,
+            "max": 244
+        }
+    },
+    "leaves_birch_carried": {
         "mer": {
             "roughness_min": 105,
             "roughness_max": 158
@@ -9035,6 +9701,17 @@
             }
         ]
     },
+    "leaves_jungle_carried": {
+        "mer": {
+            "metal_max": 70,
+            "roughness_min": 47,
+            "roughness_max": 194
+        },
+        "sss": {
+            "min": 1,
+            "max": 217
+        }
+    },
     "leaves_jungle_opaque": {
         "mer": {
             "metal_max": 70,
@@ -9068,6 +9745,16 @@
             "max": 244
         }
     },
+    "leaves_oak_carried": {
+        "mer": {
+            "roughness_min": 115,
+            "roughness_max": 189
+        },
+        "sss": {
+            "min": 64,
+            "max": 244
+        }
+    },
     "leaves_oak_opaque": {
         "mer": {
             "roughness_min": 115,
@@ -9079,6 +9766,16 @@
         }
     },
     "leaves_spruce": {
+        "mer": {
+            "roughness_min": 108,
+            "roughness_max": 171
+        },
+        "sss": {
+            "min": 64,
+            "max": 244
+        }
+    },
+    "leaves_spruce_carried": {
         "mer": {
             "roughness_min": 108,
             "roughness_max": 171
@@ -9154,6 +9851,310 @@
             "roughness_max": 23,
             "invert_metal": true,
             "invert_roughness": false
+        }
+    },
+    "light_block_0": {
+        "mer": {
+            "metal_max": 255,
+            "emissive_max": 7,
+            "roughness_min": 3,
+            "roughness_max": 200
+        },
+        "sss": {
+            "max": 255
+        },
+        "invisible_emission": {
+            "color": [
+                27,
+                12,
+                27
+            ],
+            "strength": 4
+        }
+    },
+    "light_block_1": {
+        "mer": {
+            "metal_max": 255,
+            "emissive_max": 13,
+            "roughness_min": 3,
+            "roughness_max": 200
+        },
+        "sss": {
+            "max": 255
+        },
+        "invisible_emission": {
+            "color": [
+                27,
+                12,
+                27
+            ],
+            "strength": 10
+        }
+    },
+    "light_block_10": {
+        "mer": {
+            "metal_max": 255,
+            "emissive_max": 86,
+            "roughness_min": 3,
+            "roughness_max": 200
+        },
+        "sss": {
+            "max": 255
+        },
+        "invisible_emission": {
+            "color": [
+                27,
+                12,
+                27
+            ],
+            "strength": 54
+        }
+    },
+    "light_block_11": {
+        "mer": {
+            "metal_max": 255,
+            "emissive_max": 94,
+            "roughness_min": 3,
+            "roughness_max": 200
+        },
+        "sss": {
+            "max": 255
+        },
+        "invisible_emission": {
+            "color": [
+                27,
+                12,
+                27
+            ],
+            "strength": 59
+        }
+    },
+    "light_block_12": {
+        "mer": {
+            "metal_max": 255,
+            "emissive_max": 102,
+            "roughness_min": 3,
+            "roughness_max": 200
+        },
+        "sss": {
+            "max": 255
+        },
+        "invisible_emission": {
+            "color": [
+                27,
+                12,
+                27
+            ],
+            "strength": 64
+        }
+    },
+    "light_block_13": {
+        "mer": {
+            "metal_max": 255,
+            "emissive_max": 109,
+            "roughness_min": 3,
+            "roughness_max": 200
+        },
+        "sss": {
+            "max": 255
+        },
+        "invisible_emission": {
+            "color": [
+                27,
+                12,
+                27
+            ],
+            "strength": 73
+        }
+    },
+    "light_block_14": {
+        "mer": {
+            "metal_max": 255,
+            "emissive_max": 117,
+            "roughness_min": 3,
+            "roughness_max": 200
+        },
+        "sss": {
+            "max": 255
+        },
+        "invisible_emission": {
+            "color": [
+                27,
+                12,
+                27
+            ],
+            "strength": 78
+        }
+    },
+    "light_block_15": {
+        "mer": {
+            "metal_max": 255,
+            "emissive_max": 125,
+            "roughness_min": 3,
+            "roughness_max": 200
+        },
+        "sss": {
+            "max": 255
+        },
+        "invisible_emission": {
+            "color": [
+                27,
+                12,
+                27
+            ],
+            "strength": 83
+        }
+    },
+    "light_block_2": {
+        "mer": {
+            "metal_max": 255,
+            "emissive_max": 20,
+            "roughness_min": 3,
+            "roughness_max": 200
+        },
+        "sss": {
+            "max": 255
+        },
+        "invisible_emission": {
+            "color": [
+                27,
+                12,
+                27
+            ],
+            "strength": 15
+        }
+    },
+    "light_block_3": {
+        "mer": {
+            "metal_max": 255,
+            "emissive_max": 28,
+            "roughness_min": 3,
+            "roughness_max": 200
+        },
+        "sss": {
+            "max": 255
+        },
+        "invisible_emission": {
+            "color": [
+                27,
+                12,
+                27
+            ],
+            "strength": 17
+        }
+    },
+    "light_block_4": {
+        "mer": {
+            "metal_max": 255,
+            "emissive_max": 37,
+            "roughness_min": 3,
+            "roughness_max": 200
+        },
+        "sss": {
+            "max": 255
+        },
+        "invisible_emission": {
+            "color": [
+                27,
+                12,
+                27
+            ],
+            "strength": 22
+        }
+    },
+    "light_block_5": {
+        "mer": {
+            "metal_max": 255,
+            "emissive_max": 46,
+            "roughness_min": 3,
+            "roughness_max": 200
+        },
+        "sss": {
+            "max": 255
+        },
+        "invisible_emission": {
+            "color": [
+                27,
+                12,
+                27
+            ],
+            "strength": 27
+        }
+    },
+    "light_block_6": {
+        "mer": {
+            "metal_max": 255,
+            "emissive_max": 54,
+            "roughness_min": 3,
+            "roughness_max": 200
+        },
+        "sss": {
+            "max": 255
+        },
+        "invisible_emission": {
+            "color": [
+                27,
+                12,
+                27
+            ],
+            "strength": 31
+        }
+    },
+    "light_block_7": {
+        "mer": {
+            "metal_max": 255,
+            "emissive_max": 62,
+            "roughness_min": 3,
+            "roughness_max": 200
+        },
+        "sss": {
+            "max": 255
+        },
+        "invisible_emission": {
+            "color": [
+                27,
+                12,
+                27
+            ],
+            "strength": 38
+        }
+    },
+    "light_block_8": {
+        "mer": {
+            "metal_max": 255,
+            "emissive_max": 70,
+            "roughness_min": 3,
+            "roughness_max": 200
+        },
+        "sss": {
+            "max": 255
+        },
+        "invisible_emission": {
+            "color": [
+                27,
+                12,
+                27
+            ],
+            "strength": 42
+        }
+    },
+    "light_block_9": {
+        "mer": {
+            "metal_max": 255,
+            "emissive_max": 78,
+            "roughness_min": 3,
+            "roughness_max": 200
+        },
+        "sss": {
+            "max": 255
+        },
+        "invisible_emission": {
+            "color": [
+                27,
+                12,
+                27
+            ],
+            "strength": 47
         }
     },
     "light_blue_candle": {
@@ -9387,6 +10388,16 @@
             "max": 244
         }
     },
+    "mangrove_leaves_carried": {
+        "mer": {
+            "roughness_min": 125,
+            "roughness_max": 240
+        },
+        "sss": {
+            "min": 64,
+            "max": 244
+        }
+    },
     "mangrove_leaves_opaque": {
         "mer": {
             "roughness_min": 125,
@@ -9582,6 +10593,18 @@
             "roughness_max": 241
         }
     },
+    "miner_pottery_pattern": {
+        "mer": {
+            "roughness_min": 161
+        }
+    },
+    "missing_texture": {
+        "mer": {
+            "metal_max": 255,
+            "roughness_min": 128,
+            "roughness_max": 192
+        }
+    },
     "missing_tile": {
         "mer": {
             "metal_max": 23,
@@ -9619,6 +10642,11 @@
         "sss": {
             "min": 100,
             "max": 155
+        }
+    },
+    "mourner_pottery_pattern": {
+        "mer": {
+            "roughness_min": 161
         }
     },
     "mud": {
@@ -10090,6 +11118,14 @@
             }
         ]
     },
+    "oxidized_copper_chain": {
+        "mer": {
+            "metal_min": 168,
+            "metal_max": 213,
+            "roughness_min": 143,
+            "roughness_max": 188
+        }
+    },
     "oxidized_copper_chain1": {
         "mer": {
             "metal_min": 168,
@@ -10120,6 +11156,29 @@
         "normal": {
             "intensity": 0.15,
             "padding_type": "vertical"
+        }
+    },
+    "oxidized_copper_chest_inventory_front": {
+        "mer": {
+            "metal_max": 213,
+            "roughness_min": 95,
+            "roughness_max": 188
+        }
+    },
+    "oxidized_copper_chest_inventory_side": {
+        "mer": {
+            "metal_min": 120,
+            "metal_max": 213,
+            "roughness_min": 95,
+            "roughness_max": 188
+        }
+    },
+    "oxidized_copper_chest_inventory_top": {
+        "mer": {
+            "metal_min": 120,
+            "metal_max": 213,
+            "roughness_min": 95,
+            "roughness_max": 188
         }
     },
     "oxidized_copper_door_bottom": {
@@ -10459,6 +11518,20 @@
             "roughness_max": 254
         }
     },
+    "piston_top_normal": {
+        "mer": {
+            "metal_max": 252,
+            "roughness_min": 23,
+            "roughness_max": 240
+        }
+    },
+    "piston_top_sticky": {
+        "mer": {
+            "metal_max": 252,
+            "roughness_min": 12,
+            "roughness_max": 240
+        }
+    },
     "pitcher_crop_bottom": {
         "mer": {
             "metal_min": 25,
@@ -10576,6 +11649,11 @@
         "mer": {
             "roughness_min": 128,
             "roughness_max": 240
+        }
+    },
+    "plenty_pottery_pattern": {
+        "mer": {
+            "roughness_min": 161
         }
     },
     "pointed_dripstone_down_base": {
@@ -11044,6 +12122,11 @@
             "roughness_min": 12,
             "roughness_max": 191,
             "invert_metal": true
+        }
+    },
+    "prize_pottery_pattern": {
+        "mer": {
+            "roughness_min": 161
         }
     },
     "pumpkin_face_lit": {
@@ -12386,6 +13469,11 @@
             "max": 200
         }
     },
+    "scrape_pottery_pattern": {
+        "mer": {
+            "roughness_min": 161
+        }
+    },
     "sculk": {
         "mer": {
             "emissive_max": 10,
@@ -12729,6 +13817,16 @@
             "padding_type": "horizontal"
         }
     },
+    "seagrass_carried": {
+        "mer": {
+            "roughness_min": 150,
+            "roughness_max": 184
+        },
+        "sss": {
+            "min": 8,
+            "max": 183
+        }
+    },
     "seagrass_doubletall_bottom_a": {
         "mer": {
             "roughness_min": 150,
@@ -12837,12 +13935,27 @@
             "padding_type": "colorfill"
         }
     },
+    "sheaf_pottery_pattern": {
+        "mer": {
+            "roughness_min": 161
+        }
+    },
     "shelf_mushroom_large": {
         "mer": {
             "roughness_min": 96,
             "roughness_max": 174
         },
         "sss": {
+            "max": 64
+        }
+    },
+    "shelf_mushroom_particle": {
+        "mer": {
+            "roughness_min": 96,
+            "roughness_max": 157
+        },
+        "sss": {
+            "min": 14,
             "max": 64
         }
     },
@@ -12853,6 +13966,11 @@
         },
         "sss": {
             "max": 64
+        }
+    },
+    "shelter_pottery_pattern": {
+        "mer": {
+            "roughness_min": 161
         }
     },
     "short_dry_grass": {
@@ -12883,6 +14001,96 @@
             "max": 128
         }
     },
+    "shulker_top_black": {
+        "mer": {
+            "roughness_min": 175
+        }
+    },
+    "shulker_top_blue": {
+        "mer": {
+            "roughness_min": 175
+        }
+    },
+    "shulker_top_brown": {
+        "mer": {
+            "roughness_min": 175
+        }
+    },
+    "shulker_top_cyan": {
+        "mer": {
+            "roughness_min": 175
+        }
+    },
+    "shulker_top_gray": {
+        "mer": {
+            "roughness_min": 175
+        }
+    },
+    "shulker_top_green": {
+        "mer": {
+            "roughness_min": 175
+        }
+    },
+    "shulker_top_light_blue": {
+        "mer": {
+            "roughness_min": 175
+        }
+    },
+    "shulker_top_lime": {
+        "mer": {
+            "roughness_min": 175
+        }
+    },
+    "shulker_top_magenta": {
+        "mer": {
+            "roughness_min": 175
+        }
+    },
+    "shulker_top_orange": {
+        "mer": {
+            "roughness_min": 175
+        }
+    },
+    "shulker_top_pink": {
+        "mer": {
+            "roughness_min": 175
+        }
+    },
+    "shulker_top_purple": {
+        "mer": {
+            "roughness_min": 175
+        }
+    },
+    "shulker_top_red": {
+        "mer": {
+            "roughness_min": 175
+        }
+    },
+    "shulker_top_silver": {
+        "mer": {
+            "roughness_min": 180
+        }
+    },
+    "shulker_top_undyed": {
+        "mer": {
+            "roughness_min": 175
+        }
+    },
+    "shulker_top_white": {
+        "mer": {
+            "roughness_min": 175
+        }
+    },
+    "shulker_top_yellow": {
+        "mer": {
+            "roughness_min": 175
+        }
+    },
+    "skull_pottery_pattern": {
+        "mer": {
+            "roughness_min": 161
+        }
+    },
     "slime": {
         "mer": {
             "metal_min": 5,
@@ -12903,6 +14111,18 @@
             "intensity": 0.075
         },
         "blend_suitable": true
+    },
+    "slime_carried": {
+        "mer": {
+            "metal_min": 5,
+            "metal_max": 5,
+            "roughness_min": 13,
+            "roughness_max": 31
+        },
+        "sss": {
+            "min": 244,
+            "max": 255
+        }
     },
     "small_amethyst_bud": {
         "mer": {
@@ -13023,9 +14243,7 @@
             "metal_min": 120,
             "metal_max": 180,
             "roughness_min": 75,
-            "roughness_max": 92,
-            "invert_metal": false,
-            "invert_roughness": true
+            "roughness_max": 92
         }
     },
     "smoker_bottom": {
@@ -13074,6 +14292,11 @@
         },
         "normal": {
             "intensity": 0.175
+        }
+    },
+    "sniffer_egg": {
+        "mer": {
+            "roughness_min": 185
         }
     },
     "sniffer_egg_not_cracked_bottom": {
@@ -13292,6 +14515,11 @@
         "normal": {
             "intensity": 0.05,
             "padding_type": "colorfill"
+        }
+    },
+    "snort_pottery_pattern": {
+        "mer": {
+            "roughness_min": 161
         }
     },
     "snow": {
@@ -13693,6 +14921,16 @@
             "roughness_min": 166
         },
         "sss": {
+            "max": 157
+        }
+    },
+    "straw_bed_particle": {
+        "mer": {
+            "roughness_min": 166,
+            "roughness_max": 235
+        },
+        "sss": {
+            "min": 43,
             "max": 157
         }
     },
@@ -14110,6 +15348,16 @@
             "roughness_min": 126
         }
     },
+    "sweet_berries": {
+        "mer": {
+            "metal_max": 90,
+            "roughness_min": 45,
+            "roughness_max": 193
+        },
+        "sss": {
+            "max": 135
+        }
+    },
     "sweet_berry_bush_stage0": {
         "mer": {
             "roughness_min": 130,
@@ -14214,6 +15462,15 @@
             "padding_type": "colorfill"
         }
     },
+    "tallgrass_carried": {
+        "mer": {
+            "roughness_min": 213
+        },
+        "sss": {
+            "min": 8,
+            "max": 247
+        }
+    },
     "tall_dry_grass": {
         "mer": {
             "metal_max": 11,
@@ -14262,6 +15519,19 @@
             "intensity": 0.1
         },
         "blend_suitable": true
+    },
+    "tinted_glass_carried": {
+        "mer": {
+            "metal_min": 6,
+            "metal_max": 55,
+            "emissive_max": 2,
+            "roughness_min": 1,
+            "roughness_max": 32
+        },
+        "sss": {
+            "min": 64,
+            "max": 64
+        }
     },
     "tnt_bottom": {
         "mer": {
@@ -14497,6 +15767,12 @@
         "mer": {
             "roughness_min": 128,
             "roughness_max": 241
+        }
+    },
+    "trapped_chest_front": {
+        "mer": {
+            "roughness_min": 123,
+            "roughness_max": 242
         }
     },
     "trial_spawner_bottom": {
@@ -14773,6 +16049,17 @@
     "tuff_bricks": {
         "mer": {
             "roughness_min": 115
+        }
+    },
+    "turtle_egg": {
+        "mer": {
+            "metal_max": 13,
+            "roughness_min": 107,
+            "roughness_max": 167
+        },
+        "sss": {
+            "min": 100,
+            "max": 128
         }
     },
     "turtle_egg_not_cracked": {
@@ -15219,6 +16506,13 @@
             "max": 247
         }
     },
+    "villagebell": {
+        "mer": {
+            "metal_max": 191,
+            "roughness_min": 13,
+            "roughness_max": 252
+        }
+    },
     "vine": {
         "mer": {
             "roughness_min": 121,
@@ -15233,6 +16527,16 @@
         },
         "normal": {
             "intensity": 0.1
+        }
+    },
+    "vine_carried": {
+        "mer": {
+            "roughness_min": 121,
+            "roughness_max": 193
+        },
+        "sss": {
+            "min": 192,
+            "max": 247
         }
     },
     "warped_door_lower": {
@@ -15379,6 +16683,30 @@
         "sss": {
             "min": 64,
             "max": 192
+        }
+    },
+    "water_flow": {
+        "mer": {
+            "metal_min": 13,
+            "metal_max": 22,
+            "roughness_min": 9,
+            "roughness_max": 24
+        },
+        "sss": {
+            "min": 92,
+            "max": 164
+        }
+    },
+    "water_still": {
+        "mer": {
+            "metal_min": 13,
+            "metal_max": 24,
+            "roughness_min": 2,
+            "roughness_max": 24
+        },
+        "sss": {
+            "min": 92,
+            "max": 164
         }
     },
     "weathered_chiseled_copper": {
@@ -15534,6 +16862,14 @@
             }
         ]
     },
+    "weathered_copper_chain": {
+        "mer": {
+            "metal_min": 192,
+            "metal_max": 251,
+            "roughness_min": 76,
+            "roughness_max": 166
+        }
+    },
     "weathered_copper_chain1": {
         "mer": {
             "metal_min": 192,
@@ -15588,6 +16924,29 @@
         "normal": {
             "intensity": 0.15,
             "padding_type": "vertical"
+        }
+    },
+    "weathered_copper_chest_inventory_front": {
+        "mer": {
+            "metal_max": 250,
+            "roughness_min": 75,
+            "roughness_max": 175
+        }
+    },
+    "weathered_copper_chest_inventory_side": {
+        "mer": {
+            "metal_min": 188,
+            "metal_max": 250,
+            "roughness_min": 75,
+            "roughness_max": 157
+        }
+    },
+    "weathered_copper_chest_inventory_top": {
+        "mer": {
+            "metal_min": 188,
+            "metal_max": 250,
+            "roughness_min": 89,
+            "roughness_max": 157
         }
     },
     "weathered_copper_door_bottom": {
