@@ -290,7 +290,7 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
 
         var confirmButton = new Button
         {
-            Content = "I understand the risks and wish to continue",
+            Content = "Understood, continue",
             HorizontalAlignment = HorizontalAlignment.Stretch,
             Style = Application.Current.Resources["AccentButtonStyle"] as Style,
             Margin = new Thickness(0, 20, 0, 0),
@@ -323,7 +323,7 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
                     "- BetterRTX, provided by https://bedrock.graphics/api\n\n" +
                     "Either can break with Minecraft updates. Vanilla RTX App takes extensive measures to mitigate that: it backs up your game's default shader files so you can always put them back, " +
                     "and before installing a preset it checks it against your game & repackaging shaders made for an older version so it is likelier to continues to work with future Minecraft updates.\n\n" +
-                    "That process needs two more downloads the first time it's used, about 30 MB together, kept in the app's own data folder with updates managed by the app:\n" +
+                    "That process needs two more downloads the first time it's used, about 30 MB together, kept in the app's own data folder managed entirely by the app:\n" +
                     "- A private copy of Python, from python.org. A Python you may already have installed is not used or changed.\n" +
                     "- Lazurite, an open-source tool for Minecraft's shader files (github.com/veka0/lazurite), from PyPI.",
                 TextWrapping = TextWrapping.Wrap,
