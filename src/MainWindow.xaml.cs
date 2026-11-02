@@ -2376,6 +2376,13 @@ public sealed partial class MainWindow : Window
 
 /* ### BACKLOG/TODO OF HIGHCORTISOLSOFTWARE LLC (STRICTLY CONFIDENTIAL)
 
+- Make updates mandetory to get people to update faster.
+The app updates for this are usually critical stuff, so it is something we should really do.
+> here: https://learn.microsoft.com/en-us/windows/uwp/packaging/self-install-package-updates#mandatory-package-updates
+The current data says upgrade rate is roughly 99% within a month (with most in the first 1-2 weeks), but that could be made way better.
+Show an overlay that automatically sends people to update the app.
+that way you don't have to put teletexts out saying, hey, go update!
+
 - Look into heavier modding capabilities via DLL injection, though it is likely a no-go for msstore apps.
 So, dig more... the goal is to open up path to fix cpu side issues like flickering, unlock more capabilities,
 and get something like DLSS RR working
@@ -2383,13 +2390,6 @@ and get something like DLSS RR working
 - Give a way to get all addons and extensions at once, in bulk, in one click
 Pull all from vanilla-rtx-extras
 Could use the existing pack updater backend for this, and update each pack individually, have them listed in pack update menu
-
-- Why is age rating of TS manager 3!? but Vanilla RTX App 7? and it can't go lower? they're the same in essence, see what you can do to lower it with future publishes
-
-- Campfire:
-A public lobby "chatroom" of sorts in the app for people to ask questions and get answers.
-Get away from Discord. Maybe Ko-Fi members get something special in there too.
-Slowly close down the Discord and move away to github discussions or this public chatplace lobby thing
 
 - Figure a way to expose an option to auto-activate a Vanilla RTX pack on-launch.
 Maybe this:
