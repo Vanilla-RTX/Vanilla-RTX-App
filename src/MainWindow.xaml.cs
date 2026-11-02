@@ -864,6 +864,7 @@ public sealed partial class MainWindow : Window
             glyph: "",
             guideText: "",
             stagingTag: "Chess",
+            cleanBrowserLinks: true,
             watchedExtensions: Array.Empty<string>(),
             onFilesReady: _ => Task.CompletedTask);
     }
@@ -2486,6 +2487,11 @@ is there a way to further streamline DLSS Swapper?!
 i.e. auto it, let the refresh stretch vertically
 
 - Need better art to convey surface 3d effect intensity
+
+- Expand on the behavior of Lamp:
+Allow it to remain off, and perform its flashing patterns in reverse instead
+for instance, have Preview-enabled pages perform the flashes in reverse until closed!
+can become a helpful visual cue user can get used to if the user happens to be observant
 
 >> Add a BetterRTX-like lut preset, can get the looks 80% there! call it a joke name like ButterRTX -- or have ButterRTX turn the world yellow for fun... so two presets out of this idea.
 its just an edit of Gamescom iirc that looked a lot like BetterRTX 1.4.4 default
