@@ -2443,11 +2443,6 @@ public sealed partial class MainWindow : Window
 
 /* ### BACKLOG/TODO OF HIGHCORTISOLSOFTWARE LLC (STRICTLY CONFIDENTIAL)
 
-- Look into https://github.com/Vanilla-RTX/Vanilla-RTX-App/issues/13 and get BetterRTX to work properly
-
-- Change win11-only glyphs to things that'd display on older seg fluent icons on windows 10 too
-e.g. shader mod manager  -> &#xEA38;, asterisk
-
 - Look into heavier modding capabilities via DLL injection, though it is likely a no-go for msstore apps.
 So, dig more... the goal is to open up path to fix cpu side issues like flickering, unlock more capabilities,
 and get something like DLSS RR working
@@ -2463,7 +2458,7 @@ A public lobby "chatroom" of sorts in the app for people to ask questions and ge
 Get away from Discord. Maybe Ko-Fi members get something special in there too.
 Slowly close down the Discord and move away to github discussions or this public chatplace lobby thing
 
-- Figure a way to expose an option to auto-activate a Vanilla RTX pack.
+- Figure a way to expose an option to auto-activate a Vanilla RTX pack on-launch.
 Maybe this:
 ticking its checkbox before launching the game also edits the thing that holds which packs are active.
 this may not be a great idea, but it is doable, and mostly stems from a curiosity to understand what file in user data saves this stuff.
@@ -2499,8 +2494,7 @@ diminished highlights around the sun sprite, etc...
 
 - Future plans for PackUpdate menu:
 Find a way to scale.
-Allow for More packs to appear after extensions/addons section, but in the same style, and derived from a
-an listing somewhere.
+Allow for More packs to appear after extensions/addons section, but in the same style, and derived from a listing somewhere.
 The idea is, allow more creators to have their packs listed there, but only review and allow genuine content that have
 at least a good bit of effort put into them and are actively maintained. A markdown renderer is probably the way to go.
 
