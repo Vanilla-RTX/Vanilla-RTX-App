@@ -61,6 +61,7 @@ public sealed partial class WebImportOverlay : UserControl
     private string _stagingFolder = string.Empty;
     private string _lastUrl = string.Empty;
     private string _lastStagingTag = string.Empty;
+    private bool _cleanBrowserLinks;
     private IReadOnlyList<string> _watchedExtensions = Array.Empty<string>();
     private Func<IReadOnlyList<string>, Task>? _onFilesReady;
 
@@ -102,7 +103,11 @@ public sealed partial class WebImportOverlay : UserControl
     /// plain-viewer call that watches nothing at all) behaves exactly as if this feature didn't
     /// exist. <paramref name="guideText"/> is a short, static sentence telling the user what
     /// "done" means for this particular site (e.g. when to click Done) - pass an empty string for
-    /// a plain page viewer with nothing to guide.
+    /// a plain page viewer with nothing to guide. <paramref name="cleanBrowserLinks"/> drops the
+    /// query and fragment from any address handed to the user's real browser, for a page opened
+    /// with a marker meant only for this overlay, such as the site's <c>?app</c> layout. It also
+    /// drops whatever query the page itself has navigated to, so it doesn't suit a site whose
+    /// pages depend on one.
     /// </summary>
     /// <summary>True while the page is up. Its host reads this to get out of its way.</summary>
     public bool IsOpen => _isOpen;
@@ -121,10 +126,12 @@ public sealed partial class WebImportOverlay : UserControl
         string guideText,
         string stagingTag,
         IReadOnlyList<string> watchedExtensions,
-        Func<IReadOnlyList<string>, Task> onFilesReady)
+        Func<IReadOnlyList<string>, Task> onFilesReady,
+        bool cleanBrowserLinks = false)
     {
         if (_isOpen) return;
         _isOpen = true;
+        _cleanBrowserLinks = cleanBrowserLinks;
 
         Header.SetTitleText(title);
         Header.SetIcon(glyph);
@@ -317,7 +324,7 @@ public sealed partial class WebImportOverlay : UserControl
     private void OpenInBrowserButton_Click(object sender, RoutedEventArgs e)
     {
         if (!string.IsNullOrEmpty(_lastUrl))
-            _ = Launcher.LaunchUriAsync(new Uri(_lastUrl));
+            OpenInRealBrowser(_lastUrl);
 
         Close();
     }
@@ -327,7 +334,13 @@ public sealed partial class WebImportOverlay : UserControl
     {
         var url = _webViewReady ? ImportWebView.CoreWebView2.Source : _lastUrl;
         if (!string.IsNullOrEmpty(url))
-            _ = Launcher.LaunchUriAsync(new Uri(url));
+            OpenInRealBrowser(url);
+    }
+
+    private void OpenInRealBrowser(string url)
+    {
+        var uri = new Uri(url);
+        _ = Launcher.LaunchUriAsync(_cleanBrowserLinks ? new Uri(uri.GetLeftPart(UriPartial.Path)) : uri);
     }
 
     // =========================================================================

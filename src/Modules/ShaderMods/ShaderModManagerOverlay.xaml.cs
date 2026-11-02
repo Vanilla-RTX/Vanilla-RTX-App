@@ -1569,7 +1569,8 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
             guideText: "Download a Supervanilla RTX build, then click Done - it's imported automatically, ready to install.",
             stagingTag: "Supervanilla",
             watchedExtensions: ShaderModManager.SupportedCustomPresetExtensions,
-            onFilesReady: files => ImportCustomPresetsAsync(files, forceSupervanilla: true));
+            onFilesReady: files => ImportCustomPresetsAsync(files, forceSupervanilla: true),
+            cleanBrowserLinks: true);
     }
 
     /// <summary>
