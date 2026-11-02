@@ -590,99 +590,30 @@ public sealed partial class MainWindow : Window
 
             if (!File.Exists(logPath)) return;
 
-            var content = File.ReadAllText(logPath);
+            CrashReportText.Text = File.ReadAllText(logPath);
             File.Delete(logPath);
 
-            var copyButton = new Button
-            {
-                Content = "Copy Crash Logs",
-                HorizontalAlignment = HorizontalAlignment.Stretch
-            };
+            // A ContentDialog draws in a popup, which doesn't take the theme set on this window's root.
+            CrashReportDialog.XamlRoot = this.Content.XamlRoot;
+            CrashReportDialog.RequestedTheme = ((FrameworkElement)this.Content).ActualTheme;
 
-            var githubLink = new HyperlinkButton
-            {
-                Content = "Create an issue on GitHub",
-                NavigateUri = new Uri("https://github.com/vanilla-rtx/Vanilla-RTX-App/issues"),
-                Margin = new Thickness(0, 2, 0, 0),
-                Padding = new Thickness(4, 4, 4, 4)
-            };
-
-            var discordLink = new HyperlinkButton
-            {
-                Content = "Create a post on the Vanilla RTX Discord Server",
-                NavigateUri = new Uri("https://discord.gg/A4wv4wwYud"),
-                Padding = new Thickness(4, 4, 4, 4)
-            };
-
-            var logBox = new ScrollViewer
-            {
-                Content = new TextBlock
-                {
-                    Text = content,
-                    FontFamily = new FontFamily("Consolas"),
-                    FontSize = 11,
-                    IsTextSelectionEnabled = true,
-                    TextWrapping = TextWrapping.Wrap
-                },
-                MaxHeight = 200,
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto
-            };
-
-            var dismissButton = new Button
-            {
-                Content = "Continue Using the App (dismisses the report)",
-                HorizontalAlignment = HorizontalAlignment.Stretch
-            };
-
-            var panel = new StackPanel { Spacing = 12 };
-
-            panel.Children.Add(new TextBlock
-            {
-                Text = "Oh no! Looks like a crash occurred during the previous session, you may continue to use the app, but it would be better if you report it to the developer to see it patched up soon!",
-                TextWrapping = TextWrapping.Wrap
-            });
-
-            var linksPanel = new StackPanel { Spacing = 2 };
-            linksPanel.Children.Add(new TextBlock { Text = "Report using one of the following methods:" });
-            linksPanel.Children.Add(githubLink);
-            linksPanel.Children.Add(discordLink);
-            panel.Children.Add(linksPanel);
-
-            panel.Children.Add(new TextBlock
-            {
-                Text = "Crash details:",
-                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
-            });
-            panel.Children.Add(logBox);
-            panel.Children.Add(copyButton);
-            panel.Children.Add(dismissButton);
-
-            var dialog = new ContentDialog
-            {
-                Title = "Previous Session Crash Report",
-                Content = panel,
-                XamlRoot = this.Content.XamlRoot,
-                RequestedTheme = ((FrameworkElement)this.Content).ActualTheme
-            };
-
-            copyButton.Click += async (s, e) =>
-            {
-                var dataPackage = new Windows.ApplicationModel.DataTransfer.DataPackage();
-                dataPackage.SetText(content);
-                Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dataPackage);
-
-                copyButton.Content = "Copied!";
-                await Task.Delay(1500);
-                copyButton.Content = "Copy Crash Log";
-            };
-
-            dismissButton.Click += (s, e) => dialog.Hide();
-
-            await dialog.ShowAsync();
+            await CrashReportDialog.ShowAsync();
         }
         catch { }
     }
+
+    private async void CrashReportCopyButton_Click(object sender, RoutedEventArgs e)
+    {
+        var dataPackage = new Windows.ApplicationModel.DataTransfer.DataPackage();
+        dataPackage.SetText(CrashReportText.Text);
+        Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dataPackage);
+
+        CrashReportCopyButton.Content = "Copied!";
+        await Task.Delay(1500);
+        CrashReportCopyButton.Content = "Copy crash log";
+    }
+
+    private void CrashReportContinueButton_Click(object sender, RoutedEventArgs e) => CrashReportDialog.Hide();
 
 
     public static async Task OpenUrl(string url)

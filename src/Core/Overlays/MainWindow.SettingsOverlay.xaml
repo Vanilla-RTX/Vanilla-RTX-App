@@ -122,12 +122,13 @@
             <Setter Property="IsTextScaleFactorEnabled" Value="False" />
         </Style>
 
+        <!-- Stretches to the box beside it, which grows as a long address wraps. -->
         <Style x:Key="SettingsUrlResetButtonStyle"
                TargetType="Button"
                BasedOn="{StaticResource SubtleButtonStyle}">
             <Setter Property="Padding" Value="8,6,8,6" />
             <Setter Property="CornerRadius" Value="4" />
-            <Setter Property="VerticalAlignment" Value="Top" />
+            <Setter Property="VerticalAlignment" Value="Stretch" />
             <Setter Property="IsTextScaleFactorEnabled" Value="False" />
             <Setter Property="ToolTipService.ToolTip" Value="Put the built-in address back." />
         </Style>
@@ -532,7 +533,7 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <Button x:Name="AddLaunchOptionButton"
-                                    Translation="0,0,12"
+                                    Translation="0,0,32"
                                     Grid.Column="0"
                                     Style="{ThemeResource AccentButtonStyle}"
                                     Click="AddLaunchOptionButton_Click"
@@ -772,69 +773,58 @@
                         <Border Style="{StaticResource SettingsSeparatorStyle}" />
 
                         <!-- ═══ Links and credits ════════════════════════════════════════ -->
-                        <StackPanel Orientation="Horizontal"
-                                    HorizontalAlignment="Center"
-                                    Spacing="4"
-                                    Margin="0,2,0,0">
-                            
+                        <Grid RowSpacing="4"
+                              Margin="0,2,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <HyperlinkButton x:Name="DiscordLink"
+                                             Grid.Column="0"
+                                             Grid.Row="0"
+                                             Content="Discord"
+                                             HorizontalAlignment="Center"
+                                             Padding="6,2,6,2"
+                                             FontWeight="Medium"
+                                             Click="DiscordLink_Click"
+                                             IsTextScaleFactorEnabled="False"
+                                             ToolTipService.ToolTip="An invitation to the Vanilla RTX Discord server." />
                             <HyperlinkButton x:Name="GitHubLink"
+                                             Grid.Column="1"
+                                             Grid.Row="0"
                                              Content="GitHub"
+                                             HorizontalAlignment="Center"
                                              Padding="6,2,6,2"
                                              FontWeight="Medium"
                                              Click="GitHubLink_Click"
                                              IsTextScaleFactorEnabled="False"
                                              ToolTipService.ToolTip="Source code, releases and issue tracker." />
-                            <TextBlock Text="•"
-                                       Opacity="0.5"
-                                       FontWeight="Medium"
-                                       VerticalAlignment="Center"
-                                       IsTextScaleFactorEnabled="False" />
-                            <HyperlinkButton x:Name="KoFiLink"
-                                             Content="Support the developer (Ko-Fi)"
-                                             Padding="6,2,6,2"
-                                             FontWeight="Medium"
-                                             Click="KoFiLink_Click"
-                                             IsTextScaleFactorEnabled="False"
-                                             ToolTipService.ToolTip="Buy the developer some coffee - Vanilla RTX is free and continued, help keep it that way!" />
-                            <TextBlock Text="•"
-                                       Opacity="0.5"
-                                       FontWeight="Medium"
-                                       VerticalAlignment="Center"
-                                       IsTextScaleFactorEnabled="False" />
-                            <HyperlinkButton x:Name="DiscordLink"
-                                             Content="Discord"
-                                             FontWeight="Medium"
-                                             Padding="6,2,6,2"
-                                             Click="DiscordLink_Click"
-                                             IsTextScaleFactorEnabled="False"
-                                             ToolTipService.ToolTip="An invitation to the Vanilla RTX Discord server." />
-                        </StackPanel>
-
-                        <StackPanel Orientation="Horizontal"
-                                    HorizontalAlignment="Center"
-                                    Spacing="4"
-                                    Margin="0,-10,0,0">
-
                             <HyperlinkButton x:Name="WebsiteLink"
+                                             Grid.Column="0"
+                                             Grid.Row="1"
                                              Content="Official Website"
+                                             HorizontalAlignment="Center"
                                              Padding="6,2,6,2"
                                              FontWeight="Medium"
                                              Click="WebsiteLink_Click"
                                              IsTextScaleFactorEnabled="False"
                                              ToolTipService.ToolTip="vanillartx.net, in your browser." />
-                            <TextBlock Text="•"
-                                       Opacity="0.5"
-                                       FontWeight="Medium"
-                                       VerticalAlignment="Center"
-                                       IsTextScaleFactorEnabled="False" />
-                            <HyperlinkButton x:Name="ChessLink"
-                                             Content="Try Vanilla RTX Chess"
+                            <HyperlinkButton x:Name="KoFiLink"
+                                             Grid.Column="1"
+                                             Grid.Row="1"
+                                             Content="Support the developer (Ko-Fi)"
+                                             HorizontalAlignment="Center"
                                              Padding="6,2,6,2"
                                              FontWeight="Medium"
-                                             Click="ChessLink_Click"
+                                             Click="KoFiLink_Click"
                                              IsTextScaleFactorEnabled="False"
-                                             ToolTipService.ToolTip="Ray-traced voxel chess, right here in the app." />
-                        </StackPanel>
+                                             ToolTipService.ToolTip="Buy the developer some coffee - Vanilla RTX is free and continued, help keep it that way!" />
+                        </Grid>
 
                         <TextBlock x:Name="CreditsText"
                                    Text="With ❤️‍🔥 – By Cubeir (R. Sol)"

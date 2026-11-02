@@ -628,7 +628,9 @@ public sealed partial class SettingsOverlay : UserControl
             PlaceholderText = "option name",
             FontSize = 12,
             IsTextScaleFactorEnabled = false,
-            VerticalAlignment = VerticalAlignment.Center
+            VerticalAlignment = VerticalAlignment.Center,
+            Translation = new System.Numerics.Vector3(0, 0, 24),
+            Shadow = new ThemeShadow()
         };
         ToolTipService.SetToolTip(nameBox, "The options.txt parameter name, exactly as the game spells it (e.g. graphics_mode).");
         Grid.SetColumn(nameBox, 0);
@@ -645,7 +647,9 @@ public sealed partial class SettingsOverlay : UserControl
             SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact,
             ValidationMode = NumberBoxValidationMode.InvalidInputOverwritten,
             IsTextScaleFactorEnabled = false,
-            VerticalAlignment = VerticalAlignment.Center
+            VerticalAlignment = VerticalAlignment.Center,
+            Translation = new System.Numerics.Vector3(0, 0, 24),
+            Shadow = new ThemeShadow()
         };
         ToolTipService.SetToolTip(valueBox, "The whole number to write for this parameter.");
         Grid.SetColumn(valueBox, 1);
@@ -1407,22 +1411,14 @@ public sealed partial class SettingsOverlay : UserControl
     }
 
     /// <summary>
-    /// The two vanillartx.net links resolve their origin on click - the domain, or its
-    /// workers.dev fallback when the domain isn't answering. The link is disabled while that
-    /// probe runs, so a second click can't open the page twice.
+    /// Resolves its origin on click - the domain, or its workers.dev fallback when the domain
+    /// isn't answering. The link is disabled while that probe runs, so a second click can't open
+    /// the page twice.
     /// </summary>
     private async void WebsiteLink_Click(object sender, RoutedEventArgs e)
     {
         WebsiteLink.IsEnabled = false;
         try { _ = MainWindow.OpenUrl(await Helpers.ResolveVanillaRtxSiteUrlAsync()); }
         finally { WebsiteLink.IsEnabled = true; }
-    }
-
-    /// <summary>Opens over the panel, so Return lands back here - see <see cref="MainWindow.OpenVanillaRtxChessAsync"/>.</summary>
-    private async void ChessLink_Click(object sender, RoutedEventArgs e)
-    {
-        ChessLink.IsEnabled = false;
-        try { if (_host is not null) await _host.OpenVanillaRtxChessAsync(); }
-        finally { ChessLink.IsEnabled = true; }
     }
 }

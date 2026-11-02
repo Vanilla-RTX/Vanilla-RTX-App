@@ -1513,14 +1513,86 @@
                               Grid.ColumnSpan="2"
                               Canvas.ZIndex="998" />
 
-        <!-- Vanilla RTX Chess, in the in-app browser - reached from the settings panel's footer
-             and by shift-clicking the lamp. Declared last at the overlays' z so it draws over
+        <!-- Vanilla RTX Chess, in the in-app browser - reached by shift-clicking the lamp.
+             Declared last at the overlays' z so it draws over
              Settings, the documents and any module, and still under the titlebar; closing it
              puts back whatever was underneath. See OpenVanillaRtxChessAsync. -->
         <core:WebImportOverlay x:Name="ChessViewer"
                                Grid.ColumnSpan="2"
                                Margin="0,36,0,0"
                                Canvas.ZIndex="998" />
+
+        <!-- What the last session's crash left behind, offered once at startup by
+             CheckForCrashLog. The bottom margin on the button row keeps its shadows inside the
+             dialog's content scroller, which clips at its own edge. -->
+        <ContentDialog x:Name="CrashReportDialog"
+                       Title="Previous Session Crash Report"
+                       IsTextScaleFactorEnabled="False">
+            <StackPanel Spacing="16">
+                <TextBlock TextWrapping="Wrap"
+                           Text="Oh no! Looks like a crash occurred during the previous session. You may continue to use the app, but it would be better if you report it to the developer to see it patched up soon!" />
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Report using one of the following methods:"
+                               FontWeight="SemiBold" />
+                    <HyperlinkButton Content="Create an issue on GitHub"
+                                     NavigateUri="https://github.com/vanilla-rtx/Vanilla-RTX-App/issues"
+                                     Padding="0,2,0,2" />
+                    <HyperlinkButton Content="Create a post on the Vanilla RTX Discord Server"
+                                     NavigateUri="https://discord.gg/A4wv4wwYud"
+                                     Padding="0,2,0,2" />
+                </StackPanel>
+
+                <StackPanel Spacing="6">
+                    <TextBlock Text="Crash details:"
+                               FontWeight="SemiBold" />
+                    <Border Style="{StaticResource ThemedCardStyle}"
+                            BorderThickness="1"
+                            CornerRadius="4">
+                        <ScrollViewer MaxHeight="200"
+                                      Padding="10,8,14,8"
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      VerticalScrollBarVisibility="Auto">
+                            <TextBlock x:Name="CrashReportText"
+                                       FontFamily="Consolas"
+                                       FontSize="11"
+                                       IsTextSelectionEnabled="True"
+                                       TextWrapping="Wrap" />
+                        </ScrollViewer>
+                    </Border>
+                </StackPanel>
+
+                <Grid ColumnSpacing="8"
+                      Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Button x:Name="CrashReportCopyButton"
+                            Grid.Column="0"
+                            Content="Copy crash log"
+                            HorizontalAlignment="Stretch"
+                            Translation="0,0,32"
+                            Click="CrashReportCopyButton_Click">
+                        <Button.Shadow>
+                            <ThemeShadow />
+                        </Button.Shadow>
+                    </Button>
+                    <Button x:Name="CrashReportContinueButton"
+                            Grid.Column="1"
+                            Content="Continue using the app"
+                            HorizontalAlignment="Stretch"
+                            Style="{ThemeResource AccentButtonStyle}"
+                            Translation="0,0,32"
+                            ToolTipService.ToolTip="Dismisses this report."
+                            Click="CrashReportContinueButton_Click">
+                        <Button.Shadow>
+                            <ThemeShadow />
+                        </Button.Shadow>
+                    </Button>
+                </Grid>
+            </StackPanel>
+        </ContentDialog>
 
     </Grid>
 </Window>
