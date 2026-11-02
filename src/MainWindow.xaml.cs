@@ -29,6 +29,7 @@ using static Vanilla_RTX_App.Core.EnvironmentVariables.Persistent;
 using static Vanilla_RTX_App.Modules.Helpers;
 
 namespace Vanilla_RTX_App;
+
 /// <summary>
 /// For dynamically updating number of other selected packs in the UI (select other packs button)
 /// </summary>
@@ -2469,22 +2470,10 @@ this may not be a great idea, but it is doable, and mostly stems from a curiosit
 - Need to make review prompt appear floaty in the app instead of launching the store
 Some apps are doing it how?
 
-- Make background of settings menu fade in faster as to make it clickable earlier? i.e. rapidly opening and closing by clicking the background
-it feels like it is a little irresponsive if you mash it so, look into it, make it feel better.
-
-- remove shadow from lamp on splash screen?! or weaken it so it is more like titlebar lamp.
-the thing is the shadow does make sense it is just too strong. It's the lamp casting light on the background, not a Halo as the name suggests
-
-- Add shadows to crash report page's buttons, and make the margins make more sense, it looks ugly.
-
 - Look into
 https://github.com/aufkrawall/dlssdl
 is there a way to further streamline DLSS Swapper?!
 
-- The launch options setting text boxes don't have shadow like the others
-
-- Make the reset buttons next to several of the text boxes height match the textbox height?
-i.e. auto it, let the refresh stretch vertically
 
 - Need better art to convey surface 3d effect intensity
 

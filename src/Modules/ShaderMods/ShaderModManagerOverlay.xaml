@@ -218,7 +218,7 @@
                                            TextWrapping="NoWrap"
                                            TextTrimming="CharacterEllipsis"
                                            IsTextScaleFactorEnabled="False" />
-                                <TextBlock Text="Drag and drop or browse for .rtpack files - Supervanilla RTX builds or BetterRTX presets"
+                                <TextBlock Text="Drag and drop or browse for Supervanilla RTX builds, BetterRTX presets, or others (as long as it follows the .rtpack format)"
                                            FontSize="12"
                                            Opacity="0.75"
                                            Margin="0,2,0,0"

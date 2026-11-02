@@ -57,7 +57,7 @@ public sealed partial class SettingsOverlay : UserControl
     /// The scrim's fade. Matches <see cref="MarkdownOverlay"/>'s so the two overlays feel
     /// like one surface being swapped rather than two different panels.
     /// </summary>
-    private const double FADE_MS = 150;
+    private const double FADE_MS = 125;
 
     /// <summary>
     /// How long the panel takes to cross its own width, fading as it goes. Longer than the

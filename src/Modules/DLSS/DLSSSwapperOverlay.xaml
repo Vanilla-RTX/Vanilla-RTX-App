@@ -119,7 +119,7 @@
                       VerticalAlignment="Bottom">
                     <Grid.ColumnDefinitions>
                         <!-- Add DLSS files -->
-                        <ColumnDefinition Width="2.25*" />
+                        <ColumnDefinition Width="2*" />
                         <!-- Gap 6 px -->
                         <ColumnDefinition Width="6" />
                         <!-- Download DLSS files -->
@@ -165,7 +165,7 @@
 
                             <StackPanel Grid.Column="2"
                                         VerticalAlignment="Center">
-                                <TextBlock Text="Add DLSS files"
+                                <TextBlock Text="Add DLSS files manually"
                                            FontWeight="SemiBold"
                                            TextWrapping="NoWrap"
                                            TextTrimming="CharacterEllipsis"
