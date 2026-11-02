@@ -318,15 +318,14 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
             {
             new TextBlock
                  {
-                Text = "Shader mods replace Minecraft RTX's own shader files. There are two types:\n" +
+                Text = "Shader mods replace Minecraft RTX's own shader files. The app provides two types:\n" +
                     "- Supervanilla RTX, from the maker of Vanilla RTX (vanillartx.net).\n" +
                     "- BetterRTX, provided by https://bedrock.graphics/api\n\n" +
-                    "Either can break with Minecraft updates. Vanilla RTX App takes extensive measures to mitigate that: it backs up your game's own shader files so Default RTX can always put them back, " +
-                    "and before installing a preset it checks it against your game, repackaging one made for an older version so it matches.\n\n" +
-                    "That check needs two more downloads the first time it's used, about 25 MB together, kept in the app's own data folder and kept up to date by the app:\n" +
-                    "- A private copy of Python, from python.org. A Python you may already have installed is never used or changed.\n" +
-                    "- lazurite, an open-source tool for Minecraft's shader files (github.com/veka0/lazurite), from PyPI." +
-                    "\n\nPlease pay attention to the info panels to keep updated and help steer yourself away from potential issues.",
+                    "Either can break with Minecraft updates. Vanilla RTX App takes extensive measures to mitigate that: it backs up your game's default shader files so you can always put them back, " +
+                    "and before installing a preset it checks it against your game & repackaging shaders made for an older version so it is likelier to continues to work with future Minecraft updates.\n\n" +
+                    "That process needs two more downloads the first time it's used, about 30 MB together, kept in the app's own data folder with updates managed by the app:\n" +
+                    "- A private copy of Python, from python.org. A Python you may already have installed is not used or changed.\n" +
+                    "- Lazurite, an open-source tool for Minecraft's shader files (github.com/veka0/lazurite), from PyPI.",
                 TextWrapping = TextWrapping.Wrap,
                 IsTextScaleFactorEnabled = false
                  },
@@ -337,7 +336,7 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
 
         var dialog = new ContentDialog
         {
-            Title = "Shader Mod Notice",
+            Title = "RTX Shader Mod Manager Notice",
             Content = contentPanel,
             XamlRoot = this.XamlRoot,
             IsTextScaleFactorEnabled = false,
