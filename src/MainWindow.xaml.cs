@@ -2376,6 +2376,13 @@ public sealed partial class MainWindow : Window
 
 /* ### BACKLOG/TODO OF HIGHCORTISOLSOFTWARE LLC (STRICTLY CONFIDENTIAL)
 
+- The refresh button in shader mod manager refreshes only that edition's supervanilla rtx
+which is good
+but the 60 second cooldown is annoying when switching back to release. you gotta wait again
+i guess the behavior is correct and you aren't really supposed to do anything
+because for BetterRTX, it IS shared, and we wouldn't want to spam them twice in a short time distance by letting user
+juggle around between release and preview. so, logically, its correct, but it was a behavior worth noting down.
+
 - Make updates mandetory to get people to update faster.
 The app updates for this are usually critical stuff, so it is something we should really do.
 > here: https://learn.microsoft.com/en-us/windows/uwp/packaging/self-install-package-updates#mandatory-package-updates
