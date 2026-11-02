@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.IO.Compression;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
@@ -31,8 +30,8 @@ internal class ApiPresetData
 /// this one in ShaderModManager.Supervanilla.cs.
 ///
 /// <para><b>What this provider owns in the cache</b> is every folder that is neither a Default
-/// backup nor Supervanilla RTX's (<see cref="IsSupervanillaFolderName"/>): its downloads, named by
-/// UUID, and any import not recognised as Supervanilla RTX. A wipe triggered from here - the API
+/// backup nor Supervanilla RTX's (<see cref="IsSupervanillaFolderName"/>): its downloads and any
+/// import not recognised as Supervanilla RTX, each named by <see cref="PresetFolderName"/>. A wipe triggered from here - the API
 /// changing, the refresh button - touches exactly that set and nothing of Supervanilla RTX's.</para>
 /// </summary>
 internal sealed partial class ShaderModManager
@@ -387,7 +386,7 @@ internal sealed partial class ShaderModManager
 
     /// <summary>
     /// Fetches one preset from the API and unpacks it into its own folder in the cache,
-    /// named after its UUID so re-downloading replaces it in place.
+    /// named by <see cref="PresetFolderName"/> so re-downloading replaces it in place.
     /// </summary>
     /// <param name="cancellationToken">
     /// The caller's lifetime, not ours - a three-minute download has to stop when the
@@ -395,12 +394,14 @@ internal sealed partial class ShaderModManager
     /// </param>
     public async Task<bool> DownloadPresetAsync(string uuid, CancellationToken cancellationToken)
     {
+        string? downloadedPath = null;
+        string? stagingFolder = null;
         try
         {
             var url = $"https://bedrock.graphics/pack/{uuid}/release";
             Trace.WriteLine($"[ShaderMods] Downloading from: {url}");
 
-            var (success, downloadedPath) = await Helpers.Download(url, cancellationToken: cancellationToken, timeout: TimeSpan.FromMinutes(3));
+            (var success, downloadedPath) = await Helpers.Download(url, cancellationToken: cancellationToken, timeout: TimeSpan.FromMinutes(3));
 
             if (!success || string.IsNullOrEmpty(downloadedPath))
             {
@@ -410,62 +411,41 @@ internal sealed partial class ShaderModManager
 
             Trace.WriteLine($"[ShaderMods] ✓ Downloaded to: {downloadedPath}");
 
-            // Extract to RTX_Cache
-            var sanitizedName = SanitizePresetName(uuid);
-            var destinationFolder = Path.Combine(CacheFolder, sanitizedName);
+            stagingFolder = await ExtractToStagingAsync(downloadedPath, "[BetterRTX]");
 
-            // Delete existing folder if present
-            if (Directory.Exists(destinationFolder))
+            var parsed = await ParseLocalPresetAsync(stagingFolder);
+            if (parsed == null || string.IsNullOrEmpty(parsed.Uuid))
             {
-                Directory.Delete(destinationFolder, true);
+                Trace.WriteLine($"[ShaderMods] ✗ Downloaded file is not a valid preset: {url}");
+                return false;
             }
 
-            Directory.CreateDirectory(destinationFolder);
+            // The window matches a listed preset to a held one by the manifest's UUID, so a pack whose
+            // manifest disagrees with the API lands fine but its row keeps offering the download.
+            if (!string.Equals(parsed.Uuid, uuid, StringComparison.OrdinalIgnoreCase))
+                Trace.WriteLine($"[ShaderMods] ⚠ The API lists this preset as {uuid}, its manifest says {parsed.Uuid}");
 
-            // Extract the archive
-            await Task.Run(() =>
-            {
-                using (var archive = ZipFile.OpenRead(downloadedPath))
-                {
-                    foreach (var entry in archive.Entries)
-                    {
-                        try
-                        {
-                            if (string.IsNullOrEmpty(entry.Name)) continue;
-
-                            var destPath = Path.Combine(destinationFolder, entry.FullName);
-                            var destDir = Path.GetDirectoryName(destPath);
-
-                            if (!string.IsNullOrEmpty(destDir))
-                            {
-                                Directory.CreateDirectory(destDir);
-                            }
-
-                            entry.ExtractToFile(destPath, true);
-                        }
-                        catch (Exception ex)
-                        {
-                            Trace.WriteLine($"[ShaderMods] Error extracting {entry.FullName}: {ex.Message}");
-                        }
-                    }
-                }
-            });
+            var destinationFolder = MoveIntoCache(stagingFolder, null, parsed.Uuid);
+            stagingFolder = null;
 
             Trace.WriteLine($"[ShaderMods] ✓ Extracted to: {destinationFolder}");
-
-            // Clean up downloaded file
-            try
-            {
-                File.Delete(downloadedPath);
-            }
-            catch { }
-
             return true;
         }
         catch (Exception ex)
         {
             Trace.WriteLine($"[ShaderMods] ✗ Error downloading {uuid}: {ex.Message}");
             return false;
+        }
+        finally
+        {
+            if (stagingFolder != null)
+            {
+                try { Directory.Delete(stagingFolder, true); } catch { }
+            }
+            if (!string.IsNullOrEmpty(downloadedPath))
+            {
+                try { File.Delete(downloadedPath); } catch { }
+            }
         }
     }
 

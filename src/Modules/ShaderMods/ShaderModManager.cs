@@ -789,16 +789,7 @@ internal sealed partial class ShaderModManager
 
             bool? supervanillaPreview = ClassifyImport(fileName, parsed.Name, forceSupervanilla);
 
-            // Named after the pack's own UUID either way, so bringing in the same pack again
-            // replaces it in place.
-            var destinationFolder = Path.Combine(CacheFolder, supervanillaPreview is bool preview
-                ? SupervanillaFolderName(preview, parsed.Uuid)
-                : SanitizePresetName(parsed.Uuid));
-
-            if (Directory.Exists(destinationFolder))
-                Directory.Delete(destinationFolder, true);
-
-            Directory.Move(stagingFolder, destinationFolder);
+            var destinationFolder = MoveIntoCache(stagingFolder, supervanillaPreview, parsed.Uuid);
             stagingFolder = null; // moved successfully, nothing left to clean up
 
             if (supervanillaPreview is not null)
@@ -827,10 +818,44 @@ internal sealed partial class ShaderModManager
     }
 
     /// <summary>
+    /// The one name a preset's folder can have: its manifest's <c>header.uuid</c>, under its owner's
+    /// prefix. Never the file's name, the archive's inner folders or a provider's own listing, so bringing
+    /// in the same pack again by any route replaces it in place. The name is untrusted text from inside the
+    /// archive, and two things keep it from reaching a folder that isn't a preset: sanitizing strips leading
+    /// underscores, which every reserved cache folder starts with, and a BetterRTX-side UUID that happens
+    /// to start with Supervanilla RTX's prefix is moved off it, or the name would file it under that owner.
+    /// </summary>
+    private static string PresetFolderName(bool? supervanillaPreview, string uuid)
+    {
+        if (supervanillaPreview is bool preview)
+            return SupervanillaFolderName(preview, uuid);
+
+        var name = SanitizePresetName(uuid);
+        return IsSupervanillaFolderName(name) ? $"pack_{name}" : name;
+    }
+
+    /// <summary>
+    /// Moves a checked staging folder to its place in the cache, replacing what is there, and returns the
+    /// path. Every route that adds a preset ends here, so what was already held is only touched once the
+    /// new one has been extracted and its manifest read.
+    /// </summary>
+    private string MoveIntoCache(string stagingFolder, bool? supervanillaPreview, string uuid)
+    {
+        var destination = Path.Combine(CacheFolder, PresetFolderName(supervanillaPreview, uuid));
+        if (Directory.Exists(destination))
+            Directory.Delete(destination, true);
+
+        Directory.Move(stagingFolder, destination);
+        return destination;
+    }
+
+    /// <summary>
     /// Unpacks an archive into a fresh <c>__staging_</c> folder inside the cache and returns it.
     /// The caller moves it into place once it has been checked, or deletes it - a staging folder
     /// is by construction either mid-flight or abandoned, which is what lets the headless importer
-    /// sweep any it finds on entry. A single entry that fails to extract is logged and skipped.
+    /// sweep any it finds on entry. A single entry that fails to extract is logged and skipped, but
+    /// one that would land outside the folder (<see cref="Helpers.ResolveZipEntryPath"/>) fails the
+    /// whole archive before anything is written: that isn't damage, it is a file built to do it.
     /// </summary>
     private async Task<string> ExtractToStagingAsync(string archivePath, string logTag)
     {
@@ -856,11 +881,17 @@ internal sealed partial class ShaderModManager
             using var archive = ZipFile.OpenRead(archivePath);
             foreach (var entry in archive.Entries)
             {
+                if (!string.IsNullOrEmpty(entry.Name) && Helpers.ResolveZipEntryPath(stagingFolder, entry.FullName) == null)
+                    throw new InvalidDataException($"it holds a file that would land outside its own folder ({entry.FullName})");
+            }
+
+            foreach (var entry in archive.Entries)
+            {
                 try
                 {
                     if (string.IsNullOrEmpty(entry.Name)) continue;
 
-                    var destPath = Path.Combine(stagingFolder, entry.FullName);
+                    var destPath = Helpers.ResolveZipEntryPath(stagingFolder, entry.FullName)!;
                     var destDir = Path.GetDirectoryName(destPath);
 
                     if (!string.IsNullOrEmpty(destDir))

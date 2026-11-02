@@ -705,11 +705,7 @@ internal sealed partial class ShaderModManager
                 return false;
             }
 
-            var destination = Path.Combine(CacheFolder, SupervanillaFolderName(IsPreview, parsed.Uuid));
-            if (Directory.Exists(destination))
-                Directory.Delete(destination, true);
-
-            Directory.Move(stagingFolder, destination);
+            var destination = MoveIntoCache(stagingFolder, IsPreview, parsed.Uuid);
             stagingFolder = null;
 
             WriteSupervanillaBuild(destination, fileName);

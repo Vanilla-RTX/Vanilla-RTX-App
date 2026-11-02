@@ -440,6 +440,9 @@ public static partial class Helpers
     /// <c>Task.Run</c> to keep the window responsive during a large pack - sharing this enumerator
     /// lets both use the same "which entries, what target path" logic without forcing either one
     /// onto the other's threading model.
+    ///
+    /// <para>An entry that would land outside the destination is dropped and logged
+    /// (<see cref="ResolveZipEntryPath"/>).</para>
     /// </summary>
     public static IEnumerable<(ZipArchiveEntry Entry, string TargetPath, bool IsDirectory)> EnumerateZipFolderExtraction(
         ZipArchive archive, string folderPrefixInZip, string destinationDirectory)
@@ -452,8 +455,35 @@ public static partial class Helpers
             var relativePath = entry.FullName.Substring(folderPrefixInZip.Length).Replace('/', Path.DirectorySeparatorChar);
             if (string.IsNullOrEmpty(relativePath)) continue;
 
-            var targetPath = Path.Combine(destinationDirectory, relativePath);
+            var targetPath = ResolveZipEntryPath(destinationDirectory, relativePath);
+            if (targetPath == null)
+            {
+                Trace.WriteLine($"[Helpers] Skipped a zip entry that would land outside its folder: {entry.FullName}");
+                continue;
+            }
+
             yield return (entry, targetPath, entry.FullName.EndsWith('/'));
+        }
+    }
+
+    /// <summary>
+    /// Where a zip entry lands under <paramref name="folder"/>, or null if it would land anywhere else.
+    /// A zip stores its entry names as free text, so <c>../../x</c> or <c>C:\x</c> are legal, and
+    /// <see cref="Path.Combine(string, string)"/> follows them out of the folder. <c>ZipFile.ExtractToDirectory</c>
+    /// checks this itself; extracting entry by entry doesn't, so every such loop over a file the user was
+    /// handed has to come through here, or a crafted pack can write anywhere the app can.
+    /// </summary>
+    public static string? ResolveZipEntryPath(string folder, string entryPath)
+    {
+        try
+        {
+            var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder)) + Path.DirectorySeparatorChar;
+            var target = Path.GetFullPath(Path.Combine(root, entryPath));
+            return target.StartsWith(root, StringComparison.OrdinalIgnoreCase) ? target : null;
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return null;
         }
     }
 
