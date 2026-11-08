@@ -69,7 +69,7 @@ public sealed partial class PackBrowserOverlay : ModuleOverlay, Core.FileActivat
     /// Internal rather than public because only BuildTagBadge, TagDisplayRank and
     /// PackBrowserBadgeVFX ever name them.
     /// </summary>
-    internal const string ChemistryTag = "Chemistry";
+    internal const string ChemistryTag = "Education";
     internal const string UnknownCapabilityTag = "Unknown Capability";
 
     private static readonly string VibrantVisualsPoopJoke =
