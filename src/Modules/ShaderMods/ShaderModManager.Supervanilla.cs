@@ -16,9 +16,10 @@ namespace Vanilla_RTX_App.Modules.ShaderMods;
 /// <summary>
 /// Which Supervanilla RTX build a preset is. <see cref="IsPreview"/> comes from the folder the
 /// preset sits in; the rest is read off its build name - the .rtpack's file name, recorded at
-/// import, else the manifest name - because nothing inside the pack carries it.
+/// import, else the manifest name - because nothing inside the pack carries it. <see cref="Sha256"/>
+/// is the .rtpack's own hash, recorded at arrival; null for builds that arrived before it was.
 /// </summary>
-internal sealed record SupervanillaBuild(bool IsPreview, string? FileName, int? Release, string? Version)
+internal sealed record SupervanillaBuild(bool IsPreview, string? FileName, int? Release, string? Version, string? Sha256 = null)
 {
     /// <summary>"R2 - 1.26.7020.0", or whichever half is known. Null when neither is.</summary>
     public string? Label => (Release, Version) switch
@@ -33,12 +34,13 @@ internal sealed record SupervanillaBuild(bool IsPreview, string? FileName, int? 
 /// <summary>
 /// One build in an index.json. <see cref="Url"/> is as the server wrote it - site-relative today. The
 /// server's own <see cref="Version"/> and <see cref="Release"/> fields win over what the name says; the
-/// name is read only for an index that predates them.
+/// name is read only for an index that predates them. <see cref="Sha256"/> is the file's hash, lowercase
+/// hex; null for an index that predates it.
 /// </summary>
-internal sealed record SupervanillaIndexEntry(string Name, string Url, string? Version, int? Release, long? Size, string? Date)
+internal sealed record SupervanillaIndexEntry(string Name, string Url, string? Version, int? Release, long? Size, string? Date, string? Sha256 = null)
 {
     public SupervanillaBuild ToBuild(bool isPreview) =>
-        new(isPreview, Name, Release ?? ShaderModManager.ReleaseFromName(Name), Version ?? ShaderModManager.VersionFromFileName(Name));
+        new(isPreview, Name, Release ?? ShaderModManager.ReleaseFromName(Name), Version ?? ShaderModManager.VersionFromFileName(Name), Sha256);
 }
 
 internal sealed record SupervanillaIndex(SupervanillaIndexEntry? Latest, IReadOnlyList<SupervanillaIndexEntry> Files);
@@ -106,9 +108,10 @@ internal sealed partial class ShaderModManager
     public const string SupervanillaFolderPrefix = "SVRTX_";
 
     /// <summary>
-    /// Holds the one fact about a build that can't be recovered from the pack afterwards: the file
-    /// name it arrived as, which is where its release number and version live. Not a manifest and
-    /// not a .bin, so preset parsing never sees it.
+    /// Holds what can't be recovered from the unpacked build afterwards: the file name it arrived
+    /// as, which is where its release number and version live, and the .rtpack's SHA-256, which is
+    /// what tells a rebuild under the same name from the copy already held. Not a manifest and not
+    /// a .bin, so preset parsing never sees it.
     /// </summary>
     private const string BuildFileName = "svrtx_build.json";
 
@@ -266,12 +269,15 @@ internal sealed partial class ShaderModManager
     /// </summary>
     private static SupervanillaBuild ReadSupervanillaBuild(string folder, string? manifestName)
     {
-        string? fileName = null;
+        string? fileName = null, sha256 = null;
         try
         {
             var path = Path.Combine(folder, BuildFileName);
-            if (File.Exists(path))
-                fileName = MinecraftJson.GetString(MinecraftJson.ParseObjectFile(path)?["file"]);
+            if (File.Exists(path) && MinecraftJson.ParseObjectFile(path) is { } sidecar)
+            {
+                fileName = MinecraftJson.GetString(sidecar["file"]);
+                sha256 = MinecraftJson.GetString(sidecar["sha256"]);
+            }
         }
         catch (Exception ex)
         {
@@ -282,22 +288,56 @@ internal sealed partial class ShaderModManager
             EditionOfFolder(Path.GetFileName(folder)) ?? false,
             fileName,
             ReleaseFromName(manifestName) ?? ReleaseFromName(fileName),
-            VersionFromFileName(manifestName) ?? VersionFromFileName(fileName));
+            VersionFromFileName(manifestName) ?? VersionFromFileName(fileName),
+            sha256);
     }
 
-    private static void WriteSupervanillaBuild(string folder, string fileName)
+    private static void WriteSupervanillaBuild(string folder, string fileName, string? sha256)
     {
         try
         {
             // The non-generic JsonValue.Create - the generic one reflects, which a trimmed Release
             // build strips (CLAUDE.md §6).
-            MinecraftJson.WriteIndented(Path.Combine(folder, BuildFileName), new JsonObject { ["file"] = JsonValue.Create(fileName) });
+            var sidecar = new JsonObject { ["file"] = JsonValue.Create(fileName) };
+            if (sha256 is not null) sidecar["sha256"] = JsonValue.Create(sha256);
+            MinecraftJson.WriteIndented(Path.Combine(folder, BuildFileName), sidecar);
         }
         catch (Exception ex)
         {
             Trace.WriteLine($"[ShaderMods] [Supervanilla] Couldn't record the build name in {folder}: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// The SHA-256 of an arrived .rtpack, lowercase hex as the site's index.json writes it. Null
+    /// when the file can't be read - the build then lands without one, like a build from before
+    /// hashes were recorded, and is simply never told apart from a rebuild.
+    /// </summary>
+    private static async Task<string?> HashRtpackAsync(string path)
+    {
+        try
+        {
+            await using var stream = File.OpenRead(path);
+            return Convert.ToHexString(await System.Security.Cryptography.SHA256.HashDataAsync(stream)).ToLowerInvariant();
+        }
+        catch (Exception ex)
+        {
+            Trace.WriteLine($"[ShaderMods] [Supervanilla] Couldn't hash {path}: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Whether a held build can't be vouched for as the file the index lists now. When the index
+    /// gives a hash, only an equal recorded one passes: a held build with none - from before hashes
+    /// were recorded, or whose hash couldn't be taken or read - is treated as stale, and a re-download
+    /// of a few megabytes settles it. When the index gives none (an index from before hashes, an
+    /// older deploy on the fallback origin) there is nothing to check against, and the build passes;
+    /// failing it would bring the offer back after every download.
+    /// </summary>
+    private static bool NotTheListedFile(string? held, string? listed) =>
+        !string.IsNullOrEmpty(listed) &&
+        !string.Equals(held, listed, StringComparison.OrdinalIgnoreCase);
 
     #endregion
 
@@ -387,9 +427,14 @@ internal sealed partial class ShaderModManager
     }
 
     /// <summary>
-    /// Whether this edition already holds the index's latest build, or something at least as new.
+    /// Whether this edition already holds the index's latest build, or something newer.
     /// False when there is no index to ask, so the Get latest row keeps offering itself - it asks
     /// /latest directly and never needed the index to work.
+    ///
+    /// <para>The same build - same file name, or same game version and release - counts only while
+    /// its recorded hash matches the index's: the factory can rebuild a release in place under the
+    /// same name, and that silent update must bring the row back. A strictly newer build always
+    /// counts, whatever its hash.</para>
     /// </summary>
     public bool HoldsSupervanillaLatest()
     {
@@ -397,14 +442,20 @@ internal sealed partial class ShaderModManager
         var latestBuild = latest.ToBuild(IsPreview);
 
         return HeldSupervanillaBuilds().Any(p =>
-            string.Equals(p.Supervanilla!.FileName, latest.Name, StringComparison.OrdinalIgnoreCase) ||
-            CompareBuilds(p.Supervanilla!, latestBuild) >= 0);
+        {
+            var held = p.Supervanilla!;
+            var order = CompareBuilds(held, latestBuild);
+            if (order > 0) return true;
+            bool same = order == 0 || string.Equals(held.FileName, latest.Name, StringComparison.OrdinalIgnoreCase);
+            return same && !NotTheListedFile(held.Sha256, latest.Sha256);
+        });
     }
 
-    /// <summary>Whether this edition holds one particular index build.</summary>
+    /// <summary>Whether this edition holds one particular index build, as the index has it now.</summary>
     public bool HoldsSupervanillaBuild(SupervanillaIndexEntry entry) =>
         HeldSupervanillaBuilds().Any(p =>
-            string.Equals(p.Supervanilla!.FileName, entry.Name, StringComparison.OrdinalIgnoreCase));
+            string.Equals(p.Supervanilla!.FileName, entry.Name, StringComparison.OrdinalIgnoreCase) &&
+            !NotTheListedFile(p.Supervanilla!.Sha256, entry.Sha256));
 
     /// <summary>Download-queue keys. The <c>svrtx:</c> prefix is what keeps them clear of BetterRTX's UUIDs.</summary>
     public static string LatestDownloadKey(bool isPreview) => $"svrtx:latest:{EditionLabel(isPreview)}";
@@ -570,7 +621,8 @@ internal sealed partial class ShaderModManager
                 MinecraftJson.GetString(o["version"]),
                 MinecraftJson.GetInt(o["release"]),
                 MinecraftJson.GetInt(o["size"]),
-                MinecraftJson.GetString(o["date"]));
+                MinecraftJson.GetString(o["date"]),
+                MinecraftJson.GetString(o["sha256"]));
         }
 
         var files = (root["files"] as JsonArray)?.Select(Entry).OfType<SupervanillaIndexEntry>().ToList() ?? [];
@@ -610,7 +662,13 @@ internal sealed partial class ShaderModManager
             var fileUrl = await ResolveLatestAsync(origin, cancellationToken);
             if (fileUrl is null) continue;
 
-            if (await DownloadSupervanillaFileAsync(fileUrl, cancellationToken)) return true;
+            if (await DownloadSupervanillaFileAsync(fileUrl, cancellationToken))
+            {
+                // /latest can be up to an hour ahead of the cached index; a rebuild under the same
+                // name would then disagree with the index's hash and bring the row straight back.
+                await RefreshSupervanillaIndexAsync(force: true);
+                return true;
+            }
             if (cancellationToken.IsCancellationRequested) return false;
         }
 
@@ -696,6 +754,7 @@ internal sealed partial class ShaderModManager
                 return false;
             }
 
+            var sha256 = await HashRtpackAsync(path);
             stagingFolder = await ExtractToStagingAsync(path, "[Supervanilla]");
 
             var parsed = await ParseLocalPresetAsync(stagingFolder);
@@ -708,7 +767,7 @@ internal sealed partial class ShaderModManager
             var destination = MoveIntoCache(stagingFolder, IsPreview, parsed.Uuid);
             stagingFolder = null;
 
-            WriteSupervanillaBuild(destination, fileName);
+            WriteSupervanillaBuild(destination, fileName, sha256);
             RetireEarlierCopies(destination, parsed.Name);
             Trace.WriteLine($"[ShaderMods] [Supervanilla] ✓ \"{parsed.Name}\" ({fileName}) in place at {destination}");
             return true;

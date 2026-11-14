@@ -794,7 +794,7 @@ internal sealed partial class ShaderModManager
 
             if (supervanillaPreview is not null)
             {
-                WriteSupervanillaBuild(destinationFolder, fileName);
+                WriteSupervanillaBuild(destinationFolder, fileName, await HashRtpackAsync(archivePath));
                 RetireEarlierCopies(destinationFolder, parsed.Name);
             }
 
