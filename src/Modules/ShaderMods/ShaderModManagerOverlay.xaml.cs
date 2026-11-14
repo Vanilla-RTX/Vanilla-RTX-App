@@ -778,7 +778,8 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
         var rows = new List<DisplayPresetData>();
         var edition = ShaderModManager.EditionLabel(_isPreview);
         var index = _manager.CurrentSupervanillaIndex;
-        bool holdsLatest = _manager.HoldsSupervanillaLatest();
+        var latestHeld = _manager.HeldSupervanillaLatest();
+        bool holdsLatest = latestHeld is not null;
 
         if (!holdsLatest)
         {
@@ -802,7 +803,7 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
         {
             rows.Add(FromLocal(held[i],
                 name: SupervanillaBuildName(held[i].Supervanilla, held[i].Name),
-                subtitle: i == 0 && holdsLatest ? $"Latest build for Minecraft {edition} - click to install" : null,
+                subtitle: ReferenceEquals(held[i], latestHeld) ?$"Latest build for Minecraft {edition} - click to install" : null,
                 deletable: true));
         }
 
@@ -2052,6 +2053,7 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
                             // Upgrading changed what installing this preset writes, so its expected
                             // hashes are recomputed before the list is redrawn against the game.
                             _manager.RefreshInstallState(preset);
+                            _manager.RetireCopiesBesideInstalled(_manager.FindLoadedPreset(preset.PresetPath) ?? preset);
                             await DisplayPresetsAsync();
                         }
                     }

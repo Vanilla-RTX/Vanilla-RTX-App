@@ -384,8 +384,12 @@ internal sealed partial class ShaderModManager
     /// the same game version and the same release (none counting as 0). The site rebuilds a release in
     /// place under the same name, each build with a fresh UUID, so without this every rebuild would sit
     /// beside the one it replaced, under one label. The installed copy is spared - deleting it would leave
-    /// nothing reading as installed - and so is any build whose version can't be read, such as the
-    /// factory's dev builds, since nothing says what it is a copy of.
+    /// nothing reading as installed - unless <paramref name="arrived"/> reads as installed too: then it is
+    /// the one standing for the game, which is the case right after it is installed (the overlay calls
+    /// <see cref="RetireCopiesBesideInstalled"/>), and the case of a rebuild whose shaders didn't change.
+    /// Any build whose version can't be read is spared as well, such as the factory's dev builds, since
+    /// nothing says what it is a copy of. Retired folders also leave <see cref="SupervanillaPresets"/>, so
+    /// a redraw without a reload never draws a row whose folder is gone.
     /// </summary>
     private void RetireEarlierCopies(string arrived, string? manifestName)
     {
@@ -400,6 +404,7 @@ internal sealed partial class ShaderModManager
 
             var prefix = EditionFolderPrefix(build.IsPreview);
             var installed = GetCurrentlyInstalledHashes();
+            bool arrivedInstalled = IsInstalledFolder(arrived, installed);
             foreach (var folder in Directory.GetDirectories(CacheFolder, prefix + "*"))
             {
                 if (string.Equals(Path.GetFullPath(folder), Path.GetFullPath(arrived), StringComparison.OrdinalIgnoreCase)) continue;
@@ -408,9 +413,11 @@ internal sealed partial class ShaderModManager
                 var other = ReadSupervanillaBuild(folder, manifest != null ? PackManifest.FromFile(manifest)?.HeaderName : null);
                 if (other.Version is null || CompareVersions(other.Version, build.Version) != 0 || (other.Release ?? 0) != (build.Release ?? 0))
                     continue;
-                if (IsInstalledFolder(folder, installed)) continue;
+                if (!arrivedInstalled && IsInstalledFolder(folder, installed)) continue;
 
                 Directory.Delete(folder, true);
+                SupervanillaPresets?.RemoveAll(p => p.PresetPath is { } path &&
+                    string.Equals(Path.GetFullPath(path), Path.GetFullPath(folder), StringComparison.OrdinalIgnoreCase));
                 Trace.WriteLine($"[ShaderMods] [Supervanilla] Replaced the earlier copy of {build.Label}: {Path.GetFileName(folder)}");
             }
         }
@@ -418,6 +425,17 @@ internal sealed partial class ShaderModManager
         {
             Trace.WriteLine($"[ShaderMods] [Supervanilla] Couldn't retire earlier copies beside {arrived}: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// After a Supervanilla RTX build is installed: the copies of it that were only kept because they were
+    /// the installed one are now just older copies under the same label, so they go. A no-op for anything
+    /// else.
+    /// </summary>
+    public void RetireCopiesBesideInstalled(LocalPresetData preset)
+    {
+        if (preset.Supervanilla is null || preset.PresetPath is not { } path) return;
+        RetireEarlierCopies(path, preset.Name);
     }
 
     private bool IsInstalledFolder(string folder, Dictionary<string, string> installed)
@@ -436,12 +454,20 @@ internal sealed partial class ShaderModManager
     /// same name, and that silent update must bring the row back. A strictly newer build always
     /// counts, whatever its hash.</para>
     /// </summary>
-    public bool HoldsSupervanillaLatest()
+    public bool HoldsSupervanillaLatest() => HeldSupervanillaLatest() is not null;
+
+    /// <summary>
+    /// The held build <see cref="HoldsSupervanillaLatest"/> answers for: the newest held build that is
+    /// the index's latest or newer, null when there is none. With a rebuild held beside the copy it
+    /// replaced, both carry one label and only one of them is the file the index lists; this is that one,
+    /// so whatever is said about "the latest" lands on the right row.
+    /// </summary>
+    public LocalPresetData? HeldSupervanillaLatest()
     {
-        if (CurrentSupervanillaIndex?.Latest is not { } latest) return false;
+        if (CurrentSupervanillaIndex?.Latest is not { } latest) return null;
         var latestBuild = latest.ToBuild(IsPreview);
 
-        return HeldSupervanillaBuilds().Any(p =>
+        return HeldSupervanillaBuilds().FirstOrDefault(p =>
         {
             var held = p.Supervanilla!;
             var order = CompareBuilds(held, latestBuild);
