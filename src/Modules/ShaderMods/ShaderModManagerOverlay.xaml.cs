@@ -2248,14 +2248,15 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
 
         if (checking)
         {
-            CheckStepTitle.Text = $"Check it against {GameLabel}";
+            CheckStepTitle.Text = $"Checking it against {GameLabel}";
             CheckStepDetail.Text = "";
             InstallStepDetail.Text = "Windows will ask for permission to write into the game's folder.";
         }
         else
         {
+            CheckStepTitle.Text = $"Checked against {GameLabel}";
             FirstTimeNote.Visibility = Visibility.Collapsed;
-            InstallStepDetail.Text = "Waiting for you to approve the Windows permission prompt. If you can't see it, look for it on the taskbar.";
+            InstallStepDetail.Text = "Choose Yes on the Windows permission prompt. If you can't see it, look for it on the taskbar.";
         }
 
         InstallProgressTitle.Text = checking ? $"Getting {displayName} ready" : $"Installing {displayName}";
@@ -2263,8 +2264,8 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
             ? "Minecraft updates often repackage the game's shader files, and a preset packaged for an older version " +
               "can crash the game as soon as ray tracing is turned on. So the app first checks this preset against your " +
               "game and, if it's out of date, repackages it to match - in a temporary folder, without touching your game yet."
-            : "Windows will now ask for permission to let the app write into Minecraft's install folder. " +
-              "Choose Yes to finish - the preset is installed the moment you do.";
+            : "Almost done. The app needs your permission to write into Minecraft's install folder, " +
+              "and the preset is installed the moment you give it.";
 
         SetStepState(CheckStepGlyph, CheckStepRing, running: checking, done: !checking);
         SetStepState(InstallStepGlyph, InstallStepRing, running: !checking, done: false);
