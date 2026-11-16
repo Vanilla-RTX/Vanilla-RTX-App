@@ -821,7 +821,7 @@ public sealed partial class MainWindow : Window
         _ = BlinkingLamp(true, true, 1.0, 0.05);
 
         if (RuntimeFlags.Set("Lamp_Chess_Hint"))
-            Log("Hold shift and click again to launch an RTX chess minigame!", LogLevel.VanillaRTX);
+            Log("Hold shift and click again to launch a chess minigame!", LogLevel.VanillaRTX);
 
         lampSecretMessageCounter++;
         if (lampSecretMessageCounter > (DateTime.Now.Year - 2005)) // it amounts to having to click 1 more time every year, starting in 2026, 21 times
