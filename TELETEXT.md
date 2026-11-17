@@ -5,8 +5,8 @@ Maybe you'll find your name here next time!?
 
 
 # LogAnnouncements
-### PSA 1
-❇️ Supervanilla RTX, a true-to-vanilla 2.0 upgrade to Minecraft RTX is now available from the Shader mod manager menu (requires app version 4.2.0.0).
+### PSA 1 [minver:"4.2.0.0"] 
+❇️ Supervanilla RTX, a true-to-vanilla 2.0 upgrade to Minecraft RTX is now available from the Shader mod manager menu.
 
 
 # PackUpdateInfo
@@ -23,16 +23,9 @@ All Vanilla RTX Add-Ons and Extensions have been refreshed for the release of Su
 It is time to update (if you haven't already!) Simply hover their images, and click their names to be taken to their respective CurseForge download pages.
 *You can also download all additional packs related to Vanilla RTX as a single bundle from [github.com/vanilla-rtx/Vanilla-RTX-Extras](https://github.com/vanilla-rtx/Vanilla-RTX-Extras).*
 
-
-# BetterRTXInfo
-## [glyph:"E95B"] [cd:"9999999"] Temp text
-Update to Vanilla RTX App 4.2+ before installing a preset.
-This version of the app will stop receiving BetterRTX-related announcements soon.
-
-
 # ShaderModsInfo
 ## [glyph:"E7BA"] [cd:"9999999"] Guide Text
-Resource packs other than `Vanilla RTX` and `Vanilla RTX Normals` (plus their Extras) are not guaranteed to work correctly with Supervanilla RTX.
+Resource packs other than `Vanilla RTX` and `Vanilla RTX Normals` (and their Add-Ons/Extras) are not guaranteed to work correctly with Supervanilla RTX (third-party packs must adhere to [creator docs](https://vanillartx.net/supervanilla-rtx-docs)).
 
 # LutManagerInfo 
 Look up tables provide a simple way to improve or further customize Minecraft RTX, which works across all game versions reliably and without a performance hit as oppposed to heavier modifications such as BetterRTX. Select from the list of available presets and hit install. You can always revert back to defaults by installing the default preset.
