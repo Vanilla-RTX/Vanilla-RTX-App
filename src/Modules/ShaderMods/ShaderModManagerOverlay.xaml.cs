@@ -322,7 +322,7 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
                     "- Supervanilla RTX, from the maker of Vanilla RTX (vanillartx.net).\n" +
                     "- BetterRTX, provided by https://bedrock.graphics/api\n\n" +
                     "Either can break with Minecraft updates. Vanilla RTX App takes extensive measures to mitigate that: it backs up your game's default shader files so you can always put them back, " +
-                    "and before installing a preset it checks it against your game & repackaging shaders made for an older version so it is likelier to continues to work with future Minecraft updates.\n\n" +
+                    "and before installing a preset it checks it against your game & repackaging shaders made for an older version so it is likelier to continue to work with future Minecraft updates.\n\n" +
                     "That process needs two more downloads the first time it's used, about 30 MB together, kept in the app's own data folder managed entirely by the app:\n" +
                     "- A private copy of Python, from python.org. A Python you may already have installed is not used or changed.\n" +
                     "- Lazurite, an open-source tool for Minecraft's shader files (github.com/veka0/lazurite), from PyPI.",
