@@ -2463,8 +2463,6 @@ https://github.com/aufkrawall/dlssdl
 is there a way to further streamline DLSS Swapper?!
 
 
-- Need better art to convey surface 3d effect intensity
-
 - Expand on the behavior of Lamp:
 Allow it to remain off, and perform its flashing patterns in reverse instead
 for instance, have Preview-enabled pages perform the flashes in reverse until closed!
