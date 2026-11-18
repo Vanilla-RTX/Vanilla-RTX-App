@@ -1055,12 +1055,13 @@ public static class NormalMapGenerator
     /// flat comes back as a handful of maxed-out edges over dead flat, which is not what
     /// "nearly flat" means.
     ///
-    /// 1.0 is the slope the default intensity produces (MaxSlope 4.0 x 0.25), i.e. a
-    /// 45-degree strongest edge. So this is a no-op at and above the default - every texture
-    /// generated at the default intensity is bit-for-bit what it was - and it only softens
-    /// the shaping for blocks deliberately configured weaker than that.
+    /// It is the slope the default intensity produces, and derived from it so the two cannot
+    /// drift: this is a no-op at and above the default and only softens the shaping for
+    /// blocks deliberately configured weaker than that. Because the backoff reads only the
+    /// ratio of slope to this value, scaling <see cref="MaxSlope"/> changes how steep every
+    /// map is and nothing about the shape of any texture's curve, at any intensity.
     /// </summary>
-    private const double FullShapingSlope = 1.0;
+    private const double FullShapingSlope = MaxSlope * MaterialDefaults.NormalIntensity;
 
     // TODO(tuning): what counts as this texture's "full strength" edge - a percentile
     // taken over its non-flat gradients only. Restricting the population that way matters:
@@ -1073,8 +1074,10 @@ public static class NormalMapGenerator
     private const double MinGradientReference = 0.02;
 
     // TODO(tuning): slope the shaped gradient reaches at normal.intensity = 1.0. At the
-    // 0.25 default that works out to a 45-degree tilt on a texture's strongest edges.
-    private const double MaxSlope = 4.0;
+    // 0.25 default that is 0.9, a 42-degree tilt on a texture's strongest edges. It is the
+    // one uniform strength knob: FullShapingSlope follows it, so changing it never changes a
+    // texture's character, only how far every map leans.
+    private const double MaxSlope = 3.6;
 
     // TODO(tuning): calibration ceiling for GetNoiseIndex - what average per-pixel
     // brightness delta counts as "maximally noisy" (index 100).
