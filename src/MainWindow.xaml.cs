@@ -1130,10 +1130,10 @@ public sealed partial class MainWindow : Window
     /// Paints the get-latest-packs glyph from those two facts. UI thread only.
     ///
     /// Syncfolder is a promise that opening the updater installs straight off the disk, and that
-    /// needs both halves to agree: a zipball is cached, and nothing is behind the remote. Updates
-    /// waiting means that zipball is about to be dropped as stale the moment the updater opens
-    /// (<see cref="PackUpdater.InvalidateCacheIfStaleAsync"/>), and knowing an update exists at
-    /// all means the remote was reachable - so the download the cloud implies is one that can
+    /// needs both halves to agree: every installed pack's current build is cached
+    /// (<see cref="PackUpdater.HasDeployableCache"/>), and nothing is behind the remote. Updates
+    /// waiting means the cached builds are about to be superseded, and knowing an update exists
+    /// at all means the remote was reachable - so the download the cloud implies is one that can
     /// actually happen. The cloud is equally right with no cache at all, and before anyone has
     /// asked, which is the state the XAML already starts in.
     /// </summary>
@@ -1143,14 +1143,14 @@ public sealed partial class MainWindow : Window
                             && !available;
 
         UpdateVanillaRTXGlyph.Glyph = (_hasDeployableCache && knownUpToDate)
-            ? "\uE8F7"  // Syncfolder - installing is a copy out of the cached zipball
+            ? "\uE8F7"  // Syncfolder - installing is a copy out of the package cache
             : "\uEBD3"; // Cloud - installing has to download first
     }
 
     /// <summary>
     /// Follows <see cref="PackUpdater.DeployableCacheChanged"/>, which is how a cache change made
-    /// while this window is idle - an install finishing inside the updater, a stale zipball being
-    /// dropped - reaches the glyph. Raised on whichever thread made the change, so it marshals.
+    /// while this window is idle - an install finishing inside the updater, a fresh index pruning
+    /// the cache - reaches the glyph. Raised on whichever thread made the change, so it marshals.
     /// </summary>
     private void OnDeployableCacheChanged(bool hasDeployableCache)
     {
@@ -1232,7 +1232,7 @@ public sealed partial class MainWindow : Window
         // Read off the UI thread while we're still on it, before the first await.
         var menuName = UpdateVanillaRTXButtonText.Text;
 
-        // Probing opens the cached zipball, so keep it off the UI thread. The return value is
+        // Probing reads the cached index and the package cache, so keep it off the UI thread. The return value is
         // what's used rather than the event, which by design only fires when the answer changed -
         // this is also the only regularly scheduled moment that catches a cache changed behind
         // PackUpdater's back, by a temp sweep or by hand.
@@ -1255,7 +1255,7 @@ public sealed partial class MainWindow : Window
         if (IsTargetingPreview != targetingPreview) return;
 
         // None covers both "everything is current" and "the remote could not be reached", and the
-        // glyph wants the same answer for each: nothing is going to invalidate the cached zipball,
+        // glyph wants the same answer for each: nothing is going to supersede the cached builds,
         // so an install comes off the disk.
         _vanillaRTXUpdatesAvailable[targetingPreview] = notice == PackUpdateNotice.UpdatesAvailable;
         ApplyVanillaRTXGlyph();
