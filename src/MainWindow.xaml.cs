@@ -2376,13 +2376,6 @@ public sealed partial class MainWindow : Window
 
 /* ### BACKLOG/TODO OF HIGHCORTISOLSOFTWARE LLC (STRICTLY CONFIDENTIAL)
 
-- The refresh button in shader mod manager refreshes only that edition's supervanilla rtx
-which is good
-but the 60 second cooldown is annoying when switching back to release. you gotta wait again
-i guess the behavior is correct and you aren't really supposed to do anything
-because for BetterRTX, it IS shared, and we wouldn't want to spam them twice in a short time distance by letting user
-juggle around between release and preview. so, logically, its correct, but it was a behavior worth noting down.
-
 - Make updates mandetory to get people to update faster.
 The app updates for this are usually critical stuff, so it is something we should really do.
 > here: https://learn.microsoft.com/en-us/windows/uwp/packaging/self-install-package-updates#mandatory-package-updates
@@ -2424,17 +2417,6 @@ can become a helpful visual cue user can get used to if the user happens to be o
 its just an edit of Gamescom iirc that looked a lot like BetterRTX 1.4.4 default
 weaker sun/skylight was a part of it that made the sun texture look a lot more similar
 diminished highlights around the sun sprite, etc...
-
-- Future plans for PackUpdate menu:
-Find a way to scale.
-Allow for More packs to appear after extensions/addons section, but in the same style, and derived from a listing somewhere.
-The idea is, allow more creators to have their packs listed there, but only review and allow genuine content that have
-at least a good bit of effort put into them and are actively maintained. A markdown renderer is probably the way to go.
-
-A system for automatically updating ANY pack doesn't seem feasible, there is no repository to take this from
-Look into CurseForge api?! will it give you the packs? look into that ticket you sent their support long ago
-they said their API allows but, was it loose or did it need auth? Something like LeviLauncher is already doing this fantastically
-so, you may not need to as broadly, but it would be good to unify everything, either under github, or CF.
 
 - restructure main window to be less sloppy and more correct whilst looking the same by the end.
 the layout works perfectly but is wrong in many spots, with many dumb margins
@@ -2485,9 +2467,6 @@ All of alchitex, tuner, and more, all variables that don't change during runtime
 Especially focus on the useful ones
 More urls
 more magic numbers
-
-- Should settings overlay save on EVERY hide or... instead of saving everything, save only changed values?!
-the latter introduces more risk if not done correctly, but is it worth it? assess.
 
 - i18n, once all english texts are definitely settled and you're not making any more changes, right?! This isn't really something you can commit to.
  */

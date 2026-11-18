@@ -2021,19 +2021,8 @@ public sealed partial class Alchitex : ModuleOverlay
 
 /* ### BACKLOG/TODO OF ALCHITEX (HIGHLY CONFIDENTIAL)
 
-- CRITICAL ISSUE:
-Manifests upgraded from legacy and V1 versions DO NOT HAVE min_engine_version field, and the app isn't adding them either
-the result:
-manifest isn't invalid, but MINECRAFT WON'T PARSE THE PACK IF IT IS V2 AND WITHOUT THAT FIELD! It must be there, and must default to 1.21.30 (or whatever was
-the latest format version for texture sets) I THINK legacy pack_manifest to modern manfiest DO have the field in fact
-Only modern but v1 manifest -> v2 manifest is lacking this.
-
 - Normal maps are generally too strong by default and while users can tune it with a 50% intensity adjustment
 it is better for you to decrease the intensity by 25%-ish across the board, or 1/3
-
-- Don't test un-obvious code paths constantly, stop wasting them, instead, keep a watchful eye for things that you suspect MIGHT have issues
-e.g. the next time you change managed assets, see if it actually applies, raise the alarm if it doesn't, there is no reason't it wouldn't apply.
-But it can save a lot of time if testing of these inaccessible code paths happened naturally instead of setting low cooldowns, rebuilding, and testing explicitly.
 
 - Reactor button animation transitions are sometimes not smooth
 i.e. flower to scan stance is instant, switching between stances sometimes appear instant/not animated.
@@ -2049,38 +2038,6 @@ And maybe exposing the dev tools as creator tools, having More in store for crea
 The old idea of RTX Creator could materialize, with 3D live view
 As for Vibrant Visuals, various presets of configurations could exist to dump besides any pack, but it'll be a lot more work. A lot.
 And alternative pipeline has to be reintroduced for VV, which would be doable, these are the big long term plans.
-For now the app sticks to RTX as its main obligation, do the stuff below first...
-
-- The alchitex pipeline, critically, needs two more pieces:
-One generalized fallback, i.e. instead of one "default" for anything not recognized, we put a new layer of fallback in front of it
-which would be akin to the old pipeline with some generalized names
-
-But more importantly, instead of relying textures names, we should also rely on BLOCK names as defined in blocks.json/terrain_texture.json
-they reference more textures, sometimes in recognizable paths, and sometimes with completely unique names
-We could still pick on them and use the correct materials.
-
-Do it only once you have the means of implementing it cleanly alongside the existing pipeline.
-
-
-- Be smart with the values chosen for recursion
-An idea was, wheer confidence is high, higher mins are permissable, where confidence is lower, lower mins reduce error rate.
-Or also think into the "sway" idea you had earlier
-Cave vine berries, there is usually brown thrown in there, and you got oranges too.
-Both have EQUALLY TERRIBLE red dominance, BUT it should be favoring the ones with higher value, and I think it does, the current recursion does that...
-some tests will make it clearer.
-Dominance of a color in its own domain matters more than the height of the value.
-
-- A feature for inversing the rules of the recusion MIGHT come handy
-
-- Double-channel target? would be nice to target more specific colors, but it will inevitably expand the mouth of the recurser and increasing rate of mistakes.
-
-Note: MER recursion isn't too aggressive at suppressing other values in fact, it is perfect as it is, mayeb more aggressive would be better at reducing mistakes,
-making it more usable in wider scenarios at the cost of looking worse where confidence is high.
-
-- The normal map generator is a magnificent piece of work, but, it depends on the heightmap generation downstream,
-which could be improved.
-
-- Could have added something to objectively derive baseline normal and heightmap intensities from Vanilla RTX/Normals, get the median of the whole thing, calculate deviation from that median.
-Then uniformly adjust all, until a baseline is reached, though with manual alterations and tweaks this may no longer be necessary and make actually become counterproductive.
+For now the app sticks to RTX as its main obligation.
 
 */

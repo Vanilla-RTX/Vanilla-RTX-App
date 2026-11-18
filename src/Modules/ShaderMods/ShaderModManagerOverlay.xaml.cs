@@ -93,6 +93,10 @@ public sealed partial class ShaderModManagerOverlay : ModuleOverlay, Core.FileAc
     private readonly CancellationTokenSource _closingCts = new();
     private readonly object _downloadStatusLock = new object();
 
+    // One cooldown for both editions, though the button's Supervanilla RTX half only rebuilds
+    // the targeted edition. Its BetterRTX half rebuilds bedrock.graphics' shared pool, so a
+    // per-edition cooldown would let flipping the Preview toggle back and forth ask that API
+    // twice inside a minute. Waiting again after switching editions is the intended cost.
     private const string REFRESH_COOLDOWN_KEY = "ShaderModManager_RefreshCooldown_LastClickTimestamp";
     private const int REFRESH_COOLDOWN_SECONDS = 60;
     private DispatcherTimer? _cooldownTimer;

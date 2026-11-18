@@ -1194,8 +1194,9 @@ public sealed partial class PackBrowserOverlay : ModuleOverlay, Core.FileActivat
     //  Alchitex suitability scanner
     // ════════════════════════════════════════════════════════════════════════
 
-    // TODO: The definition of what makes a texture pack truly and concretely suitable for Alchitex can evolve over time
-    // You'll figure it out when you get there, for now, 20 textures in all block dirs gives good confidence, combined with the not-being-legacy checks
+    // A cheap heuristic, not a proof: MinimumQualifyingImageCount images under any
+    // textures/blocks folder is enough evidence that a pack retextures blocks, which is all
+    // RTX Reactor needs to be worth offering. The scan stops at the first count that qualifies.
     private static class AlchitexSuitabilityScanner
     {
         private const int MinimumQualifyingImageCount = 32;
