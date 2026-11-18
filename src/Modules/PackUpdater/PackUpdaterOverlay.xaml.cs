@@ -142,7 +142,7 @@ public sealed partial class PackUpdaterOverlay : ModuleOverlay
             VanillaRTXNormals_AvailableVersion.Visibility = Visibility.Collapsed;
             VanillaRTXOpus_AvailableLoading.Visibility = Visibility.Visible;
             VanillaRTXOpus_AvailableVersion.Visibility = Visibility.Collapsed;
-            ExtrasLoading.Visibility = Visibility.Visible;
+            ShowExtrasLoading(true);
 
             await RefreshInstalledVersions();
             if (_isClosing) return;

@@ -79,13 +79,14 @@ public sealed partial class PackUpdaterOverlay
 
     private void BuildExtrasRows()
     {
-        ExtrasLoading.Visibility = Visibility.Collapsed;
+        ShowExtrasLoading(false);
         ExtrasList.Children.Clear();
         _extraButtons.Clear();
 
         if (_extrasIndex is null)
         {
             ExtrasBuildText.Text = "Couldn't reach the Vanilla RTX Extras repository. Use the refresh button to try again.";
+            ExtrasColumnHeadings.Visibility = Visibility.Collapsed;
             UpdateGetAllButton();
             return;
         }
@@ -113,8 +114,8 @@ public sealed partial class PackUpdaterOverlay
 
         var row = new Grid { ColumnSpacing = 16, Padding = new Thickness(0, 10, 0, 10) };
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(190) });
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(210) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
 
         var text = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
         text.Children.Add(new TextBlock
@@ -155,7 +156,7 @@ public sealed partial class PackUpdaterOverlay
             Content = installed is null ? "Install" : outdated ? "Update" : "Reinstall",
             Style = (Style)Application.Current.Resources[installed is null || outdated ? "AccentButtonStyle" : "DefaultButtonStyle"],
             FontWeight = FontWeights.SemiBold,
-            MinWidth = 110,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
             MinHeight = 36,
             VerticalAlignment = VerticalAlignment.Center,
             IsTextScaleFactorEnabled = false,
@@ -167,6 +168,14 @@ public sealed partial class PackUpdaterOverlay
 
         _extraButtons[pack.Id] = button;
         return row;
+    }
+
+    /// <summary>The loading state replaces the headings and rows, so the card never shows an empty table.</summary>
+    private void ShowExtrasLoading(bool loading)
+    {
+        ExtrasLoadingPanel.Visibility = loading ? Visibility.Visible : Visibility.Collapsed;
+        ExtrasColumnHeadings.Visibility = loading ? Visibility.Collapsed : Visibility.Visible;
+        ExtrasList.Visibility = loading ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private static StackPanel VersionLine(string label, string value)

@@ -496,8 +496,8 @@
                                 Margin="0,0,0,0" />
 
                     <!-- Vanilla RTX Extras: every pack the Extras repository's latest release lists,
-                         one row each, built in code by BuildExtrasRows. The cover sits on the left
-                         the way the card it replaced had its art. -->
+                         one row each, built in code by BuildExtrasRows. The column headings and the
+                         rows share the same three column widths so they line up. -->
                     <Border x:Name="ExtrasPanel"
                             CornerRadius="8"
                             Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
@@ -505,76 +505,109 @@
                         <Border.Shadow>
                             <ThemeShadow />
                         </Border.Shadow>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="1*" />
-                                <ColumnDefinition Width="2.1*" />
-                            </Grid.ColumnDefinitions>
-
-                            <Border Grid.Column="0"
-                                    CornerRadius="8,0,0,8">
-                                <Image Source="ms-appx:///Assets/covers/addons.cover.png"
-                                       Stretch="UniformToFill"
-                                       IsHitTestVisible="False"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center"
-                                       CacheMode="BitmapCache" />
-                            </Border>
-
-                            <StackPanel Grid.Column="1"
-                                        Padding="16"
-                                        Spacing="10">
-                                <Grid ColumnSpacing="12">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Spacing="2"
-                                                VerticalAlignment="Center">
-                                        <TextBlock Text="Vanilla RTX Extras"
-                                                   FontSize="18"
-                                                   FontWeight="SemiBold"
-                                                   IsTextScaleFactorEnabled="False" />
-                                        <TextBlock x:Name="ExtrasBuildText"
-                                                   Text="Checking for the latest build..."
-                                                   FontSize="13"
-                                                   Opacity="0.75"
-                                                   TextWrapping="Wrap"
-                                                   IsTextScaleFactorEnabled="False" />
-                                    </StackPanel>
-                                    <Grid Grid.Column="1"
-                                          MinWidth="120"
-                                          MinHeight="40"
-                                          CornerRadius="6"
-                                          VerticalAlignment="Center"
-                                          Translation="0,0,12">
-                                        <Button x:Name="ExtrasGetAllButton"
-                                                Content="Get all"
-                                                FontWeight="SemiBold"
-                                                Style="{ThemeResource AccentButtonStyle}"
-                                                HorizontalAlignment="Stretch"
-                                                VerticalAlignment="Stretch"
-                                                IsEnabled="False"
-                                                Click="ExtrasGetAllButton_Click"
-                                                IsTextScaleFactorEnabled="False"
-                                                ToolTipService.ToolTip="Installs every extra you don't have yet and updates every one that is out of date, one after another." />
-                                        <Grid.Shadow>
-                                            <ThemeShadow />
-                                        </Grid.Shadow>
-                                    </Grid>
+                        <StackPanel Padding="20,16,20,12"
+                                    Spacing="10">
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Spacing="2"
+                                            VerticalAlignment="Center">
+                                    <TextBlock Text="Vanilla RTX Extras"
+                                               FontSize="20"
+                                               FontWeight="SemiBold"
+                                               IsTextScaleFactorEnabled="False" />
+                                    <TextBlock x:Name="ExtrasBuildText"
+                                               Text="Add-ons and extensions for Vanilla RTX."
+                                               FontSize="13"
+                                               Opacity="0.75"
+                                               TextWrapping="Wrap"
+                                               IsTextScaleFactorEnabled="False" />
+                                </StackPanel>
+                                <Grid Grid.Column="1"
+                                      MinWidth="120"
+                                      MinHeight="40"
+                                      CornerRadius="6"
+                                      VerticalAlignment="Center"
+                                      Translation="0,0,12">
+                                    <Button x:Name="ExtrasGetAllButton"
+                                            Content="Get all"
+                                            FontWeight="SemiBold"
+                                            Style="{ThemeResource AccentButtonStyle}"
+                                            HorizontalAlignment="Stretch"
+                                            VerticalAlignment="Stretch"
+                                            IsEnabled="False"
+                                            Click="ExtrasGetAllButton_Click"
+                                            IsTextScaleFactorEnabled="False"
+                                            ToolTipService.ToolTip="Installs every extra you don't have yet and updates every one that is out of date, one after another." />
+                                    <Grid.Shadow>
+                                        <ThemeShadow />
+                                    </Grid.Shadow>
                                 </Grid>
+                            </Grid>
 
+                            <Border Height="2"
+                                    Margin="0,2,0,0"
+                                    Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+                            <!-- Shown while the index is being read, so the card isn't an empty box. -->
+                            <StackPanel x:Name="ExtrasLoadingPanel"
+                                        Spacing="10"
+                                        Padding="0,24,0,24"
+                                        HorizontalAlignment="Center">
                                 <ProgressRing x:Name="ExtrasLoading"
-                                              Width="24"
-                                              Height="24"
-                                              IsActive="True"
-                                              HorizontalAlignment="Left" />
-
-                                <StackPanel x:Name="ExtrasList"
-                                            Spacing="0" />
+                                              Width="32"
+                                              Height="32"
+                                              IsActive="True" />
+                                <TextBlock x:Name="ExtrasLoadingText"
+                                           Text="Asking the Vanilla RTX Extras repository for its latest build..."
+                                           FontSize="13"
+                                           Opacity="0.75"
+                                           TextAlignment="Center"
+                                           TextWrapping="Wrap"
+                                           IsTextScaleFactorEnabled="False" />
                             </StackPanel>
-                        </Grid>
+
+                            <Grid x:Name="ExtrasColumnHeadings"
+                                  ColumnSpacing="16"
+                                  Visibility="Collapsed">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="210" />
+                                    <ColumnDefinition Width="120" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Pack name and description"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"
+                                           Opacity="0.6"
+                                           IsTextScaleFactorEnabled="False" />
+                                <TextBlock Grid.Column="1"
+                                           Text="Status"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"
+                                           Opacity="0.6"
+                                           IsTextScaleFactorEnabled="False" />
+                                <TextBlock Grid.Column="2"
+                                           Text="Action"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"
+                                           Opacity="0.6"
+                                           HorizontalAlignment="Center"
+                                           IsTextScaleFactorEnabled="False" />
+                            </Grid>
+
+                            <StackPanel x:Name="ExtrasList"
+                                        Spacing="0" />
+                        </StackPanel>
                     </Border>
+
+                    <!-- ═══════════════════════════════════════════════
+                         Online announcements (PackUpdateExtraInfo)
+                          ═══════════════════════════════════════════════ -->
+                    <StackPanel x:Name="PackUpdateExtraInfoPanel"
+                                Spacing="12"
+                                Margin="0,0,0,0" />
 
                     <!-- Secondary Packs Section -->
                     <Grid MaxHeight="325">
@@ -784,13 +817,6 @@
                             </Grid>
                         </Border>
                     </Grid>
-
-                    <!-- ═══════════════════════════════════════════════
-                         Online announcements (PackUpdateExtraInfo)
-                          ═══════════════════════════════════════════════ -->
-                    <StackPanel x:Name="PackUpdateExtraInfoPanel"
-                                Spacing="12"
-                                Margin="0,0,0,4" />
 
                 </StackPanel>
             </ScrollViewer>
