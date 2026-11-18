@@ -488,110 +488,93 @@
                         </Border>
                     </Grid>
 
-                    <!-- SPECIAL CHRISTMAS PANEL -->
-                    <Border x:Name="SpecialOccasionPanel"
-                            CornerRadius="8"
-                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                            Translation="0,0,32"
-                            MaxHeight="325"
-                            Visibility="Collapsed">
-                        <Border.Shadow>
-                            <ThemeShadow />
-                        </Border.Shadow>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <!-- Description section: 1 panel width -->
-                                <ColumnDefinition Width="1*" />
-                                <ColumnDefinition Width="12" />
-                                <!-- Image section: 2 panels + 1 gap width -->
-                                <ColumnDefinition Width="2.1*" />
-                            </Grid.ColumnDefinitions>
-
-                            <!-- Description Section -->
-                            <StackPanel Grid.Column="0"
-                                        Padding="16"
-                                        Spacing="10"
-                                        VerticalAlignment="Center">
-                                <TextBlock Text="Merry Christmas!"
-                                           FontSize="20"
-                                           FontWeight="SemiBold"
-                                           HorizontalAlignment="Center"
-                                           IsTextScaleFactorEnabled="False" />
-                                <TextBlock Text="Get in the holiday spirit and jolly up Vanilla RTX with this special seasonal extension! Transform the world into a winter wonderland with frost-covered blocks, a freezing-cold Nether plus lots of other festive changes! Ho, ho, ho!
-                                           — Cubeir Claus"
-                                           FontSize="13"
-                                           Opacity="0.9"
-                                           TextWrapping="Wrap"
-                                           IsTextScaleFactorEnabled="False" />
-                                <!-- Download Button -->
-                                <HyperlinkButton Content="Get the Extension"
-                                                 FontSize="18"
-                                                 FontWeight="SemiBold"
-                                                 HorizontalAlignment="Center"
-                                                 Margin="0,8,0,0"
-                                                 NavigateUri="http://mcpedl.com/vanilla-rtx-everwinter"
-                                                 IsTextScaleFactorEnabled="False" />
-                            </StackPanel>
-
-                            <!-- Image Section with Overlay -->
-                            <Grid Grid.Column="2">
-                                <Border CornerRadius="0,8,8,0">
-                                    <Image Source="ms-appx:///Assets/covers/everwinter.cover.png"
-                                           Stretch="UniformToFill"
-                                           IsHitTestVisible="False"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center"
-                                           CacheMode="BitmapCache" />
-                                </Border>
-                                <!-- Overlay -->
-                                <Border x:Name="SpecialOccasionOverlay"
-                                        CornerRadius="0"
-                                        VerticalAlignment="Center"
-                                        Opacity="0">
-                                    <Border.Background>
-                                        <AcrylicBrush TintColor="{ThemeResource OverlayBackgroundColor}"
-                                                      TintOpacity="0.0"
-                                                      TintLuminosityOpacity="0.64"
-                                                      FallbackColor="{ThemeResource AcrylicFallbackColor}" />
-                                    </Border.Background>
-                                    <!-- The whole overlay is the link -->
-                                    <HyperlinkButton NavigateUri="http://mcpedl.com/vanilla-rtx-everwinter"
-                                                     HorizontalAlignment="Stretch"
-                                                     VerticalAlignment="Stretch"
-                                                     HorizontalContentAlignment="Stretch"
-                                                     VerticalContentAlignment="Center"
-                                                     Padding="16,10,16,12"
-                                                     CornerRadius="0"
-                                                     BorderThickness="0"
-                                                     ToolTipService.ToolTip="http://mcpedl.com/vanilla-rtx-everwinter"
-                                                     IsTextScaleFactorEnabled="False">
-                                        <StackPanel Spacing="4">
-                                            <!-- Pack Name -->
-                                            <TextBlock Text="Vanilla RTX: Everwinter Extension"
-                                                       FontSize="20"
-                                                       Foreground="{ThemeResource OverlayTextBrush}"
-                                                       FontWeight="SemiBold"
-                                                       TextWrapping="Wrap"
-                                                       IsTextScaleFactorEnabled="False" />
-                                            <TextBlock Text="An extension of the Vanilla RTX resource pack, everything is covered in frost! Featuring unyielding cold!"
-                                                       FontSize="14"
-                                                       Foreground="{ThemeResource OverlayTextBrush}"
-                                                       Opacity="0.9"
-                                                       TextWrapping="Wrap"
-                                                       IsTextScaleFactorEnabled="False" />
-                                        </StackPanel>
-                                    </HyperlinkButton>
-                                </Border>
-                            </Grid>
-                        </Grid>
-                    </Border>
-
                     <!-- ═══════════════════════════════════════════════
                          Online announcements (PackUpdateInfo)
                           ═══════════════════════════════════════════════ -->
                     <StackPanel x:Name="PackUpdateInfoPanel"
                                 Spacing="12"
                                 Margin="0,0,0,0" />
+
+                    <!-- Vanilla RTX Extras: every pack the Extras repository's latest release lists,
+                         one row each, built in code by BuildExtrasRows. The cover sits on the left
+                         the way the card it replaced had its art. -->
+                    <Border x:Name="ExtrasPanel"
+                            CornerRadius="8"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            Translation="0,0,32">
+                        <Border.Shadow>
+                            <ThemeShadow />
+                        </Border.Shadow>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1*" />
+                                <ColumnDefinition Width="2.1*" />
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Column="0"
+                                    CornerRadius="8,0,0,8">
+                                <Image Source="ms-appx:///Assets/covers/addons.cover.png"
+                                       Stretch="UniformToFill"
+                                       IsHitTestVisible="False"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       CacheMode="BitmapCache" />
+                            </Border>
+
+                            <StackPanel Grid.Column="1"
+                                        Padding="16"
+                                        Spacing="10">
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="2"
+                                                VerticalAlignment="Center">
+                                        <TextBlock Text="Vanilla RTX Extras"
+                                                   FontSize="18"
+                                                   FontWeight="SemiBold"
+                                                   IsTextScaleFactorEnabled="False" />
+                                        <TextBlock x:Name="ExtrasBuildText"
+                                                   Text="Checking for the latest build..."
+                                                   FontSize="13"
+                                                   Opacity="0.75"
+                                                   TextWrapping="Wrap"
+                                                   IsTextScaleFactorEnabled="False" />
+                                    </StackPanel>
+                                    <Grid Grid.Column="1"
+                                          MinWidth="120"
+                                          MinHeight="40"
+                                          CornerRadius="6"
+                                          VerticalAlignment="Center"
+                                          Translation="0,0,12">
+                                        <Button x:Name="ExtrasGetAllButton"
+                                                Content="Get all"
+                                                FontWeight="SemiBold"
+                                                Style="{ThemeResource AccentButtonStyle}"
+                                                HorizontalAlignment="Stretch"
+                                                VerticalAlignment="Stretch"
+                                                IsEnabled="False"
+                                                Click="ExtrasGetAllButton_Click"
+                                                IsTextScaleFactorEnabled="False"
+                                                ToolTipService.ToolTip="Installs every extra you don't have yet and updates every one that is out of date, one after another." />
+                                        <Grid.Shadow>
+                                            <ThemeShadow />
+                                        </Grid.Shadow>
+                                    </Grid>
+                                </Grid>
+
+                                <ProgressRing x:Name="ExtrasLoading"
+                                              Width="24"
+                                              Height="24"
+                                              IsActive="True"
+                                              HorizontalAlignment="Left" />
+
+                                <StackPanel x:Name="ExtrasList"
+                                            Spacing="0" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
 
                     <!-- Secondary Packs Section -->
                     <Grid MaxHeight="325">
@@ -863,7 +846,7 @@
                         BorderBrush="Transparent"
                         Click="RefreshButton_Click"
                         IsTextScaleFactorEnabled="False"
-                        ToolTipService.ToolTip="Checks again: rescans the packs you have installed and asks the Vanilla RTX repository what the latest versions are.
+                        ToolTipService.ToolTip="Checks again: rescans the packs you have installed and asks the Vanilla RTX and Vanilla RTX Extras repositories what the latest versions are.
                         &#x0a;&#x0a;The app already does this on its own, so use it when a release has just dropped and you would rather not wait. While it shows a countdown, the versions on screen were just fetched.">
                     <Grid>
                         <FontIcon x:Name="RefreshIcon"

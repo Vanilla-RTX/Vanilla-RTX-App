@@ -2456,10 +2456,6 @@ public sealed partial class MainWindow : Window
 So, dig more... the goal is to open up path to fix cpu side issues like flickering, unlock more capabilities,
 and get something like DLSS RR working
 
-- Give a way to get all addons and extensions at once, in bulk, in one click
-Pull all from vanilla-rtx-extras
-Could use the existing pack updater backend for this, and update each pack individually, have them listed in pack update menu
-
 - Figure a way to expose an option to auto-activate a Vanilla RTX pack on-launch.
 Maybe this:
 ticking its checkbox before launching the game also edits the thing that holds which packs are active.

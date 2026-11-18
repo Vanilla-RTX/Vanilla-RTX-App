@@ -119,6 +119,8 @@ For each pack you'll see the version **Installed** and the version **Available**
 
 The **Enhancements** toggle (on by default) adds the pack's enhancements - fixes for many rendering errors and incompatibilities with ray tracing, and improvements to things like particles. They're classified as mildly non-vanilla changes, which is why you can turn them off - for instance if they clash with another pack you use.
 
+Below them, **Vanilla RTX Extras** lists every add-on and extension from the [Vanilla RTX Extras repository](https://github.com/Vanilla-RTX/Vanilla-RTX-Extras) - Glowing Ores, Clear Water, Clear Glass, Perfect Mirrors, Chemistry RTX, Creative RTX, Everwinter and the rest - each with its own **Installed** and **Available** version and the same Install / Update / Reinstall button. **Get all** installs everything you don't have and updates everything that's out of date in one go, and shows how much that will download. Extras are add-ons: activate them **above** one of the three main packs in-game.
+
 The **refresh** button in the title bar checks everything again: it rescans the packs you have installed against the latest available versions. Use it when a release has just dropped and you'd rather not wait for the app to notice on its own. It can be used once a minute, and shows a countdown for that minute after the versions have just been fetched - so a live button is a subtle nod that the numbers on screen came from the app's cache.
 
 > Other things worth mentioning:
@@ -126,7 +128,8 @@ The **refresh** button in the title bar checks everything again: it rescans the 
 > - The `available` versions are remembered for a while rather than asked for every time. Opening this page uses anything fetched in the last few minutes, and the main menu's own notices can check hourly. Installing always asks the repository directly first, whatever those say, so an install never deploys a version that has just been superseded moments ago and didn't show up in the UI.
 > - Downloads stay cached, so a reinstall is instant until a newer version comes out. The **Get latest RTX packs** button's icon in the main menu tells you which to expect: a sync icon when a click can install straight from the cache, and a cloud when it will download.
 > - The log tells you once per session when an update is waiting.
-> - Packs at the bottom are optional **add-ons and extensions** (Chemistry RTX, Creative RTX, Vanilla RTX Add-Ons, Everwinter). They're downloaded manually from their pages, need to be activated above one of the three main packs in-game, and aren't updated by the app, since they rarely change or receive updates due to their forward-compatible nature.
+> - Each extra downloads on its own, so installing Clear Water doesn't fetch Creative RTX's 70 MB. Extras come with their enhancements already included, which is why they have no toggle.
+> - The cards at the bottom link to each family of extras' download pages, where you can read more about them.
 > - An install keeps running if you close this page, and the page shows its progress again when you come back. This was worth mentioning because other features in the app tend to terminate if you close their page.
 
 # Select other packs

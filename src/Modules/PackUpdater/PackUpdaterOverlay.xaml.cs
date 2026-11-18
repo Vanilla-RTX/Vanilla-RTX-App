@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Animation;
@@ -57,10 +60,6 @@ public sealed partial class PackUpdaterOverlay : ModuleOverlay
         RefreshButton.IsEnabled = false;
 
         InitializeHoverEffects();
-
-        SpecialOccasionPanel.Visibility = Helpers.GetSpecialOccasionName() == "christmas"
-            ? Visibility.Visible
-            : Visibility.Collapsed;
 
         _mainWindow = mainWindow;
         _updater = mainWindow._updater ?? new PackUpdater();
@@ -143,13 +142,21 @@ public sealed partial class PackUpdaterOverlay : ModuleOverlay
             VanillaRTXNormals_AvailableVersion.Visibility = Visibility.Collapsed;
             VanillaRTXOpus_AvailableLoading.Visibility = Visibility.Visible;
             VanillaRTXOpus_AvailableVersion.Visibility = Visibility.Collapsed;
+            ExtrasLoading.Visibility = Visibility.Visible;
 
             await RefreshInstalledVersions();
             if (_isClosing) return;
 
-            // Armed only when the repository actually answered: a check that failed must not
-            // spend the user's next attempt, which is the one thing they can still do about it.
-            if (await FetchAndDisplayRemoteVersions(force: true))
+            // Both sources are asked in parallel; the cooldown is armed only when at least one
+            // actually answered - a check that failed must not spend the user's next attempt,
+            // which is the one thing they can still do about it.
+            var vanilla = FetchAndDisplayRemoteVersions(force: true);
+            var extras = LoadExtrasAsync(force: true);
+            var answered = await vanilla;
+            answered |= await extras;
+            if (_isClosing) return;
+
+            if (answered)
                 ArmRefreshCooldown();
 
             _ = Host?.BlinkingLamp(true, true, 0.5, 1.0);
@@ -241,9 +248,6 @@ public sealed partial class PackUpdaterOverlay : ModuleOverlay
         SetupPanelHoverEffect(VanillaPanel, VanillaOverlay);
         SetupPanelHoverEffect(OpusPanel, OpusOverlay);
 
-        // SpecialOccasionPanel
-        SetupPanelHoverEffect(SpecialOccasionPanel, SpecialOccasionOverlay);
-
         // Secondary Panels
         SetupPanelHoverEffect(AddOnsPanel, AddOnsOverlay);
         SetupPanelHoverEffect(ChemistryPanel, ChemistryOverlay);
@@ -315,7 +319,15 @@ public sealed partial class PackUpdaterOverlay : ModuleOverlay
         TeletextCard.Populate(PackUpdateInfoPanel, TeletextContent.PackUpdateInfo, cardFontSize: 13);
         TeletextCard.Populate(PackUpdateExtraInfoPanel, TeletextContent.PackUpdateExtraInfo, cardFontSize: 13);
         UpdateInstalledVersionDisplays();
-        await FetchAndDisplayRemoteVersions();
+
+        var vanilla = FetchAndDisplayRemoteVersions();
+        var extras = LoadExtrasAsync(force: false);
+        await vanilla;
+
+        // Opening arms the cooldown when either source answered; the Vanilla RTX half already did
+        // its own above, so only an answer from the extras alone still needs to.
+        if (await extras && !_isClosing)
+            ArmRefreshCooldown();
     }
 
     private void UpdateInstalledVersionDisplays()
@@ -582,6 +594,7 @@ public sealed partial class PackUpdaterOverlay : ModuleOverlay
         // Refresh versions and re-enable buttons
         await RefreshInstalledVersions();
         await FetchAndDisplayRemoteVersions();
+        await LoadExtrasAsync(force: false);
     }
 
     private void DisableAllInstallButtons()
@@ -594,6 +607,8 @@ public sealed partial class PackUpdaterOverlay : ModuleOverlay
 
         VanillaRTXOpus_InstallButton.IsEnabled = false;
         VanillaRTXOpus_EnhancementsToggle.IsEnabled = false;
+
+        SetExtrasButtonsEnabled(false);
     }
 
     // ======================= Button Handlers =======================

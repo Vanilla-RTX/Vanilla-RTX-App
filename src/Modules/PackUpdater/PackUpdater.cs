@@ -49,7 +49,7 @@ public enum PackUpdateNotice
     UpdatesAvailable
 }
 
-public class PackUpdater
+public partial class PackUpdater
 {
     private const string VANILLA_RTX_MANIFEST_URL = "https://raw.githubusercontent.com/vanilla-rtx/Vanilla-RTX/master/Vanilla-RTX/manifest.json";
     private const string VANILLA_RTX_NORMALS_MANIFEST_URL = "https://raw.githubusercontent.com/vanilla-rtx/Vanilla-RTX/master/Vanilla-RTX-Normals/manifest.json";
