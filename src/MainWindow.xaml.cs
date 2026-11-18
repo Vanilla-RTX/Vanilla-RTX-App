@@ -2452,15 +2452,12 @@ public sealed partial class MainWindow : Window
 
 /* ### BACKLOG/TODO OF HIGHCORTISOLSOFTWARE LLC (STRICTLY CONFIDENTIAL)
 
-- Look into heavier modding capabilities via DLL injection, though it is likely a no-go for msstore apps.
-So, dig more... the goal is to open up path to fix cpu side issues like flickering, unlock more capabilities,
-and get something like DLSS RR working
+- DLSS Swapper -> DLSS manager (researched, see CLAUDE.md 8.14):
+list DLLs straight from NVIDIA's NGX update bucket like the shader mod manager lists presets,
+then prototype preset override + Minecraft RTX render resolution through the driver profile (NVAPI DRS).
+RR/Reflex/FG need code in the game - at most offer ChungusWare as an opt-in third-party install.
 
 - need revamped store images like the 4.0 trailer thumbnail concept
-
-- Look into
-https://github.com/aufkrawall/dlssdl
-is there a way to further streamline DLSS Swapper?!
 
 
 - Expand on the behavior of Lamp:
