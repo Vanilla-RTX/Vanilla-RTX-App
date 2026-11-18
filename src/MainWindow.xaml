@@ -1594,5 +1594,48 @@
             </StackPanel>
         </ContentDialog>
 
+        <!-- Raised by CheckForRequiredUpdateAsync when the Store has an update Partner Center
+             marked mandatory. Dismissible by design; it comes back every launch until installed. -->
+        <ContentDialog x:Name="RequiredUpdateDialog"
+                       Title="An important update is available"
+                       IsTextScaleFactorEnabled="False">
+            <StackPanel Spacing="16">
+                <TextBlock TextWrapping="Wrap"
+                           Text="This update fixes something that matters, and older versions may stop working properly. Updating now is strongly recommended - it only takes a moment, and the app reopens on its own when it's done." />
+                <TextBlock TextWrapping="Wrap"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           Text="If you skip it, you'll be reminded the next time you open the app." />
+
+                <Grid ColumnSpacing="8"
+                      Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Button x:Name="RequiredUpdateLaterButton"
+                            Grid.Column="0"
+                            Content="Not now"
+                            HorizontalAlignment="Stretch"
+                            Translation="0,0,32"
+                            Click="RequiredUpdateLaterButton_Click">
+                        <Button.Shadow>
+                            <ThemeShadow />
+                        </Button.Shadow>
+                    </Button>
+                    <Button x:Name="RequiredUpdateNowButton"
+                            Grid.Column="1"
+                            Content="Update now"
+                            HorizontalAlignment="Stretch"
+                            Style="{ThemeResource AccentButtonStyle}"
+                            Translation="0,0,32"
+                            Click="RequiredUpdateNowButton_Click">
+                        <Button.Shadow>
+                            <ThemeShadow />
+                        </Button.Shadow>
+                    </Button>
+                </Grid>
+            </StackPanel>
+        </ContentDialog>
+
     </Grid>
 </Window>

@@ -508,6 +508,8 @@ public sealed partial class MainWindow : Window
             // Show Leave a Review prompt
             _ = ReviewPromptManager.InitializeAsync(MainGrid);
 
+            _ = CheckForRequiredUpdateAsync();
+
             await FadeOutSplashScreen();
 
             // ============= End
@@ -614,6 +616,80 @@ public sealed partial class MainWindow : Window
     }
 
     private void CrashReportContinueButton_Click(object sender, RoutedEventArgs e) => CrashReportDialog.Hide();
+
+    private bool _requiredUpdateAccepted;
+
+    /// <summary>
+    /// Asks the Store for an update Partner Center marked mandatory (or any update, under
+    /// <see cref="StoreServices.TreatEveryUpdateAsMandatory"/>) and offers it. Run once per launch,
+    /// fire-and-forget, after a delay so the Store query lands after the startup burst of web calls.
+    ///
+    /// <para><b>Dismissing is allowed and costs a reminder every launch</b> - nothing is stored, so
+    /// the next launch simply asks the Store again, and the answer only goes away once the update
+    /// is installed. Declining also leaves a line in the log, where it stays in view.</para>
+    ///
+    /// <para><b>Only one ContentDialog can be open at a time</b>, and a second <c>ShowAsync</c>
+    /// throws, so this waits for any other dialog (an import confirmation, the wipe dialog) to
+    /// close first, and gives up for this launch if none ever does.</para>
+    ///
+    /// <para>The in-app install is tried first because it never leaves the app; Windows closes and
+    /// reopens it to swap the package in. Settings are saved before asking, since that close is
+    /// not a window close and <c>Closed</c> may not run. Any install that doesn't complete opens
+    /// the Store page instead, which is the route that always works.</para>
+    /// </summary>
+    private async Task CheckForRequiredUpdateAsync()
+    {
+        await Task.Delay(4000);
+        if (_isClosing) return;
+
+        var updates = await StoreServices.FindRequiredUpdatesAsync();
+        if (updates.Count == 0 || _isClosing) return;
+
+        for (int waited = 0; IsContentDialogOpen(); waited++)
+        {
+            if (waited >= 120 || _isClosing) return;
+            await Task.Delay(1000);
+        }
+
+        _requiredUpdateAccepted = false;
+        try
+        {
+            RequiredUpdateDialog.XamlRoot = this.Content.XamlRoot;
+            RequiredUpdateDialog.RequestedTheme = ((FrameworkElement)this.Content).ActualTheme;
+            await RequiredUpdateDialog.ShowAsync();
+        }
+        catch (Exception ex)
+        {
+            Trace.WriteLine($"[Store] Required update dialog could not be shown: {ex.Message}");
+            return;
+        }
+
+        if (!_requiredUpdateAccepted)
+        {
+            Log("An important app update is waiting in the Microsoft Store. Installing it is strongly recommended, older versions may run into issues.", LogLevel.Warning);
+            return;
+        }
+
+        Log("Installing the app update through the Microsoft Store, the app will reopen when it's done...", LogLevel.Informational);
+        SaveSettings();
+        if (!await StoreServices.InstallUpdatesAsync(updates))
+        {
+            Log("The update didn't install from here, opening its Microsoft Store page instead.", LogLevel.Warning);
+            await StoreServices.OpenStorePageAsync();
+        }
+    }
+
+    private bool IsContentDialogOpen()
+        => this.Content?.XamlRoot is { } root
+        && VisualTreeHelper.GetOpenPopupsForXamlRoot(root).Any(p => p.Child is ContentDialog);
+
+    private void RequiredUpdateNowButton_Click(object sender, RoutedEventArgs e)
+    {
+        _requiredUpdateAccepted = true;
+        RequiredUpdateDialog.Hide();
+    }
+
+    private void RequiredUpdateLaterButton_Click(object sender, RoutedEventArgs e) => RequiredUpdateDialog.Hide();
 
 
     public static async Task OpenUrl(string url)
@@ -2376,13 +2452,6 @@ public sealed partial class MainWindow : Window
 
 /* ### BACKLOG/TODO OF HIGHCORTISOLSOFTWARE LLC (STRICTLY CONFIDENTIAL)
 
-- Make updates mandetory to get people to update faster.
-The app updates for this are usually critical stuff, so it is something we should really do.
-> here: https://learn.microsoft.com/en-us/windows/uwp/packaging/self-install-package-updates#mandatory-package-updates
-The current data says upgrade rate is roughly 99% within a month (with most in the first 1-2 weeks), but that could be made way better.
-Show an overlay that automatically sends people to update the app.
-that way you don't have to put teletexts out saying, hey, go update!
-
 - Look into heavier modding capabilities via DLL injection, though it is likely a no-go for msstore apps.
 So, dig more... the goal is to open up path to fix cpu side issues like flickering, unlock more capabilities,
 and get something like DLSS RR working
@@ -2397,9 +2466,6 @@ ticking its checkbox before launching the game also edits the thing that holds w
 this may not be a great idea, but it is doable, and mostly stems from a curiosity to understand what file in user data saves this stuff.
 
 - need revamped store images like the 4.0 trailer thumbnail concept
-
-- Need to make review prompt appear floaty in the app instead of launching the store
-Some apps are doing it how?
 
 - Look into
 https://github.com/aufkrawall/dlssdl
