@@ -82,6 +82,7 @@ public static class EnvironmentVariables
         // that list in PackActivation's uuid:subpack;uuid:subpack form - see PackActivation.
         public static bool ActivatePacksOnLaunch = Defaults.ActivatePacksOnLaunch;
         public static string PacksToActivate = Defaults.PacksToActivate;
+        public static bool ActivatePacksAboveOthers = Defaults.ActivatePacksAboveOthers;
 
         // Where the app goes for content it doesn't ship. Read these through Links, never
         // directly - that is what falls back to the built-in address when one has gone stale.
@@ -108,6 +109,9 @@ public static class EnvironmentVariables
         public const bool CloseGameBeforeLaunch = false;
 
         public const bool ActivatePacksOnLaunch = false;
+
+        // Our list goes above packs the user activated in-game unless they say otherwise.
+        public const bool ActivatePacksAboveOthers = true;
 
         /// <summary>Serialized <see cref="Modules.PackActivation.DefaultEntries"/> - the three Vanilla RTX packs, highest priority first.</summary>
         public static readonly string PacksToActivate = Modules.PackActivation.Serialize(Modules.PackActivation.DefaultEntries);

@@ -45,10 +45,12 @@ public readonly record struct ResolvedActivation(InstalledPack Pack, string? Sub
 /// Glowing Glazed Terracotta today) gets the one named after the base pack this launch activates,
 /// whatever their folder letters are. With no base pack activated it is left to the game.</para>
 ///
-/// <para><b>Everything else in the file is kept</b>, below ours and in its own order: packs the
-/// user activated in game stay active. Only entries for packs on our list, and the other base
-/// packs when one is activated, are replaced. Each entry carries the installed version, since the
-/// game matches packs by UUID and version together.</para>
+/// <para><b>Everything else in the file is kept</b>, in its own order, below ours - or above them
+/// with <see cref="EnvironmentVariables.Persistent.ActivatePacksAboveOthers"/> off: packs the user
+/// activated in game stay active. Entries for packs on our list, and the other base packs when one
+/// is activated, are always removed first and rewritten at our position, so a listed pack that was
+/// already active is moved rather than duplicated. Each entry carries the installed version, since
+/// the game matches packs by UUID and version together.</para>
 ///
 /// <para>Stored as one <c>uuid:subpack;uuid:subpack</c> string for the same reason launch options
 /// are (<see cref="MinecraftLauncher.ParseOptions"/>), with the same "none" marker for a list the
@@ -228,7 +230,7 @@ public static class PackActivation
             var written = 0;
             foreach (var folder in folders)
             {
-                if (await WriteAsync(Path.Combine(folder, FileName), resolved, managed))
+                if (await WriteAsync(Path.Combine(folder, FileName), resolved, managed, EnvironmentVariables.Persistent.ActivatePacksAboveOthers))
                     written++;
                 else
                     messages.Add($"⚠️ Couldn't update the active packs for {MinecraftUserDataLocator.GetOwningFolderLabel(isPreview, folder)}.");
@@ -250,12 +252,12 @@ public static class PackActivation
     }
 
     /// <summary>
-    /// Rewrites one file: our entries first, in order, then whatever else was there that isn't
-    /// <paramref name="managed"/>. A file the game hasn't created yet, or one that doesn't parse,
+    /// Rewrites one file: our entries in order, then whatever else was there that isn't
+    /// <paramref name="managed"/> - or the other way round when <paramref name="above"/> is false. A file the game hasn't created yet, or one that doesn't parse,
     /// starts from an empty list. Written to a temporary file and moved over the old one, so a
     /// failure part-way never leaves the game a half-written list.
     /// </summary>
-    private static async Task<bool> WriteAsync(string path, List<ResolvedActivation> resolved, HashSet<string> managed)
+    private static async Task<bool> WriteAsync(string path, List<ResolvedActivation> resolved, HashSet<string> managed, bool above)
     {
         try
         {
@@ -263,7 +265,7 @@ public static class PackActivation
                 ? MinecraftJson.ParseArray(await File.ReadAllTextAsync(path)) ?? new JsonArray()
                 : new JsonArray();
 
-            var output = new JsonArray();
+            var ours = new List<JsonNode>();
             foreach (var r in resolved)
             {
                 var entry = new JsonObject { ["pack_id"] = (JsonNode?)JsonValue.Create(r.Pack.Uuid) };
@@ -271,17 +273,21 @@ public static class PackActivation
                 var version = new JsonArray();
                 foreach (var part in r.Pack.Version) version.Add((JsonNode?)JsonValue.Create(part));
                 entry["version"] = version;
-                output.Add(entry);
+                ours.Add(entry);
             }
 
+            var theirs = new List<JsonNode>();
             foreach (var node in existing.ToList())
             {
                 if (node is null) continue;
                 var id = MinecraftJson.GetString(node["pack_id"]);
                 if (id is not null && managed.Contains(id)) continue;
                 existing.Remove(node);
-                output.Add(node);
+                theirs.Add(node);
             }
+
+            var output = new JsonArray();
+            foreach (var node in above ? ours.Concat(theirs) : theirs.Concat(ours)) output.Add(node);
 
             var temp = path + ".tmp";
             await File.WriteAllTextAsync(temp, MinecraftJson.ToIndentedString(output));
