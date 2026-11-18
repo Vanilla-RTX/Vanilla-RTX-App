@@ -2021,13 +2021,6 @@ public sealed partial class Alchitex : ModuleOverlay
 
 /* ### BACKLOG/TODO OF ALCHITEX (HIGHLY CONFIDENTIAL)
 
-- Normal maps are generally too strong by default and while users can tune it with a 50% intensity adjustment
-it is better for you to decrease the intensity by 25%-ish across the board, or 1/3
-
-- Reactor button animation transitions are sometimes not smooth
-i.e. flower to scan stance is instant, switching between stances sometimes appear instant/not animated.
-Not all transitions lead to one another smoothly, some do, especially default stance -> animation, those are animated
-mid animation transitions are not
 - New stance idea to happen during long-running generation:
 A brief, more deliberate-feeling switch-up, some colors moving around/swapping positions instead of changing randomly. Could replace the random sweeps during generation
 making sweeps exlcusive to "scanning" stance and eject/insert waves which are their own thing

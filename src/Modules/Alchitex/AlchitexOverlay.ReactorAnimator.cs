@@ -115,6 +115,10 @@ public enum ReactorWashDirection
 ///     entirely. They are all shorter than the pulse interval on purpose: a transition
 ///     still easing when the next one starts on top of it is what made the reactor look
 ///     sluggish while changing stances rapidly.
+///   * Moving *between* stances is the third thing, and the one those short durations get
+///     wrong: a new stance's first step covers a whole change of pattern at the speed meant
+///     for one step within it. EnterStance opens a short blend window on every change mid-run
+///     that stretches transitions to arrive over it instead (StanceBlendMs).
 ///
 /// A tile runs exactly one storyboard at a time, and starting a new sequence stops the one
 /// before it - see PlayTileSequence for why that is load-bearing rather than tidy, and what
@@ -241,6 +245,48 @@ public sealed class ReactorAnimator
 
     private static bool AnimationsSuspended => EnvironmentVariables.Persistent.SuspendUIAnimations;
 
+    // ── Stance blending ──────────────────────────────────────────────────────
+
+    /// <summary>What is painting the grid right now, as far as blending cares. A gradient
+    /// wave's axis and direction count as part of its identity (see EnterStance's variant),
+    /// because a wave picking a new axis is as much a change of pattern as a new phase.</summary>
+    private enum Stance { None, Rest, Busy, Wave, Erasure, Trail, Orbit, Flower, Flourish }
+
+    private Stance _stance = Stance.None;
+    private int _stanceVariant;
+    private DateTime _stanceBlendUntilUtc = DateTime.MinValue;
+
+    /// <summary>
+    /// How long a change of stance mid-run takes to arrive. Every running behaviour paints at
+    /// its own step duration - 55 to 75ms, tuned for continuous motion inside one stance - and
+    /// that same duration is what its very first step gets, coming from an unrelated pattern.
+    /// All nine tiles jumping that far that fast is what read as a cut between stances. While
+    /// this window is open every transition is stretched to at least what is left of it, so the
+    /// old pattern slides into the new one and the stretch shrinks back to the stance's own
+    /// pace as the window closes.
+    /// </summary>
+    private const double StanceBlendMs = 260;
+
+    /// <summary>
+    /// Called by every behaviour before it paints. A change opens the blend window, but only
+    /// during a run: idle stances (rest, hover, press) answer the pointer and must stay quick,
+    /// and the flourishes carry their own rise from the tile's current colour, so they record
+    /// the change without being slowed by it - see SetTileColor, the only place the window is read.
+    /// </summary>
+    private void EnterStance(Stance stance, int variant = 0)
+    {
+        if (stance == _stance && variant == _stanceVariant) return;
+
+        _stance = stance;
+        _stanceVariant = variant;
+
+        if (_isGenerating)
+            _stanceBlendUntilUtc = DateTime.UtcNow.AddMilliseconds(StanceBlendMs);
+    }
+
+    private double StanceBlendRemainingMs
+        => Math.Max(0, (_stanceBlendUntilUtc - DateTime.UtcNow).TotalMilliseconds);
+
     public ReactorAnimator(Grid tileGrid, Image? bloomLayer)
     {
         _tileGrid = tileGrid ?? throw new ArgumentNullException(nameof(tileGrid));
@@ -304,6 +350,8 @@ public sealed class ReactorAnimator
         // as mud, not a transition.
         var wasAlert = _activePalette != Palette;
         _activePalette = Palette;
+
+        EnterStance(Stance.Rest);
 
         for (var row = 0; row < GridSize; row++)
             for (var col = 0; col < GridSize; col++)
@@ -398,6 +446,7 @@ public sealed class ReactorAnimator
         {
             // The next pulse repaints the grid properly; this just gets the orbit off it in
             // the meantime, the same way EndAbortHintImmediate does.
+            EnterStance(Stance.Rest);
             for (var row = 0; row < GridSize; row++)
                 for (var col = 0; col < GridSize; col++)
                     AnimateTile(row, col, RestLayout[row, col], 110);
@@ -418,6 +467,8 @@ public sealed class ReactorAnimator
     /// </summary>
     private void PaintOrbit(double durationMs)
     {
+        EnterStance(Stance.Orbit);
+
         for (var i = 0; i < OrbitRing.Length; i++)
         {
             var (row, col) = OrbitRing[i];
@@ -773,6 +824,7 @@ public sealed class ReactorAnimator
         _isFlowerDancing = true;
         _flowerInverted = inverted;
         ReleaseGrid();
+        EnterStance(Stance.Flower);
 
         // Checkerboard start - opposite ring slots matching - so the very first frame already
         // reads as a flower instead of needing a few ticks to separate out of a solid colour.
@@ -1020,6 +1072,7 @@ public sealed class ReactorAnimator
     public void PlayQueueWash(ReactorWashDirection direction)
     {
         if (!_isInitialized) return;
+        EnterStance(Stance.Flourish);
 
         for (var row = 0; row < GridSize; row++)
         {
@@ -1126,6 +1179,7 @@ public sealed class ReactorAnimator
     public void PlayRipple(bool brighten)
     {
         if (!_isInitialized) return;
+        EnterStance(Stance.Flourish);
 
         var field = _random.NextDouble() < RippleMiddleFieldChance
             ? RippleField.Middle
@@ -1209,6 +1263,8 @@ public sealed class ReactorAnimator
             return;
         }
 
+        EnterStance(Stance.Busy);
+
         for (var row = 0; row < GridSize; row++)
             for (var col = 0; col < GridSize; col++)
                 AnimateTile(row, col, _random.Next(Palette.Length), 55);
@@ -1258,6 +1314,8 @@ public sealed class ReactorAnimator
             if (!axis.HasValue) RerollWave();
         }
 
+        EnterStance(Stance.Wave, (int)_waveAxis * 2 + (_waveForward ? 1 : 0));
+
         var offset = _waveForward ? _wavePhase : -_wavePhase;
 
         for (var row = 0; row < GridSize; row++)
@@ -1303,6 +1361,8 @@ public sealed class ReactorAnimator
     /// </summary>
     private void StepErasure()
     {
+        EnterStance(Stance.Erasure);
+
         _erasureHead = (_erasureHead + 1) % (GridSize * GridSize);
 
         var head = _erasureHead;
@@ -1333,6 +1393,8 @@ public sealed class ReactorAnimator
         const double holdMs = 100;
         const double ringDelayMs = 180;
         const double collapseMs = 220;
+
+        EnterStance(Stance.Flourish);
 
         for (var row = 0; row < GridSize; row++)
         {
@@ -1368,6 +1430,8 @@ public sealed class ReactorAnimator
         const double riseMs = 100;
         const double fallMs = 260;
 
+        EnterStance(Stance.Flourish);
+
         for (var row = 0; row < GridSize; row++)
         {
             for (var col = 0; col < GridSize; col++)
@@ -1396,6 +1460,8 @@ public sealed class ReactorAnimator
     /// </summary>
     private void StepTrail()
     {
+        EnterStance(Stance.Trail);
+
         if (_trailRow < 0)
         {
             _trailRow = _random.Next(GridSize);
@@ -1441,7 +1507,9 @@ public sealed class ReactorAnimator
             return;
         }
 
-        PlayTileSequence(row, col, (target, durationMs));
+        // A deliberate cut (duration 0, the erasure head) stays a cut; anything else eases at
+        // least over what remains of a stance change - see StanceBlendMs.
+        PlayTileSequence(row, col, (target, Math.Max(durationMs, StanceBlendRemainingMs)));
     }
 
     // Staggering is expressed as key frames on one sequence rather than as a delay on a
