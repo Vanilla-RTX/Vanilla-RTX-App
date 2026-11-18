@@ -38,11 +38,28 @@ public sealed partial class ReviewPromptControl : UserControl
         e.Handled = true;
     }
 
+    /// <summary>
+    /// The Store's own rating dialog, drawn over the app. The prompt fades out first so the
+    /// dialog isn't sitting on top of it. Cancelling the Store dialog counts as "Show later" -
+    /// the user said yes here and then changed their mind, which is not "never". Only when the
+    /// dialog can't be shown at all does this fall back to the Store's review page.
+    /// </summary>
     private async void ReviewButton_Click(object sender, RoutedEventArgs e)
     {
-        await Windows.System.Launcher.LaunchUriAsync(new Uri("ms-windows-store://review/?ProductId=9N6PCRZ5V9DJ"));
-        ReviewPromptManager.MarkAsCompleted();
         Hide();
+        switch (await StoreServices.RequestReviewAsync())
+        {
+            case StoreServices.ReviewOutcome.Submitted:
+                ReviewPromptManager.MarkAsCompleted();
+                break;
+            case StoreServices.ReviewOutcome.Canceled:
+                ReviewPromptManager.ResetTimer();
+                break;
+            default:
+                await StoreServices.OpenReviewPageAsync();
+                ReviewPromptManager.MarkAsCompleted();
+                break;
+        }
     }
 
     private async void LaterButton_Click(object sender, RoutedEventArgs e)
@@ -150,6 +167,13 @@ public static class ReviewPromptManager
 
     private static readonly string LAST_PROMPT_KEY = "ReviewPromptLastPromptTime";
     private const double HOURS_BEFORE_PROMPT = 100; // Hours after first launch before the first ask, and after each "Show later" before the next
+
+    // Launches counted since the same moment the hours are measured from, and both must be met.
+    // Hours alone can pass with the app installed and never opened again; launches alone can
+    // pile up in one afternoon. Together they mean the app has been come back to over days.
+    // Reset with the timer, so a re-ask after "Show later" needs the same evidence again.
+    private static readonly string LAUNCH_COUNT_KEY = "ReviewPromptLaunchCount";
+    private const int LAUNCHES_BEFORE_PROMPT = 4;
     private const int SHOW_DELAY_Milisecs = 0; // delay to show it after being called
 
     private static void CleanupOldVersionKeys()
@@ -221,6 +245,10 @@ public static class ReviewPromptManager
         {
             Trace.WriteLine($"First launch already recorded: {localSettings.Values[FIRST_LAUNCH_KEY]} ticks");
         }
+
+        var launches = (localSettings.Values[LAUNCH_COUNT_KEY] is int n ? n : 0) + 1;
+        localSettings.Values[LAUNCH_COUNT_KEY] = launches;
+        Trace.WriteLine($"Launches counted toward the review prompt: {launches}");
     }
 
     private static async Task<bool> ShouldShowPromptAsync()
@@ -269,7 +297,10 @@ public static class ReviewPromptManager
         Trace.WriteLine($"Hours since check time: {hoursSince:F1} (need {HOURS_BEFORE_PROMPT})");
         Trace.WriteLine($"Current UTC: {DateTime.UtcNow}");
 
-        return hoursSince >= HOURS_BEFORE_PROMPT;
+        var launches = localSettings.Values[LAUNCH_COUNT_KEY] is int n ? n : 0;
+        Trace.WriteLine($"Launches since check time: {launches} (need {LAUNCHES_BEFORE_PROMPT})");
+
+        return hoursSince >= HOURS_BEFORE_PROMPT && launches >= LAUNCHES_BEFORE_PROMPT;
     }
 
     private static void ShowPrompt()
@@ -327,6 +358,7 @@ public static class ReviewPromptManager
     {
         var localSettings = ApplicationData.Current.LocalSettings;
         localSettings.Values[LAST_PROMPT_KEY] = DateTime.UtcNow.Ticks;
+        localSettings.Values[LAUNCH_COUNT_KEY] = 0;
         Trace.WriteLine("Timer reset - will show again after delay");
     }
 
@@ -353,6 +385,7 @@ public static class ReviewPromptManager
         localSettings.Values.Remove(FIRST_LAUNCH_KEY);
         localSettings.Values.Remove(DONT_SHOW_KEY);
         localSettings.Values.Remove(LAST_PROMPT_KEY);
+        localSettings.Values.Remove(LAUNCH_COUNT_KEY);
         Trace.WriteLine("All review prompt settings cleared for testing");
     }
 }
