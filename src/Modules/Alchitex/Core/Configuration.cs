@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using Vanilla_RTX_App.Modules.Json;
+using Tunables = Vanilla_RTX_App.Core.Tunables;
 
 namespace Vanilla_RTX_App.Modules.Alchitex.Core;
 
@@ -868,14 +869,14 @@ public sealed record AlchitexOptions(
     /// <= 16px -> heightmap (too little resolution for normal-map detail to read as
     /// anything but noise), > 16px -> normal map.
     /// </summary>
-    public const int AutoModeHeightmapMaxWidth = 16;
+    public static int AutoModeHeightmapMaxWidth => (int)Tunables.AutoHeightmapMaxWidth.Value;
 
     /// <summary>
     /// Ceiling for an *explicit* Heightmap selection (TextureSetOrchestrator.
     /// ResolveSecondaryMode): above this width a normal map is generated instead - a
     /// heightmap texture set above this size no longer manifests itself correctly in-game.
     /// </summary>
-    public const int ExplicitHeightmapMaxWidth = 32;
+    public static int ExplicitHeightmapMaxWidth => (int)Tunables.ExplicitHeightmapMaxWidth.Value;
 
     public static readonly AlchitexOptions Default = new(SecondaryPbrMode.Auto, AddFog: false);
 }

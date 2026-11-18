@@ -10,6 +10,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using ImageMagick;
 using Vanilla_RTX_App.Modules.Json;
+using Tunables = Vanilla_RTX_App.Core.Tunables;
 
 namespace Vanilla_RTX_App.Modules.Alchitex.Core;
 
@@ -524,7 +525,7 @@ public static class MersGenerator
     // MERS at a single pixel. 128/255 means even a perfectly dominant pixel is a half-and-
     // half blend, never a full overwrite - the pass is meant to tint a region, not to cut
     // a hole in the base material and drop a different one in.
-    private const double MaxRecursiveOpacity = 128;
+    private static double MaxRecursiveOpacity => Tunables.RecursiveMaxOpacity.Value;
 
     // TODO(tuning): how hard desaturation is punished. Chroma (the gap between the target
     // channel and the weakest one, so "how much of this pixel isn't grey") is raised to
@@ -533,7 +534,7 @@ public static class MersGenerator
     // but the rose is over 40% grey and the flame is barely 4%. At 1.0 they score within
     // 2x of each other; at 3.0 they're 7x apart, which is what "the rose is not a flame"
     // has to mean numerically.
-    private const double ChromaExponent = 3.0;
+    private static double ChromaExponent => Tunables.RecursiveChromaExponent.Value;
 
     // TODO(tuning): how hard a pixel is punished for sharing its hue with a rival channel.
     // Share is 1.0 when the target owns the hue outright and 0.5 at a dead tie, so squaring
@@ -542,7 +543,7 @@ public static class MersGenerator
     // a solidly green one, because its larger chroma cancelled its worse share out. Raising
     // this is what restores the ordering, and 2.0 is as far as it can go before a genuine
     // tie - a yellow flame asked about red - stops registering at all.
-    private const double ShareExponent = 2.0;
+    private static double ShareExponent => Tunables.RecursiveShareExponent.Value;
 
     // TODO(tuning): the raw score at which a texture is considered to genuinely contain a
     // strongly-dominant example of the channel. Pure red scores 1.0; a real flame orange
@@ -1013,14 +1014,14 @@ public static class NormalMapGenerator
     // heightmap vs. a ceiling-maximized flat greyscale of the color texture itself.
     // Higher favors the clean, banded clustered result; lower brings back more of the
     // original texture's own shading detail.
-    private const double HeightmapBlendRatio = 0.75;
+    private static double HeightmapBlendRatio => Tunables.NormalHeightBlend.Value;
 
     // TODO(tuning): the response curve. Exponent applied to each pixel's normalized
     // gradient magnitude, interpolated by noise index: above 1 crushes small differences
     // and rewards big ones, below 1 lifts small ones. If noisy textures come out too busy,
     // raising NoisyTextureExponent toward 1.0 is the first lever to reach for.
-    private const double CleanTextureExponent = 2.2;  // noise index 0
-    private const double NoisyTextureExponent = 0.65; // noise index 100
+    private static double CleanTextureExponent => Tunables.NormalCleanExponent.Value;  // noise index 0
+    private static double NoisyTextureExponent => Tunables.NormalNoisyExponent.Value; // noise index 100
 
     /// <summary>
     /// TODO(tuning): how much of a linear response is mixed back into the shaped one, at the
@@ -1040,7 +1041,7 @@ public static class NormalMapGenerator
     /// all. So the structure a texture already showed is left where it was and what comes
     /// back is the detail underneath it.
     /// </summary>
-    private const double ResponseFloor = 0.30;
+    private static double ResponseFloor => Tunables.NormalResponseFloor.Value;
 
     /// <summary>
     /// The slope budget at which the response curve applies its full exponent. Below it the
@@ -1061,13 +1062,13 @@ public static class NormalMapGenerator
     /// ratio of slope to this value, scaling <see cref="MaxSlope"/> changes how steep every
     /// map is and nothing about the shape of any texture's curve, at any intensity.
     /// </summary>
-    private const double FullShapingSlope = MaxSlope * MaterialDefaults.NormalIntensity;
+    private static double FullShapingSlope => MaxSlope * MaterialDefaults.NormalIntensity;
 
     // TODO(tuning): what counts as this texture's "full strength" edge - a percentile
     // taken over its non-flat gradients only. Restricting the population that way matters:
     // on a texture that's mostly empty space, including every flat pixel would drag the
     // percentile down to nothing and then normalize the faint remainder up to full.
-    private const double GradientReferencePercentile = 0.95;
+    private static double GradientReferencePercentile => Tunables.NormalReferencePercentile.Value;
     private const double GradientFlatThreshold = 1.0 / 255.0;
     // Floor for that reference, so a genuinely flat texture's faint noise never gets
     // normalized up into a full-strength normal map.
@@ -1077,7 +1078,7 @@ public static class NormalMapGenerator
     // 0.25 default that is 0.9, a 42-degree tilt on a texture's strongest edges. It is the
     // one uniform strength knob: FullShapingSlope follows it, so changing it never changes a
     // texture's character, only how far every map leans.
-    private const double MaxSlope = 3.6;
+    private static double MaxSlope => Tunables.NormalStrength.Value;
 
     // TODO(tuning): calibration ceiling for GetNoiseIndex - what average per-pixel
     // brightness delta counts as "maximally noisy" (index 100).
@@ -1466,7 +1467,7 @@ public static class NormalMapGenerator
     // Same mechanic as Tuner.ApplyNormalMapIntensity's own blue-channel handling:
     // recession = 255 - value; shrinking recession pulls pixels toward the surface and can
     // never overflow past 255, so no separate compression pass is needed. TODO(tuning).
-    private const double PomContrastReduction = 0.67;
+    private static double PomContrastReduction => Tunables.PomContrastReduction.Value;
 
     /// <summary>
     /// POM height source: the mean-shift clustered heightmap (HeightmapGenerator.
@@ -1627,27 +1628,27 @@ public static class HeightmapGenerator
     // TODO(tuning): how strongly a fully-transparent color-texture pixel's darkening
     // overlay applies (0 = no darkening, 1 = full overlay strength) - see class doc
     // comment above for why this exists (grass_side-style "read as beneath" regions).
-    private const double TransparencyOverlayStrength = 0.5;
+    private static double TransparencyOverlayStrength => Tunables.HeightTransparencyOverlay.Value;
 
     // Mean-shift filtering knobs, tuned against a real corpus (28 textures across an 8x,
     // a 16x and a 32x pack) rather than guessed - see the measurements in CLAUDE.md 9.7.
     // The objective was "speckle": the share of pixels whose level disagrees with the
     // majority of their 8 neighbours. Clustering exists to produce plateaus, and speckle
     // is precisely the absence of one. Baseline 16.2%, these settings 8.5%.
-    private const int MeanShiftIterations = 5;
+    private static int MeanShiftIterations => (int)Tunables.HeightIterations.Value;
 
     // A 3x3 window, NOT the 5x5 it used to be. Measured across every combination, a
     // smaller window won on every texture type: a wide window reaches across a mortar line
     // into the face on the other side and averages the two together, and five iterations
     // propagate a 3x3 far enough anyway. Radius 2 measured 10.6% against radius 1's 8.5%.
-    private const int SpatialRadius = 1;
+    private static int SpatialRadius => (int)Tunables.HeightSpatialRadius.Value;
 
     // Large relative to a radius of 1, which makes the spatial term nearly flat across the
     // 3x3 (weights 1.00 / 0.92 / 0.85) - deliberately so. What separates features here is
     // value distance, not pixel distance, and letting position discriminate as well was
     // measurably worse. Kept as a knob rather than removed because it regains its meaning
     // the moment SpatialRadius goes back up.
-    private const double SpatialSigma = 2.5;
+    private static double SpatialSigma => Tunables.HeightSpatialSigma.Value;
 
     // How far apart two values can be and still get pulled together.
     //
@@ -1660,7 +1661,7 @@ public static class HeightmapGenerator
     // while the mortar lines that motivated narrowing it stay fully intact at 48 - verified
     // by rendering planks and stonebrick at each step. Past 48 the returns flatten and the
     // risk of bridging real features grows, so this is where it sits.
-    private const double RangeBandwidth = 48.0;
+    private static double RangeBandwidth => Tunables.HeightRangeBandwidth.Value;
 
     // Above this pixel count, ComputeClusteredHeights skips the spatial neighbor search
     // (which scales with W*H*R^2*iterations) and falls back to range-only clustering off
@@ -1670,7 +1671,7 @@ public static class HeightmapGenerator
 
     // Converged values within this distance of each other are folded into the same
     // cluster during ranking.
-    private const double ClusterMergeTolerance = 8.0;
+    private static double ClusterMergeTolerance => Tunables.HeightMergeTolerance.Value;
 
     // Below this total brightness span across all surviving buckets, composition-derived
     // placement has nothing real to work from and falls back to even spacing - see the
@@ -1695,7 +1696,7 @@ public static class HeightmapGenerator
     // Note this is only the ceiling on the *clustered ladder*. A cutout texture gets a
     // second darkened variant of each level from the transparency overlay in Generate
     // below, so the count a cutout texture actually shows is up to double this.
-    private const int MaxClusters = 4;
+    private static int MaxClusters => (int)Tunables.HeightMaxLevels.Value;
 
     // Pairing mean-shift with a fixed-step quantization of the same values, and keeping
     // only regions the two agree on, was tried here as a guard against mean-shift bridging

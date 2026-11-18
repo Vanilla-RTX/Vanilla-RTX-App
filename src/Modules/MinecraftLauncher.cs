@@ -104,7 +104,7 @@ public class MinecraftLauncher
     };
 
     /// <summary>How long a killed process gets to actually exit before the launch carries on regardless.</summary>
-    private static readonly TimeSpan CloseTimeout = TimeSpan.FromSeconds(5);
+    private static TimeSpan CloseTimeout => TimeSpan.FromSeconds(Core.Tunables.LaunchCloseTimeoutSeconds.Value);
 
     /// <summary>
     /// Ends every process whose executable is one of <see cref="GameExecutables"/> under the

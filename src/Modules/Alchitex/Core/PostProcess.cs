@@ -11,6 +11,7 @@ using System.Text.Json.Nodes;
 using ImageMagick;
 using ImageMagick.Drawing; // Drawables, DrawableFillColor, DrawableRectangle
 using Vanilla_RTX_App.Modules.Json;
+using Tunables = Vanilla_RTX_App.Core.Tunables;
 
 namespace Vanilla_RTX_App.Modules.Alchitex.Core;
 
@@ -59,7 +60,7 @@ public static class PostProcess
     /// <summary>Floor opacity. Below this Bedrock RTX starts casting shadows *underneath*
     /// the water surface - nonsensical, but it is what the renderer does, so the encoded
     /// range is 129-255 rather than 0-255. Ported unchanged from legacy RTX Reactor.</summary>
-    private const int MinWaterOpacity = 129;
+    private static int MinWaterOpacity => (int)Tunables.WaterMinOpacity.Value;
 
     /// <summary>
     /// Bend applied to brightness before it becomes alpha. 1.0 would be the straight line
@@ -72,12 +73,12 @@ public static class PostProcess
     /// composition - which pixel is brighter than which - completely intact. At 1.5 a
     /// mid-brightness pixel lands at 174 instead of 192.
     /// </summary>
-    private const double WaterOpacityCurve = 1.75;
+    private static double WaterOpacityCurve => Tunables.WaterOpacityCurve.Value;
 
     /// <summary>How far the flat fill is pushed toward white after averaging. 0.5 is a
     /// halfway blend, which is what makes the fill land in the 192-225 band for almost any
     /// input - see ResolveFlatFill.</summary>
-    private const double WaterWhitePull = 0.5;
+    private static double WaterWhitePull => Tunables.WaterWhitePull.Value;
 
     /// <summary>
     /// Converts a colour water texture into the flat-fill, brightness-as-alpha form Bedrock
@@ -445,7 +446,7 @@ public static class PostProcess
     /// <summary>The share of white light a fully-saturated pixel should transmit, as a
     /// fraction of full. 0.30 is not arbitrary: it takes a pure (255,0,0) to (255,77,77)
     /// as an example. </summary>
-    private const double BlendMinTransmission = 0.4;
+    private static double BlendMinTransmission => Tunables.GlassMinTransmission.Value;
 
     /// <summary>
     /// Exponent on the saturation gate. Below 1 makes the gate rise quickly, so anything
@@ -459,7 +460,7 @@ public static class PostProcess
     /// (50,48,45) is still left alone because its target lands below what it already
     /// transmits. Genuinely coloured glass is the case this pass exists for.
     /// </summary>
-    private const double BlendChromaBias = 0.3;
+    private static double BlendChromaBias => Tunables.GlassChromaBias.Value;
 
     /// <summary>
     /// Rewrites one colour texture to render correctly under the blend material instance.

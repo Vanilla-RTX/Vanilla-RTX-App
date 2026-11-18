@@ -310,6 +310,7 @@ public sealed partial class SettingsOverlay : UserControl
             CloseGameBeforeLaunchSwitch.IsOn = Persistent.CloseGameBeforeLaunch;
             ActivatePacksSwitch.IsOn = Persistent.ActivatePacksOnLaunch;
             RefreshActivationList();
+            ApplyAdvancedState();
 
             RefreshPaths();
             foreach (var row in _pathRows) ShowPathHint(row, rejection: null);

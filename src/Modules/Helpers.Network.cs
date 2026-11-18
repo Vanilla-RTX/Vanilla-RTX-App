@@ -136,7 +136,7 @@ public static partial class Helpers
     /// enough for an 11MB pack on a slow line is far too large to notice a connection that was
     /// accepted and then went silent, and one small enough to notice that would cancel the pack.
     /// </summary>
-    private static readonly TimeSpan NoProgressTimeout = TimeSpan.FromSeconds(60);
+    private static TimeSpan NoProgressTimeout => TimeSpan.FromSeconds(Core.Tunables.DownloadStallSeconds.Value);
 
     /// <summary>
     /// Whether a failed request is one the server answered deliberately (4xx), as opposed to a

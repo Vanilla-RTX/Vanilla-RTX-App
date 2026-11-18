@@ -725,128 +725,6 @@
 
                         <Border Style="{StaticResource SettingsSeparatorStyle}" />
 
-                        <!-- ═══ Content sources ══════════════════════════════════════════
-                            Every address the app goes to for something it doesn't ship. Each
-                            row is a box, a revert-to-built-in button, and a line that doubles
-                            as the rejection message - see the code-behind's UrlField. The
-                            built-in address always comes back on its own if what is stored
-                            ever stops validating, which is what makes these safe to expose. -->
-                        <TextBlock Text="Content sources"
-                                   Style="{StaticResource SettingsSectionHeaderStyle}" />
-
-                        <TextBlock Text="Where the app gets some of the things it doesn't ship by itself. Change one and that feature goes to your address instead."
-                                   Style="{StaticResource SettingsHintTextStyle}" />
-
-                        <TextBlock Text="Documentation page"
-                                   Style="{StaticResource SettingsItemLabelStyle}" />
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBox x:Name="DocumentationBox"
-                                     Translation="0,0,24"
-                                     Grid.Column="0"
-                                     Margin="0,0,6,0"
-                                     Style="{StaticResource SettingsUrlBoxStyle}">
-                                <TextBox.Shadow>
-                                    <ThemeShadow />
-                                </TextBox.Shadow>
-                            </TextBox>
-                            <Button x:Name="DocumentationResetButton"
-                                    Grid.Column="1"
-                                    Style="{StaticResource SettingsUrlResetButtonStyle}">
-                                <FontIcon Glyph="&#xE777;"
-                                          FontSize="13" />
-                            </Button>
-                        </Grid>
-                        <TextBlock x:Name="DocumentationHint"
-                                   Margin="0,-10,0,0"
-                                   Style="{StaticResource SettingsHintTextStyle}" />
-
-                        <TextBlock Text="Minecraft RTX bug list"
-                                   Style="{StaticResource SettingsItemLabelStyle}" />
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBox x:Name="BugTrackerBox"
-                                     Translation="0,0,24"
-                                     Grid.Column="0"
-                                     Margin="0,0,6,0"
-                                     Style="{StaticResource SettingsUrlBoxStyle}">
-                                <TextBox.Shadow>
-                                    <ThemeShadow />
-                                </TextBox.Shadow>
-                            </TextBox>
-                            <Button x:Name="BugTrackerResetButton"
-                                    Grid.Column="1"
-                                    Style="{StaticResource SettingsUrlResetButtonStyle}">
-                                <FontIcon Glyph="&#xE777;"
-                                          FontSize="13" />
-                            </Button>
-                        </Grid>
-                        <TextBlock x:Name="BugTrackerHint"
-                                   Margin="0,-10,0,0"
-                                   Style="{StaticResource SettingsHintTextStyle}" />
-
-                        <TextBlock Text="DLSS downloads"
-                                   Style="{StaticResource SettingsItemLabelStyle}" />
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBox x:Name="DlssProviderBox"
-                                     Translation="0,0,24"
-                                     Grid.Column="0"
-                                     Margin="0,0,6,0"
-                                     Style="{StaticResource SettingsUrlBoxStyle}">
-                                <TextBox.Shadow>
-                                    <ThemeShadow />
-                                </TextBox.Shadow>
-                            </TextBox>
-                            <Button x:Name="DlssProviderResetButton"
-                                    Grid.Column="1"
-                                    Style="{StaticResource SettingsUrlResetButtonStyle}">
-                                <FontIcon Glyph="&#xE777;"
-                                          FontSize="13" />
-                            </Button>
-                        </Grid>
-                        <TextBlock x:Name="DlssProviderHint"
-                                   Margin="0,-10,0,0"
-                                   Style="{StaticResource SettingsHintTextStyle}" />
-
-                        <TextBlock Text="BetterRTX preset creator"
-                                   Style="{StaticResource SettingsItemLabelStyle}" />
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBox x:Name="BetterRtxCreatorBox"
-                                     Translation="0,0,24"
-                                     Grid.Column="0"
-                                     Margin="0,0,6,0"
-                                     Style="{StaticResource SettingsUrlBoxStyle}">
-                                <TextBox.Shadow>
-                                    <ThemeShadow />
-                                </TextBox.Shadow>
-                            </TextBox>
-                            <Button x:Name="BetterRtxCreatorResetButton"
-                                    Grid.Column="1"
-                                    Style="{StaticResource SettingsUrlResetButtonStyle}">
-                                <FontIcon Glyph="&#xE777;"
-                                          FontSize="13" />
-                            </Button>
-                        </Grid>
-                        <TextBlock x:Name="BetterRtxCreatorHint"
-                                   Margin="0,-10,0,0"
-                                   Style="{StaticResource SettingsHintTextStyle}" />
-
-                        <Border Style="{StaticResource SettingsSeparatorStyle}" />
-
                         <!-- ═══ Maintenance ══════════════════════════════════════════════ -->
                         <TextBlock Text="Maintenance"
                                    Style="{StaticResource SettingsSectionHeaderStyle}" />
@@ -895,6 +773,192 @@
                             </Button>
                             <TextBlock Style="{StaticResource SettingsHintTextStyle}"
                                        Text="Copies a full diagnostic report to your clipboard - system info, the app's log, every setting and the state of every control. Paste it into a bug report." />
+                        </StackPanel>
+
+                        <Border Style="{StaticResource SettingsSeparatorStyle}" />
+
+                        <!-- ═══ Advanced ═════════════════════════════════════════════════
+                             Behind three clicks on purpose: everything in here is something the
+                             app gets right on its own. The internal values are built in code from
+                             Core/Tunables.cs - see TunableRows. -->
+                        <TextBlock Text="Advanced"
+                                   Style="{StaticResource SettingsSectionHeaderStyle}" />
+
+                        <StackPanel Spacing="5">
+                            <Button x:Name="ShowAdvancedButton"
+                                    Translation="0,0,32"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center"
+                                    FontWeight="Medium"
+                                    IsTextScaleFactorEnabled="False"
+                                    Click="ShowAdvancedButton_Click">
+                                <Button.Shadow>
+                                    <ThemeShadow />
+                                </Button.Shadow>
+                                <StackPanel Orientation="Horizontal"
+                                            Spacing="10">
+                                    <FontIcon Glyph="&#xE713;"
+                                              FontSize="16"
+                                              VerticalAlignment="Center" />
+                                    <TextBlock x:Name="ShowAdvancedButtonText"
+                                               Text="Show advanced settings"
+                                               VerticalAlignment="Center"
+                                               IsTextScaleFactorEnabled="False" />
+                                </StackPanel>
+                            </Button>
+                            <TextBlock Style="{StaticResource SettingsHintTextStyle}"
+                                       Text="Where the app gets some of its content, and the numbers it normally decides for itself. Changing these can make things worse, and every one can be put back." />
+                        </StackPanel>
+
+                        <StackPanel x:Name="AdvancedPanel"
+                                    Spacing="14"
+                                    Visibility="Collapsed">
+                            <!-- ═══ Content sources ══════════════════════════════════════════
+                                Every address the app goes to for something it doesn't ship. Each
+                                row is a box, a revert-to-built-in button, and a line that doubles
+                                as the rejection message - see the code-behind's UrlField. The
+                                built-in address always comes back on its own if what is stored
+                                ever stops validating, which is what makes these safe to expose. -->
+                            <TextBlock Text="Content sources"
+                                       Style="{StaticResource SettingsSectionHeaderStyle}" />
+
+                            <TextBlock Text="Where the app gets some of the things it doesn't ship by itself. Change one and that feature goes to your address instead."
+                                       Style="{StaticResource SettingsHintTextStyle}" />
+
+                            <TextBlock Text="Documentation page"
+                                       Style="{StaticResource SettingsItemLabelStyle}" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="DocumentationBox"
+                                         Translation="0,0,24"
+                                         Grid.Column="0"
+                                         Margin="0,0,6,0"
+                                         Style="{StaticResource SettingsUrlBoxStyle}">
+                                    <TextBox.Shadow>
+                                        <ThemeShadow />
+                                    </TextBox.Shadow>
+                                </TextBox>
+                                <Button x:Name="DocumentationResetButton"
+                                        Grid.Column="1"
+                                        Style="{StaticResource SettingsUrlResetButtonStyle}">
+                                    <FontIcon Glyph="&#xE777;"
+                                              FontSize="13" />
+                                </Button>
+                            </Grid>
+                            <TextBlock x:Name="DocumentationHint"
+                                       Margin="0,-10,0,0"
+                                       Style="{StaticResource SettingsHintTextStyle}" />
+
+                            <TextBlock Text="Minecraft RTX bug list"
+                                       Style="{StaticResource SettingsItemLabelStyle}" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="BugTrackerBox"
+                                         Translation="0,0,24"
+                                         Grid.Column="0"
+                                         Margin="0,0,6,0"
+                                         Style="{StaticResource SettingsUrlBoxStyle}">
+                                    <TextBox.Shadow>
+                                        <ThemeShadow />
+                                    </TextBox.Shadow>
+                                </TextBox>
+                                <Button x:Name="BugTrackerResetButton"
+                                        Grid.Column="1"
+                                        Style="{StaticResource SettingsUrlResetButtonStyle}">
+                                    <FontIcon Glyph="&#xE777;"
+                                              FontSize="13" />
+                                </Button>
+                            </Grid>
+                            <TextBlock x:Name="BugTrackerHint"
+                                       Margin="0,-10,0,0"
+                                       Style="{StaticResource SettingsHintTextStyle}" />
+
+                            <TextBlock Text="DLSS downloads"
+                                       Style="{StaticResource SettingsItemLabelStyle}" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="DlssProviderBox"
+                                         Translation="0,0,24"
+                                         Grid.Column="0"
+                                         Margin="0,0,6,0"
+                                         Style="{StaticResource SettingsUrlBoxStyle}">
+                                    <TextBox.Shadow>
+                                        <ThemeShadow />
+                                    </TextBox.Shadow>
+                                </TextBox>
+                                <Button x:Name="DlssProviderResetButton"
+                                        Grid.Column="1"
+                                        Style="{StaticResource SettingsUrlResetButtonStyle}">
+                                    <FontIcon Glyph="&#xE777;"
+                                              FontSize="13" />
+                                </Button>
+                            </Grid>
+                            <TextBlock x:Name="DlssProviderHint"
+                                       Margin="0,-10,0,0"
+                                       Style="{StaticResource SettingsHintTextStyle}" />
+
+                            <TextBlock Text="BetterRTX preset creator"
+                                       Style="{StaticResource SettingsItemLabelStyle}" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="BetterRtxCreatorBox"
+                                         Translation="0,0,24"
+                                         Grid.Column="0"
+                                         Margin="0,0,6,0"
+                                         Style="{StaticResource SettingsUrlBoxStyle}">
+                                    <TextBox.Shadow>
+                                        <ThemeShadow />
+                                    </TextBox.Shadow>
+                                </TextBox>
+                                <Button x:Name="BetterRtxCreatorResetButton"
+                                        Grid.Column="1"
+                                        Style="{StaticResource SettingsUrlResetButtonStyle}">
+                                    <FontIcon Glyph="&#xE777;"
+                                              FontSize="13" />
+                                </Button>
+                            </Grid>
+                            <TextBlock x:Name="BetterRtxCreatorHint"
+                                       Margin="0,-10,0,0"
+                                       Style="{StaticResource SettingsHintTextStyle}" />
+
+                            <Border Style="{StaticResource SettingsSeparatorStyle}" />
+
+                            <TextBlock Text="Internal values"
+                                       Style="{StaticResource SettingsSectionHeaderStyle}" />
+                            <TextBlock Text="The dials behind RTX Reactor's generation, the water and glass passes, and a few timeouts. A changed value is marked, and the arrow beside it puts the built-in one back."
+                                       Style="{StaticResource SettingsHintTextStyle}" />
+
+                            <!-- Built in code, one group per Tunable.Section. -->
+                            <StackPanel x:Name="TunableRows"
+                                        Spacing="14" />
+
+                            <Button x:Name="ResetTunablesButton"
+                                    Style="{ThemeResource SubtleButtonStyle}"
+                                    HorizontalAlignment="Left"
+                                    Click="ResetTunablesButton_Click"
+                                    IsTextScaleFactorEnabled="False">
+                                <StackPanel Orientation="Horizontal"
+                                            Spacing="8">
+                                    <FontIcon Glyph="&#xE777;"
+                                              FontSize="14"
+                                              VerticalAlignment="Center" />
+                                    <TextBlock Text="Put every internal value back"
+                                               VerticalAlignment="Center"
+                                               IsTextScaleFactorEnabled="False" />
+                                </StackPanel>
+                            </Button>
                         </StackPanel>
 
                         <Border Style="{StaticResource SettingsSeparatorStyle}" />

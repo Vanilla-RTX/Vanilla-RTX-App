@@ -133,7 +133,7 @@ public class PackUpdater
     /// answer is a 304 of no bytes, so this is set by how fresh the updater's own numbers should be
     /// when it opens. Installs and the refresh button ignore it.
     /// </summary>
-    private static readonly TimeSpan IndexCooldown = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan IndexCooldown = TimeSpan.FromMinutes(Tunables.PackIndexCooldownMinutes.Value);
 
     public static readonly ReleaseRepository VanillaRtx = MakeRepository("Vanilla RTX", "https://github.com/vanilla-rtx/Vanilla-RTX", "vanilla-rtx");
     public static readonly ReleaseRepository Extras = MakeRepository("Vanilla RTX Extras", "https://github.com/Vanilla-RTX/Vanilla-RTX-Extras", "extras");
