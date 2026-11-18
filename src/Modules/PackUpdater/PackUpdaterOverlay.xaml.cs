@@ -3,47 +3,50 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Animation;
 using Vanilla_RTX_App.Core;
 using Vanilla_RTX_App.Core.Overlays;
 using Windows.Storage;
-using static Vanilla_RTX_App.Core.EnvironmentVariables; // For Public Pack version variables, if null or empty = not installed
+using static Vanilla_RTX_App.Core.EnvironmentVariables; // installed versions: null or empty = not installed
 
 namespace Vanilla_RTX_App.Modules.PackUpdater;
 
+/// <summary>
+/// The "Get latest RTX packs" module: the three Vanilla RTX cards and the Vanilla RTX Extras list,
+/// both read from their repository's release index and installed through the same
+/// <see cref="PackUpdater.InstallAsync"/> (see <see cref="PackUpdater"/> for the model). The
+/// Extras half lives in <c>PackUpdaterOverlay.Extras.cs</c>.
+///
+/// <para><b>One install at a time across the whole window.</b> While one runs every install
+/// button is disabled and the pack being installed animates "Installing..." on its own button.
+/// The work runs on MainWindow's <see cref="PackUpdater"/>, so closing the module mid-install lets
+/// it finish, and a reopened module picks the state back up (<see cref="ResumeOngoingInstallation"/>).</para>
+/// </summary>
 public sealed partial class PackUpdaterOverlay : ModuleOverlay
 {
     private readonly MainWindow _mainWindow;
     private readonly PackUpdater _updater;
     private bool _isClosing;
 
-    // With animations suspended the hover overlay is assigned, not crossfaded - see
-    // AnimateOpacity.
+    // With animations suspended the hover overlay is assigned, not crossfaded - see AnimateOpacity.
     private static bool AnimationsSuspended => Persistent.SuspendUIAnimations;
 
     private static readonly TimeSpan _fadeInDuration = TimeSpan.FromMilliseconds(150);
     private static readonly TimeSpan _fadeOutDuration = TimeSpan.FromMilliseconds(125);
 
-    // The guard against deploying a stale cached zipball is PackUpdater.InvalidateCacheIfStaleAsync,
-    // called from UpdateAllButtonStates on every refresh of this window. It asks whether the CACHE
-    // is behind the remote - not whether what the user has INSTALLED is - and only that question
-    // may drop the zipball: a user merely running an older pack is no reason to throw away a
-    // current 11MB download. It carries no cooldown because it makes no requests: the remote
-    // numbers are the ones just fetched, and the cache's own are read off the zipball on disk.
-
-    private string? _currentInstallActionType;
+    private ReleaseIndex? _vanillaIndex;
 
     private DispatcherTimer? _installingAnimationTimer;
-    private int _animationDots = 0;
+    private int _animationDots;
+    private string _installVerb = "Installing";
 
-    /// <summary>The refresh button, shown in MainWindow's titlebar while this module is open.</summary>
+    /// <summary>The changelog and refresh buttons, shown in MainWindow's titlebar while this module is open.</summary>
     protected internal override FrameworkElement? TitleBarStrip => TitleBarActions;
 
     // Next allowed refresh, stored rather than kept in memory so closing and reopening the module
-    // doesn't hand the user a fresh button and another three requests.
+    // doesn't hand the user a fresh button and another round of requests.
     private const string REFRESH_COOLDOWN_KEY = "PackUpdater_RefreshCooldown_NextAllowed";
     private const int REFRESH_COOLDOWN_SECONDS = 60;
     private DispatcherTimer? _refreshCooldownTimer;
@@ -56,7 +59,7 @@ public sealed partial class PackUpdaterOverlay : ModuleOverlay
 
         // Dead until this window has finished opening - the strip is in the titlebar from the
         // moment the module appears, and a press during the initial load would run a second
-        // version check alongside the first. StartRefreshCooldownTimer brings it back.
+        // check alongside the first. StartRefreshCooldownTimer brings it back.
         RefreshButton.IsEnabled = false;
 
         InitializeHoverEffects();
@@ -64,21 +67,35 @@ public sealed partial class PackUpdaterOverlay : ModuleOverlay
         _mainWindow = mainWindow;
         _updater = mainWindow._updater ?? new PackUpdater();
 
+        VanillaRTX_InstallButton.Click += (_, _) => StartInstall(PackUpdater.VanillaRtx, new[] { PackUpdater.Uuid(PackType.VanillaRTX) }, VanillaRTX_InstallButton);
+        VanillaRTXNormals_InstallButton.Click += (_, _) => StartInstall(PackUpdater.VanillaRtx, new[] { PackUpdater.Uuid(PackType.VanillaRTXNormals) }, VanillaRTXNormals_InstallButton);
+        VanillaRTXOpus_InstallButton.Click += (_, _) => StartInstall(PackUpdater.VanillaRtx, new[] { PackUpdater.Uuid(PackType.VanillaRTXOpus) }, VanillaRTXOpus_InstallButton);
+
         this.Loaded += PackUpdaterOverlay_Loaded;
     }
+
     private async void PackUpdaterOverlay_Loaded(object sender, RoutedEventArgs e)
     {
         try
         {
             this.Loaded -= PackUpdaterOverlay_Loaded;
-
             if (_isClosing) return;
 
-            await InitializePackInformation();
+            TeletextCard.Populate(PackUpdateInfoPanel, TeletextContent.PackUpdateInfo, cardFontSize: 13);
+            TeletextCard.Populate(PackUpdateExtraInfoPanel, TeletextContent.PackUpdateExtraInfo, cardFontSize: 13);
+
+            UpdateInstalledVersionDisplays();
+
+            // Both sources in parallel. Opening arms the refresh cooldown when either answered -
+            // a countdown means opening already did what pressing the button would.
+            var vanilla = LoadVanillaRtxAsync(force: false);
+            var extras = LoadExtrasAsync(force: false);
+            var answered = await vanilla;
+            answered |= await extras;
             if (_isClosing) return;
 
-            SetupButtonHandlers();
-            CheckAndHandleOngoingInstallation();
+            if (answered) ArmRefreshCooldown();
+            ResumeOngoingInstallation();
         }
         catch (Exception ex)
         {
@@ -98,66 +115,49 @@ public sealed partial class PackUpdaterOverlay : ModuleOverlay
         _isClosing = true;
 
         this.Loaded -= PackUpdaterOverlay_Loaded;
-
         StopInstallingAnimation();
 
         _refreshCooldownTimer?.Stop();
         _refreshCooldownTimer = null;
     }
 
-    // REFRESH =================================
+    // ======================= Refresh =======================
 
-    /// <summary>
-    /// Asks everything again: where the packs are and what versions they are, then what the
-    /// repository currently offers, ignoring the stored copy. The same work opening this module
-    /// does, which is why it goes through the same two methods.
-    ///
-    /// <para>Refused while an install is running. A refresh re-evaluates the cached zipball and
-    /// can drop it, and that zipball is the file an install is reading out of.</para>
-    /// </summary>
     /// <summary>
     /// Opens the Vanilla RTX changelog in MainWindow's document overlay, over this module - so
     /// it swaps with Help and Bugs, remembers its place, and closing it returns here untouched.
     /// </summary>
     private void ChangelogButton_Click(object sender, RoutedEventArgs e) => Host.ToggleVanillaRtxChangelog();
 
+    /// <summary>
+    /// Asks everything again: where the packs are and what versions they are, then both indexes,
+    /// past their cooldowns. Refused while an install runs - it would prune the cache an install
+    /// may be reading from.
+    /// </summary>
     private async void RefreshButton_Click(object sender, RoutedEventArgs e)
     {
         if (_refreshInProgress || IsRefreshOnCooldown()) return;
-
-        if (_updater.IsInstallationInProgress())
-        {
-            Trace.WriteLine("[PackUpdaterOverlay] An installation is in progress - ignoring refresh");
-            return;
-        }
+        if (_updater.IsInstallationInProgress()) return;
 
         _refreshInProgress = true;
         try
         {
             RefreshButton.IsEnabled = false;
-
-            VanillaRTX_AvailableLoading.Visibility = Visibility.Visible;
-            VanillaRTX_AvailableVersion.Visibility = Visibility.Collapsed;
-            VanillaRTXNormals_AvailableLoading.Visibility = Visibility.Visible;
-            VanillaRTXNormals_AvailableVersion.Visibility = Visibility.Collapsed;
-            VanillaRTXOpus_AvailableLoading.Visibility = Visibility.Visible;
-            VanillaRTXOpus_AvailableVersion.Visibility = Visibility.Collapsed;
+            SetVanillaLoading();
             ShowExtrasLoading(true);
 
             await RefreshInstalledVersions();
             if (_isClosing) return;
 
-            // Both sources are asked in parallel; the cooldown is armed only when at least one
-            // actually answered - a check that failed must not spend the user's next attempt,
-            // which is the one thing they can still do about it.
-            var vanilla = FetchAndDisplayRemoteVersions(force: true);
+            var vanilla = LoadVanillaRtxAsync(force: true);
             var extras = LoadExtrasAsync(force: true);
             var answered = await vanilla;
             answered |= await extras;
             if (_isClosing) return;
 
-            if (answered)
-                ArmRefreshCooldown();
+            // Armed only when a repository actually answered: a check that failed must not spend
+            // the user's next attempt, which is the one thing they can still do about it.
+            if (answered) ArmRefreshCooldown();
 
             _ = Host?.BlinkingLamp(true, true, 0.5, 1.0);
         }
@@ -205,12 +205,6 @@ public sealed partial class PackUpdaterOverlay : ModuleOverlay
         catch { }
     }
 
-    /// <summary>
-    /// Paints the button for the current cooldown and keeps a one-second timer running to count
-    /// it down. The countdown is also the freshness readout: it is armed whenever the versions on
-    /// screen came from a request rather than from the stored copy, so a live button means what
-    /// is displayed was read back from disk.
-    /// </summary>
     private void StartRefreshCooldownTimer()
     {
         UpdateRefreshButtonState();
@@ -225,7 +219,6 @@ public sealed partial class PackUpdaterOverlay : ModuleOverlay
         if (_isClosing) return;
 
         var remaining = RefreshCooldownRemaining();
-
         if (remaining > 0)
         {
             RefreshButton.IsEnabled = false;
@@ -240,15 +233,13 @@ public sealed partial class PackUpdaterOverlay : ModuleOverlay
         RefreshCountdownText.Visibility = Visibility.Collapsed;
     }
 
-    // INITIALIZATION =================================
+    // ======================= Hover =======================
+
     private void InitializeHoverEffects()
     {
-        // Main Panels
         SetupPanelHoverEffect(NormalsPanel, NormalsOverlay);
         SetupPanelHoverEffect(VanillaPanel, VanillaOverlay);
         SetupPanelHoverEffect(OpusPanel, OpusOverlay);
-
-        // Secondary Panels
         SetupPanelHoverEffect(AddOnsPanel, AddOnsOverlay);
         SetupPanelHoverEffect(ChemistryPanel, ChemistryOverlay);
         SetupPanelHoverEffect(CreativePanel, CreativeOverlay);
@@ -256,31 +247,18 @@ public sealed partial class PackUpdaterOverlay : ModuleOverlay
 
     private void SetupPanelHoverEffect(Border panel, Border overlay)
     {
-        panel.PointerEntered += (s, e) =>
-        {
-            AnimateOpacity(overlay, 1.0, _fadeInDuration);
-        };
+        panel.PointerEntered += (_, _) => AnimateOpacity(overlay, 1.0, _fadeInDuration);
+        panel.PointerExited += (_, _) => AnimateOpacity(overlay, 0.0, _fadeOutDuration);
+        panel.PointerCaptureLost += (_, _) => AnimateOpacity(overlay, 0.0, _fadeOutDuration);
+        panel.PointerCanceled += (_, _) => AnimateOpacity(overlay, 0.0, _fadeOutDuration);
 
-        panel.PointerExited += (s, e) =>
-        {
-            AnimateOpacity(overlay, 0.0, _fadeOutDuration);
-        };
-        panel.PointerCaptureLost += (s, e) =>
-        {
-            AnimateOpacity(overlay, 0.0, _fadeOutDuration);
-        };
-        panel.PointerCanceled += (s, e) =>
-        {
-            AnimateOpacity(overlay, 0.0, _fadeOutDuration);
-        };
-
-        // The overlay is the link now, not just a title inside it, so it is a full-card tab stop
-        // that happens to be invisible until hovered. Revealing it on focus is what keeps a
-        // keyboard user from landing on a link they cannot see.
+        // The overlay is the link, so it is a full-card tab stop that happens to be invisible
+        // until hovered. Revealing it on focus is what keeps a keyboard user from landing on a
+        // link they cannot see.
         if (overlay.Child is Control link)
         {
-            link.GotFocus += (s, e) => AnimateOpacity(overlay, 1.0, _fadeInDuration);
-            link.LostFocus += (s, e) => AnimateOpacity(overlay, 0.0, _fadeOutDuration);
+            link.GotFocus += (_, _) => AnimateOpacity(overlay, 1.0, _fadeInDuration);
+            link.LostFocus += (_, _) => AnimateOpacity(overlay, 0.0, _fadeOutDuration);
         }
     }
 
@@ -292,416 +270,209 @@ public sealed partial class PackUpdaterOverlay : ModuleOverlay
             return;
         }
 
-        var storyboard = new Storyboard();
-
-        var opacityAnimation = new DoubleAnimation
+        var animation = new DoubleAnimation
         {
             To = toValue,
             Duration = new Duration(duration),
-            EasingFunction = new CubicEase
-            {
-                EasingMode = toValue > 0.5 ? EasingMode.EaseOut : EasingMode.EaseIn
-            }
+            EasingFunction = new CubicEase { EasingMode = toValue > 0.5 ? EasingMode.EaseOut : EasingMode.EaseIn }
         };
+        Storyboard.SetTarget(animation, element);
+        Storyboard.SetTargetProperty(animation, "Opacity");
 
-        Storyboard.SetTarget(opacityAnimation, element);
-        Storyboard.SetTargetProperty(opacityAnimation, "Opacity");
-
-        storyboard.Children.Add(opacityAnimation);
+        var storyboard = new Storyboard();
+        storyboard.Children.Add(animation);
         storyboard.Begin();
     }
 
+    // ======================= Vanilla RTX cards =======================
 
-    // ======================= Initialization =======================
-
-    private async Task InitializePackInformation()
+    private IEnumerable<(PackType Type, Button Button, ToggleSwitch Toggle, TextBlock Installed, TextBlock Available, ProgressRing Loading, string? InstalledVersion)> VanillaCards()
     {
-        TeletextCard.Populate(PackUpdateInfoPanel, TeletextContent.PackUpdateInfo, cardFontSize: 13);
-        TeletextCard.Populate(PackUpdateExtraInfoPanel, TeletextContent.PackUpdateExtraInfo, cardFontSize: 13);
-        UpdateInstalledVersionDisplays();
-
-        var vanilla = FetchAndDisplayRemoteVersions();
-        var extras = LoadExtrasAsync(force: false);
-        await vanilla;
-
-        // Opening arms the cooldown when either source answered; the Vanilla RTX half already did
-        // its own above, so only an answer from the extras alone still needs to.
-        if (await extras && !_isClosing)
-            ArmRefreshCooldown();
+        yield return (PackType.VanillaRTX, VanillaRTX_InstallButton, VanillaRTX_EnhancementsToggle, VanillaRTX_InstalledVersion, VanillaRTX_AvailableVersion, VanillaRTX_AvailableLoading, VanillaRTXVersion);
+        yield return (PackType.VanillaRTXNormals, VanillaRTXNormals_InstallButton, VanillaRTXNormals_EnhancementsToggle, VanillaRTXNormals_InstalledVersion, VanillaRTXNormals_AvailableVersion, VanillaRTXNormals_AvailableLoading, VanillaRTXNormalsVersion);
+        yield return (PackType.VanillaRTXOpus, VanillaRTXOpus_InstallButton, VanillaRTXOpus_EnhancementsToggle, VanillaRTXOpus_InstalledVersion, VanillaRTXOpus_AvailableVersion, VanillaRTXOpus_AvailableLoading, VanillaRTXOpusVersion);
     }
 
     private void UpdateInstalledVersionDisplays()
     {
-        var vanillaRTXVersion = VanillaRTXVersion;
-        var vanillaRTXNormalsVersion = VanillaRTXNormalsVersion;
-        var vanillaRTXOpusVersion = VanillaRTXOpusVersion;
-
-        VanillaRTX_InstalledVersion.Text =
-            string.IsNullOrEmpty(vanillaRTXVersion) ? "Not installed" : vanillaRTXVersion;
-
-        VanillaRTXNormals_InstalledVersion.Text =
-            string.IsNullOrEmpty(vanillaRTXNormalsVersion) ? "Not installed" : vanillaRTXNormalsVersion;
-
-        VanillaRTXOpus_InstalledVersion.Text =
-            string.IsNullOrEmpty(vanillaRTXOpusVersion) ? "Not installed" : vanillaRTXOpusVersion;
+        foreach (var card in VanillaCards())
+            card.Installed.Text = string.IsNullOrEmpty(card.InstalledVersion) ? "Not installed" : card.InstalledVersion;
     }
 
-    /// <summary>
-    /// Fills the three Available rows and the buttons under them.
-    ///
-    /// <para>Opening the module asks for versions no older than
-    /// <see cref="PackUpdater.OverlayVersionMaxAge"/> - someone looking at these numbers is owed
-    /// something fresher than the background glyph is, without every open being a request.
-    /// <paramref name="force"/> ignores the stored copy entirely, which is what the refresh
-    /// button asks for.</para>
-    /// </summary>
-    /// <returns>True when at least one version came from the repository just now, rather than from the stored copy or the cached zipball.</returns>
-    private async Task<bool> FetchAndDisplayRemoteVersions(bool force = false)
+    private void SetVanillaLoading()
     {
-        (string? version, VersionSource source) rtx = (null, VersionSource.Remote);
-        (string? version, VersionSource source) normals = (null, VersionSource.Remote);
-        (string? version, VersionSource source) opus = (null, VersionSource.Remote);
+        foreach (var card in VanillaCards())
+        {
+            card.Loading.Visibility = Visibility.Visible;
+            card.Available.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    /// <summary>Reads the Vanilla RTX index and repaints the three cards. True when the repository answered just now.</summary>
+    private async Task<bool> LoadVanillaRtxAsync(bool force)
+    {
+        var checkedRemote = false;
+        try
+        {
+            (_vanillaIndex, checkedRemote) = await PackUpdater.GetIndexAsync(PackUpdater.VanillaRtx, force);
+        }
+        catch (Exception ex)
+        {
+            Trace.WriteLine($"[PackUpdaterOverlay] Vanilla RTX index failed: {ex.Message}");
+        }
+
+        if (!_isClosing) PaintVanillaCards();
+        return checkedRemote;
+    }
+
+    private void PaintVanillaCards()
+    {
+        var busy = _updater.IsInstallationInProgress();
+
+        foreach (var card in VanillaCards())
+        {
+            var pack = _vanillaIndex?.Find(PackUpdater.Uuid(card.Type));
+            var installed = card.InstalledVersion;
+
+            card.Loading.Visibility = Visibility.Collapsed;
+            card.Available.Visibility = Visibility.Visible;
+            card.Available.Text = pack is null
+                ? "Failed to check"
+                : installed == pack.VersionDisplay ? $"{pack.VersionDisplay} (You're up-to-date!)" : pack.VersionDisplay;
+
+            var outdated = pack is not null && PackUpdater.IsNewer(installed, pack.VersionDisplay);
+            card.Button.Content = string.IsNullOrEmpty(installed) ? "Install" : outdated ? "Update" : "Reinstall";
+            card.Button.Style = (Style)Application.Current.Resources[string.IsNullOrEmpty(installed) || outdated ? "AccentButtonStyle" : "DefaultButtonStyle"];
+            card.Button.IsEnabled = pack is not null && !busy;
+            card.Toggle.IsEnabled = !busy && pack?.WithoutEnhancements is not null;
+
+            if (pack is not null)
+            {
+                var asset = pack.AssetFor(card.Toggle.IsOn);
+                ToolTipService.SetToolTip(card.Button, PackUpdater.IsCached(PackUpdater.VanillaRtx, pack, card.Toggle.IsOn)
+                    ? "Installs from the copy the app already downloaded."
+                    : $"Downloads {FormatSize(asset.Size)} from the Vanilla RTX repository.");
+            }
+        }
+    }
+
+    // ======================= Installing =======================
+
+    /// <summary>
+    /// Installs packs from one repository and repaints everything afterwards. The enhancements
+    /// choice is read per pack: a Vanilla RTX pack follows its card's toggle, an extra always gets
+    /// the full build.
+    /// </summary>
+    private async void StartInstall(ReleaseRepository repo, IReadOnlyList<string> uuids, Button? clicked)
+    {
+        if (uuids.Count == 0 || _updater.IsInstallationInProgress()) return;
+
+        var label = clicked?.Content as string ?? "";
+        _installVerb = label.StartsWith("Update") ? "Updating" : label.StartsWith("Reinstall") ? "Reinstalling" : "Installing";
+
+        DisableAllInstallButtons();
+        StartInstallingAnimation();
+
+        // The lamp blinks for as long as anything installs, and the finally is the only place it
+        // stops - every path out of here has to go through it.
+        _ = Host.BlinkingLamp(true);
 
         try
         {
-            var result = await _updater.GetRemoteVersionsAsync(PackUpdater.OverlayVersionMaxAge, force);
-            rtx = result.rtx;
-            normals = result.normals;
-            opus = result.opus;
+            var toggles = VanillaCards().ToDictionary(c => PackUpdater.Uuid(c.Type), c => c.Toggle.IsOn, StringComparer.OrdinalIgnoreCase);
+            var (installed, failed) = await _updater.InstallAsync(repo, uuids,
+                pack => !toggles.TryGetValue(pack.Uuid, out var on) || on);
+
+            if (installed.Count > 0)
+                MainWindow.Log($"Installed {string.Join(", ", installed.Select(p => $"{p.Name} {p.VersionDisplay}"))}.", MainWindow.LogLevel.Package);
+            if (failed.Count > 0)
+                MainWindow.Log($"Couldn't install {string.Join(", ", failed.Select(p => p.Name))}. Check your connection and try again.", MainWindow.LogLevel.Warning);
         }
-        catch
+        catch (Exception ex)
         {
-            // Fetch failed completely
+            Trace.WriteLine($"[PackUpdaterOverlay] Install failed: {ex.Message}");
         }
-
-        // Anything read straight from the remote arms the refresh cooldown, so the button says
-        // which of the two produced what is on screen. A forced refresh armed it at the click.
-        // A version is only "from the remote" if there is one - the initial values above carry
-        // that source with no version behind them, which is what a fetch that threw leaves.
-        static bool CameFromRemote((string? version, VersionSource source) pack) =>
-            !string.IsNullOrEmpty(pack.version) && pack.source == VersionSource.Remote;
-
-        var answered = CameFromRemote(rtx) || CameFromRemote(normals) || CameFromRemote(opus);
-
-        // Opening the window arms the cooldown itself; a forced refresh lets its caller decide,
-        // because it has a button to re-enable when nothing came back.
-        if (!force && answered)
-            ArmRefreshCooldown();
-
-        var vanillaRTXVersion = VanillaRTXVersion;
-        var vanillaRTXNormalsVersion = VanillaRTXNormalsVersion;
-        var vanillaRTXOpusVersion = VanillaRTXOpusVersion;
-
-        VanillaRTX_AvailableLoading.Visibility = Visibility.Collapsed;
-        VanillaRTX_AvailableVersion.Visibility = Visibility.Visible;
-        VanillaRTX_AvailableVersion.Text = GetAvailabilityText(rtx.version, vanillaRTXVersion, rtx.source);
-
-        VanillaRTXNormals_AvailableLoading.Visibility = Visibility.Collapsed;
-        VanillaRTXNormals_AvailableVersion.Visibility = Visibility.Visible;
-        VanillaRTXNormals_AvailableVersion.Text = GetAvailabilityText(normals.version, vanillaRTXNormalsVersion, normals.source);
-
-        VanillaRTXOpus_AvailableLoading.Visibility = Visibility.Collapsed;
-        VanillaRTXOpus_AvailableVersion.Visibility = Visibility.Visible;
-        VanillaRTXOpus_AvailableVersion.Text = GetAvailabilityText(opus.version, vanillaRTXOpusVersion, opus.source);
-
-        await UpdateAllButtonStates(rtx.version, normals.version, opus.version,
-            vanillaRTXVersion, vanillaRTXNormalsVersion, vanillaRTXOpusVersion);
-
-        return answered;
-    }
-
-    private string GetAvailabilityText(string? availableVersion, string? installedVersion, VersionSource source)
-    {
-        if (string.IsNullOrEmpty(availableVersion))
+        finally
         {
-            return "Failed to check";
-        }
+            _ = Host.BlinkingLamp(false);
+            StopInstallingAnimation();
 
-        bool isUpToDate = !string.IsNullOrEmpty(installedVersion) && availableVersion == installedVersion;
-
-        string suffix = "";
-        if (source == VersionSource.ZipballFallback)
-        {
-            // does the case where installed version is older than an offline cache really ever happen? NAH! offline cache would only be there if user has updated recently
-            // But we're ready! lovely overengineered bullshit
-            suffix = isUpToDate ? "(Up-to-date, from offline cache)" : "(From offline cache)";
-        }
-        else if (source == VersionSource.CachedRemote)
-        {
-            suffix = isUpToDate ? "(You're up-to-date)" : "";
-        }
-        else
-        {
-            suffix = isUpToDate ? "(You're up-to-date!)" : "";
-        }
-
-        return $"{availableVersion} {suffix}";
-    }
-
-    private async Task UpdateAllButtonStates(
-        string? rtxRemote,
-        string? normalsRemote,
-        string? opusRemote,
-        string? rtxInstalled,
-        string? normalsInstalled,
-        string? opusInstalled)
-    {
-        // Drop the cached zipball if, and only if, it is actually behind the remote. Runs on every
-        // refresh with no cooldown because it makes no requests at all - the remote numbers are
-        // the ones just fetched above, and the cache's are read off the zipball on disk.
-        await _updater.InvalidateCacheIfStaleAsync(rtxRemote, normalsRemote, opusRemote);
-
-        await UpdateSingleButtonState(VanillaRTX_InstallButton, VanillaRTX_EnhancementsToggle,
-            PackType.VanillaRTX, rtxInstalled, rtxRemote);
-        await UpdateSingleButtonState(VanillaRTXNormals_InstallButton, VanillaRTXNormals_EnhancementsToggle,
-            PackType.VanillaRTXNormals, normalsInstalled, normalsRemote);
-        await UpdateSingleButtonState(VanillaRTXOpus_InstallButton, VanillaRTXOpus_EnhancementsToggle,
-            PackType.VanillaRTXOpus, opusInstalled, opusRemote);
-    }
-
-    private async Task UpdateSingleButtonState(Button button, ToggleSwitch toggle,
-        PackType packType, string? installedVersion, string? remoteVersion)
-    {
-        bool isInstalled = !string.IsNullOrEmpty(installedVersion);
-        bool remoteAvailable = !string.IsNullOrEmpty(remoteVersion);
-        bool packInCache = await _updater.DoesPackExistInCache(packType);
-
-        button.IsEnabled = true;
-        toggle.IsEnabled = true;
-
-        if (!isInstalled)
-        {
-            button.Content = "Install";
-            button.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
-            button.IsEnabled = remoteAvailable || packInCache;
-        }
-        else if (remoteAvailable && _updater.IsRemoteVersionNewerThanInstalled(installedVersion, remoteVersion))
-        {
-            button.Content = "Update";
-            button.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
-            button.IsEnabled = true;
-        }
-        else
-        {
-            button.Content = "Reinstall";
-            button.Style = (Style)Application.Current.Resources["DefaultButtonStyle"];
-            button.IsEnabled = remoteAvailable || packInCache;
-        }
-
-
-        // If installation is in progress, handle differently
-        if (_updater.IsInstallationInProgress())
-        {
-            var currentlyInstalling = _updater.GetCurrentlyInstallingPack();
-            if (currentlyInstalling == packType)
+            if (!_isClosing)
             {
-                // This pack is being installed - show Installing... with animation
-                button.IsEnabled = false;
-                toggle.IsEnabled = false;
-                // Animation is handled by timer
-                return;
-            }
-            else
-            {
-                // Different pack is being installed - disable this button
-                button.IsEnabled = false;
-                toggle.IsEnabled = false;
-                return;
+                await RefreshInstalledVersions();
+                await LoadVanillaRtxAsync(force: false);
+                await LoadExtrasAsync(force: false);
             }
         }
     }
 
-    // ======================= Installation State Management =======================
-
-    private void CheckAndHandleOngoingInstallation()
+    private void DisableAllInstallButtons()
     {
-        if (_updater.IsInstallationInProgress())
+        foreach (var card in VanillaCards())
         {
-            var currentPack = _updater.GetCurrentlyInstallingPack();
-
-            // Start animation timer
-            StartInstallingAnimation(currentPack);
-
-            // Disable all buttons
-            DisableAllInstallButtons();
-
-            // Monitor for completion
-            MonitorInstallationCompletion();
+            card.Button.IsEnabled = false;
+            card.Toggle.IsEnabled = false;
         }
+        SetExtrasButtonsEnabled(false);
     }
 
-    private void StartInstallingAnimation(PackType? packType)
+    /// <summary>The button standing for <paramref name="uuid"/>, on either section.</summary>
+    private Button? ButtonFor(string? uuid)
     {
-        if (packType == null) return;
+        if (uuid is null) return null;
+        if (PackUpdater.TypeOf(uuid) is { } type) return VanillaCards().First(c => c.Type == type).Button;
+        return _extraButtons.TryGetValue(uuid, out var button) ? button : null;
+    }
 
+    private void StartInstallingAnimation()
+    {
+        StopInstallingAnimation();
         _animationDots = 0;
 
-        _installingAnimationTimer = new DispatcherTimer();
-        _installingAnimationTimer.Interval = TimeSpan.FromMilliseconds(500);
-        _installingAnimationTimer.Tick += (s, e) =>
+        _installingAnimationTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        _installingAnimationTimer.Tick += (_, _) =>
         {
             _animationDots = (_animationDots + 1) % 4;
-            var dots = new string('.', _animationDots);
-
-
-            var actionWord = _currentInstallActionType ?? "Installing";
-            var actionIng = actionWord switch
-            {
-                "Update" => "Updating",
-                "Install" => "Installing",
-                "Reinstall" => "Reinstalling",
-                _ => "Installing"
-            };
-
-            var buttonText = $"{actionIng}{dots}";
-
-            switch (packType.Value)
-            {
-                case PackType.VanillaRTX:
-                    VanillaRTX_InstallButton.Content = buttonText;
-                    break;
-                case PackType.VanillaRTXNormals:
-                    VanillaRTXNormals_InstallButton.Content = buttonText;
-                    break;
-                case PackType.VanillaRTXOpus:
-                    VanillaRTXOpus_InstallButton.Content = buttonText;
-                    break;
-            }
+            if (ButtonFor(_updater.CurrentlyInstallingUuid) is { } button)
+                button.Content = _installVerb + new string('.', _animationDots);
         };
         _installingAnimationTimer.Start();
     }
 
     private void StopInstallingAnimation()
     {
-        if (_installingAnimationTimer != null)
-        {
-            _installingAnimationTimer.Stop();
-            _installingAnimationTimer = null;
-        }
+        _installingAnimationTimer?.Stop();
+        _installingAnimationTimer = null;
     }
 
-    private async void MonitorInstallationCompletion()
+    /// <summary>
+    /// An install started before this module was (re)opened: everything stays disabled, the
+    /// running pack animates, and the window repaints once it finishes.
+    /// </summary>
+    private async void ResumeOngoingInstallation()
     {
-        // Poll for installation completion
-        while (_updater.IsInstallationInProgress())
-        {
-            await Task.Delay(500);
-        }
+        if (!_updater.IsInstallationInProgress()) return;
 
-        // Installation completed
-        StopInstallingAnimation();
-
-        // Refresh versions and re-enable buttons
-        await RefreshInstalledVersions();
-        await FetchAndDisplayRemoteVersions();
-        await LoadExtrasAsync(force: false);
-    }
-
-    private void DisableAllInstallButtons()
-    {
-        VanillaRTX_InstallButton.IsEnabled = false;
-        VanillaRTX_EnhancementsToggle.IsEnabled = false;
-
-        VanillaRTXNormals_InstallButton.IsEnabled = false;
-        VanillaRTXNormals_EnhancementsToggle.IsEnabled = false;
-
-        VanillaRTXOpus_InstallButton.IsEnabled = false;
-        VanillaRTXOpus_EnhancementsToggle.IsEnabled = false;
-
-        SetExtrasButtonsEnabled(false);
-    }
-
-    // ======================= Button Handlers =======================
-
-    private void SetupButtonHandlers()
-    {
-        VanillaRTX_InstallButton.Click += (s, e) =>
-            StartInstallation(PackType.VanillaRTX, VanillaRTX_EnhancementsToggle.IsOn);
-
-        VanillaRTXNormals_InstallButton.Click += (s, e) =>
-            StartInstallation(PackType.VanillaRTXNormals, VanillaRTXNormals_EnhancementsToggle.IsOn);
-
-        VanillaRTXOpus_InstallButton.Click += (s, e) =>
-            StartInstallation(PackType.VanillaRTXOpus, VanillaRTXOpus_EnhancementsToggle.IsOn);
-    }
-
-    private async void StartInstallation(PackType packType, bool enableEnhancements)
-    {
-        // Check if installation is already running
-        if (_updater.IsInstallationInProgress())
-        {
-            Trace.WriteLine("Installation already in progress - ignoring button click");
-            return;
-        }
-
-        _currentInstallActionType = GetButtonForPackType(packType)?.Content?.ToString();
-        Button? GetButtonForPackType(PackType packType)
-        {
-            return packType switch
-            {
-                PackType.VanillaRTX => VanillaRTX_InstallButton,
-                PackType.VanillaRTXNormals => VanillaRTXNormals_InstallButton,
-                PackType.VanillaRTXOpus => VanillaRTXOpus_InstallButton,
-                _ => null
-            };
-        }
-
-
-        // Disable all buttons immediately
         DisableAllInstallButtons();
+        StartInstallingAnimation();
 
-        // Start animation for this pack
-        StartInstallingAnimation(packType);
+        while (_updater.IsInstallationInProgress() && !_isClosing)
+            await Task.Delay(500);
 
-        // A pack install is a download and an extraction over the whole pack, and the one
-        // thing in this app besides tuning that runs long enough to be worth saying so in the
-        // titlebar. Nothing else ever turns the continuous blink off, so the finally below is
-        // the only place it stops and every path out of here has to go through it.
-        _ = Host.BlinkingLamp(true);
+        StopInstallingAnimation();
+        if (_isClosing) return;
 
-        try
-        {
-            var success = await Task.Run(() =>
-                _updater.UpdateSinglePackAsync(packType, enableEnhancements));
-
-            Trace.WriteLine($"{GetPackDisplayName(packType)} " +
-                            (success ? "installed successfully" : "installation failed"));
-        }
-        catch (Exception ex)
-        {
-            Trace.WriteLine($"Error installing {GetPackDisplayName(packType)}: {ex.Message}");
-        }
-        finally
-        {
-            _ = Host.BlinkingLamp(false);
-
-            // Stop animation
-            StopInstallingAnimation();
-
-            // Refresh versions and button states
-            await RefreshInstalledVersions();
-            await FetchAndDisplayRemoteVersions();
-        }
+        await RefreshInstalledVersions();
+        await LoadVanillaRtxAsync(force: false);
+        await LoadExtrasAsync(force: false);
     }
 
     private async Task RefreshInstalledVersions()
     {
         await _mainWindow.LocatePacksTask();
-
-        this.DispatcherQueue.TryEnqueue(() =>
-        {
-            UpdateInstalledVersionDisplays();
-        });
+        if (!_isClosing) UpdateInstalledVersionDisplays();
     }
 
-    private string GetPackDisplayName(PackType packType)
-    {
-        return packType switch
-        {
-            PackType.VanillaRTX => "Vanilla RTX",
-            PackType.VanillaRTXNormals => "Vanilla RTX Normals",
-            PackType.VanillaRTXOpus => "Vanilla RTX Opus",
-            _ => "Unknown Pack"
-        };
-    }
+    private static string FormatSize(long bytes)
+        => bytes >= 1024 * 1024 ? $"{bytes / (1024.0 * 1024.0):0.#} MB" : $"{Math.Max(1, bytes / 1024)} KB";
 }

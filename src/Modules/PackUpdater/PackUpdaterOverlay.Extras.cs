@@ -11,26 +11,24 @@ using Vanilla_RTX_App.Core;
 namespace Vanilla_RTX_App.Modules.PackUpdater;
 
 /// <summary>
-/// The Vanilla RTX Extras card: one row per pack the Extras repository's latest release lists
-/// (see <see cref="PackUpdater"/>'s Extras partial for where that list comes from), each with
-/// what is installed, what is available and an Install / Update / Reinstall button, plus one
-/// "Get all" for everything missing or out of date.
+/// The Vanilla RTX Extras card: one row per pack the Extras repository's latest release lists,
+/// each with what is installed, what is available and an Install / Update / Reinstall button, plus
+/// one "Get all" for everything missing or out of date. Installs go through the same
+/// <see cref="StartInstall"/> as the Vanilla RTX cards.
 ///
 /// <para><b>Rows are built in code</b> because the list is the release's, not this window's -
 /// a pack added to the Extras repository appears here without an app update. Secondary text
 /// takes <c>Opacity</c> rather than a themed brush, the same as the Vanilla RTX cards above it,
-/// so nothing here has to follow a theme change by hand.</para>
-///
-/// <para><b>One install at a time, shared with the Vanilla RTX packs.</b> While any install runs,
-/// every button in the window is disabled; the pack being installed shows "Installing..." on its
-/// own row. The batch runs on <see cref="PackUpdater"/>, which outlives this window, so closing
-/// the module mid-batch lets it finish and a reopened module picks the state back up.</para>
+/// so nothing here has to follow a theme change by hand. The column headings in the XAML share
+/// the rows' three column widths.</para>
 /// </summary>
 public sealed partial class PackUpdaterOverlay
 {
-    private ExtrasIndex? _extrasIndex;
-    private Dictionary<string, InstalledExtra> _installedExtras = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, Button> _extraButtons = new();
+    private ReleaseIndex? _extrasIndex;
+    private Dictionary<string, InstalledPackCopy> _installedExtras = new(StringComparer.OrdinalIgnoreCase);
+
+    // Keyed by header UUID, the identity installs report back with.
+    private readonly Dictionary<string, Button> _extraButtons = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Reads the index (fresh when due or forced), re-scans what is installed, and rebuilds the
@@ -38,11 +36,11 @@ public sealed partial class PackUpdaterOverlay
     /// </summary>
     private async Task<bool> LoadExtrasAsync(bool force)
     {
-        ExtrasIndex? index = null;
+        ReleaseIndex? index = null;
         var checkedRemote = false;
         try
         {
-            (index, checkedRemote) = await PackUpdater.GetExtrasIndexAsync(force);
+            (index, checkedRemote) = await PackUpdater.GetIndexAsync(PackUpdater.Extras, force);
         }
         catch (Exception ex)
         {
@@ -53,7 +51,7 @@ public sealed partial class PackUpdaterOverlay
         _extrasIndex = index;
         _installedExtras = index is null
             ? new(StringComparer.OrdinalIgnoreCase)
-            : await Task.Run(() => PackUpdater.FindInstalledExtras(index.Packs));
+            : await Task.Run(() => PackUpdater.FindInstalled(index.Packs));
         if (_isClosing) return checkedRemote;
 
         BuildExtrasRows();
@@ -64,9 +62,9 @@ public sealed partial class PackUpdaterOverlay
     /// The packs in the order they are listed: the index's own, except that Everwinter leads
     /// during the Christmas season, which is when the app promotes it.
     /// </summary>
-    private IEnumerable<ExtraPack> OrderedExtras()
+    private IEnumerable<ReleasePack> OrderedExtras()
     {
-        if (_extrasIndex is null) return Array.Empty<ExtraPack>();
+        if (_extrasIndex is null) return Array.Empty<ReleasePack>();
 
         var packs = _extrasIndex.Packs.AsEnumerable();
         if (Helpers.GetSpecialOccasionName() == "christmas")
@@ -74,8 +72,16 @@ public sealed partial class PackUpdaterOverlay
         return packs;
     }
 
-    private InstalledExtra? InstalledCopy(ExtraPack pack)
+    private InstalledPackCopy? InstalledCopy(ReleasePack pack)
         => _installedExtras.TryGetValue(pack.Uuid, out var installed) ? installed : null;
+
+    /// <summary>The loading state replaces the headings and rows, so the card never shows an empty table.</summary>
+    private void ShowExtrasLoading(bool loading)
+    {
+        ExtrasLoadingPanel.Visibility = loading ? Visibility.Visible : Visibility.Collapsed;
+        ExtrasColumnHeadings.Visibility = loading ? Visibility.Collapsed : Visibility.Visible;
+        ExtrasList.Visibility = loading ? Visibility.Collapsed : Visibility.Visible;
+    }
 
     private void BuildExtrasRows()
     {
@@ -105,10 +111,10 @@ public sealed partial class PackUpdaterOverlay
         }
 
         UpdateGetAllButton();
-        ApplyExtrasInstallState();
+        if (_updater.IsInstallationInProgress()) SetExtrasButtonsEnabled(false);
     }
 
-    private Grid BuildExtraRow(ExtraPack pack)
+    private Grid BuildExtraRow(ReleasePack pack)
     {
         var installed = InstalledCopy(pack);
 
@@ -143,14 +149,13 @@ public sealed partial class PackUpdaterOverlay
         }
         row.Children.Add(text);
 
+        var outdated = PackUpdater.IsOutdated(pack, installed);
         var versions = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
         versions.Children.Add(VersionLine("Installed:", installed?.VersionDisplay ?? "Not installed"));
-        var upToDate = installed is not null && !PackUpdater.IsExtraOutdated(pack, installed);
-        versions.Children.Add(VersionLine("Available:", upToDate ? $"{pack.VersionDisplay} (You're up-to-date)" : pack.VersionDisplay));
+        versions.Children.Add(VersionLine("Available:", installed is not null && !outdated ? $"{pack.VersionDisplay} (You're up-to-date)" : pack.VersionDisplay));
         Grid.SetColumn(versions, 1);
         row.Children.Add(versions);
 
-        var outdated = PackUpdater.IsExtraOutdated(pack, installed);
         var button = new Button
         {
             Content = installed is null ? "Install" : outdated ? "Update" : "Reinstall",
@@ -161,21 +166,15 @@ public sealed partial class PackUpdaterOverlay
             VerticalAlignment = VerticalAlignment.Center,
             IsTextScaleFactorEnabled = false,
         };
-        ToolTipService.SetToolTip(button, $"Downloads {FormatSize(pack.Size)} from the Vanilla RTX Extras repository.");
-        button.Click += (_, _) => StartExtrasInstall(new[] { pack });
+        ToolTipService.SetToolTip(button, PackUpdater.IsCached(PackUpdater.Extras, pack, enhancements: true)
+            ? "Installs from the copy the app already downloaded."
+            : $"Downloads {FormatSize(pack.Asset.Size)} from the Vanilla RTX Extras repository.");
+        button.Click += (_, _) => StartInstall(PackUpdater.Extras, new[] { pack.Uuid }, button);
         Grid.SetColumn(button, 2);
         row.Children.Add(button);
 
-        _extraButtons[pack.Id] = button;
+        _extraButtons[pack.Uuid] = button;
         return row;
-    }
-
-    /// <summary>The loading state replaces the headings and rows, so the card never shows an empty table.</summary>
-    private void ShowExtrasLoading(bool loading)
-    {
-        ExtrasLoadingPanel.Visibility = loading ? Visibility.Visible : Visibility.Collapsed;
-        ExtrasColumnHeadings.Visibility = loading ? Visibility.Collapsed : Visibility.Visible;
-        ExtrasList.Visibility = loading ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private static StackPanel VersionLine(string label, string value)
@@ -194,8 +193,8 @@ public sealed partial class PackUpdaterOverlay
     }
 
     /// <summary>Everything "Get all" would install: each pack not installed, and each one out of date.</summary>
-    private List<ExtraPack> ExtrasToGet()
-        => OrderedExtras().Where(p => InstalledCopy(p) is not { } i || PackUpdater.IsExtraOutdated(p, i)).ToList();
+    private List<ReleasePack> ExtrasToGet()
+        => OrderedExtras().Where(p => InstalledCopy(p) is not { } i || PackUpdater.IsOutdated(p, i)).ToList();
 
     private void UpdateGetAllButton()
     {
@@ -209,8 +208,10 @@ public sealed partial class PackUpdaterOverlay
             return;
         }
 
-        var size = FormatSize(toGet.Sum(p => p.Size));
-        ExtrasGetAllButton.Content = missing > 0 ? $"Get all ({size})" : $"Update all ({size})";
+        // What still has to come over the network; cached packs install off the disk.
+        var download = toGet.Where(p => !PackUpdater.IsCached(PackUpdater.Extras, p, enhancements: true)).Sum(p => p.Asset.Size);
+        var size = download > 0 ? $" ({FormatSize(download)})" : "";
+        ExtrasGetAllButton.Content = missing > 0 ? $"Get all{size}" : $"Update all{size}";
         ExtrasGetAllButton.IsEnabled = !_updater.IsInstallationInProgress();
     }
 
@@ -220,63 +221,6 @@ public sealed partial class PackUpdaterOverlay
         ExtrasGetAllButton.IsEnabled = enabled && ExtrasToGet().Count > 0;
     }
 
-    /// <summary>Disables everything while any install runs, and labels the extra being installed, if it is one.</summary>
-    private void ApplyExtrasInstallState()
-    {
-        if (!_updater.IsInstallationInProgress()) return;
-
-        SetExtrasButtonsEnabled(false);
-        if (_updater.GetCurrentlyInstallingExtra() is { } id && _extraButtons.TryGetValue(id, out var button))
-            button.Content = "Installing...";
-    }
-
-    private void ExtrasGetAllButton_Click(object sender, RoutedEventArgs e) => StartExtrasInstall(ExtrasToGet());
-
-    private async void StartExtrasInstall(IReadOnlyList<ExtraPack> packs)
-    {
-        if (_extrasIndex is not { } index || packs.Count == 0) return;
-        if (_updater.IsInstallationInProgress())
-        {
-            Trace.WriteLine("Installation already in progress - ignoring button click");
-            return;
-        }
-
-        DisableAllInstallButtons();
-
-        // Same as the Vanilla RTX packs: the lamp blinks for as long as anything installs, and
-        // the finally is the only place it stops.
-        _ = Host.BlinkingLamp(true);
-
-        try
-        {
-            var (installed, failed) = await _updater.InstallExtrasAsync(index, packs, pack =>
-            {
-                if (_isClosing) return;
-                if (_extraButtons.TryGetValue(pack.Id, out var button)) button.Content = "Installing...";
-            });
-
-            if (installed.Count > 0)
-                MainWindow.Log($"Installed {string.Join(", ", installed.Select(p => $"{p.Name} {p.VersionDisplay}"))}.", MainWindow.LogLevel.Package);
-            if (failed.Count > 0)
-                MainWindow.Log($"Couldn't install {string.Join(", ", failed.Select(p => p.Name))}. Check your connection and try again.", MainWindow.LogLevel.Warning);
-        }
-        catch (Exception ex)
-        {
-            Trace.WriteLine($"[PackUpdaterOverlay] Extras install failed: {ex.Message}");
-        }
-        finally
-        {
-            _ = Host.BlinkingLamp(false);
-
-            if (!_isClosing)
-            {
-                await RefreshInstalledVersions();
-                await FetchAndDisplayRemoteVersions();
-                await LoadExtrasAsync(force: false);
-            }
-        }
-    }
-
-    private static string FormatSize(long bytes)
-        => bytes >= 1024 * 1024 ? $"{bytes / (1024.0 * 1024.0):0.#} MB" : $"{Math.Max(1, bytes / 1024)} KB";
+    private void ExtrasGetAllButton_Click(object sender, RoutedEventArgs e)
+        => StartInstall(PackUpdater.Extras, ExtrasToGet().Select(p => p.Uuid).ToList(), ExtrasGetAllButton);
 }

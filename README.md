@@ -103,7 +103,7 @@ The **Preview** toggle points the whole app at Minecraft Preview instead of the 
 
 # Get latest RTX packs
 
-Installs, updates and reinstalls the three Vanilla RTX packs, delivered straight from the [Vanilla RTX repository](https://github.com/vanilla-rtx/Vanilla-RTX).
+Installs, updates and reinstalls the three Vanilla RTX packs and their add-ons, delivered straight from the latest releases of the [Vanilla RTX](https://github.com/vanilla-rtx/Vanilla-RTX) and [Vanilla RTX Extras](https://github.com/Vanilla-RTX/Vanilla-RTX-Extras) repositories.
 
 <img alt="Vanilla RTX App UI Images" src="https://github.com/user-attachments/assets/a5aa871a-468e-4bfc-9c58-d7283e25b58e" />
 
@@ -125,10 +125,10 @@ The **refresh** button in the title bar checks everything again: it rescans the 
 
 > Other things worth mentioning:
 > - An update replaces your existing copy of that pack, and all older versions that may be installed are cleared, leaving only the latest installation.
-> - The `available` versions are remembered for a while rather than asked for every time. Opening this page uses anything fetched in the last few minutes, and the main menu's own notices can check hourly. Installing always asks the repository directly first, whatever those say, so an install never deploys a version that has just been superseded moments ago and didn't show up in the UI.
-> - Downloads stay cached, so a reinstall is instant until a newer version comes out. The **Get latest RTX packs** button's icon in the main menu tells you which to expect: a sync icon when a click can install straight from the cache, and a cloud when it will download.
+> - The `available` versions are remembered for a few minutes rather than asked for every time. Installing always asks the repository directly first, whatever the page shows, so an install never deploys a version that has just been superseded moments ago.
+> - Every pack downloads on its own, and downloads stay cached, so a reinstall is instant until a newer version comes out. The **Get latest RTX packs** button's icon in the main menu tells you which to expect: a sync icon when a click can install straight from the cache, and a cloud when it will download.
 > - The log tells you once per session when an update is waiting.
-> - Each extra downloads on its own, so installing Clear Water doesn't fetch Creative RTX's 70 MB. Extras come with their enhancements already included, which is why they have no toggle.
+> - Installing Clear Water doesn't fetch Creative RTX's 70 MB. Extras come with their enhancements already included, which is why they have no toggle.
 > - The cards at the bottom link to each family of extras' download pages, where you can read more about them.
 > - An install keeps running if you close this page, and the page shows its progress again when you come back. This was worth mentioning because other features in the app tend to terminate if you close their page.
 

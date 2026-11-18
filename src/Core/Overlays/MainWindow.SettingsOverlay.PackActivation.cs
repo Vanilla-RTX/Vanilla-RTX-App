@@ -53,7 +53,7 @@ public sealed partial class SettingsOverlay
     /// <summary>A pack's name when it isn't installed here: a base pack's own, an extra's from the cached Extras index, or its UUID.</summary>
     private static string NameOfMissing(string uuid)
         => PackActivation.BasePackName(uuid)
-        ?? PackUpdater.ReadCachedExtrasIndex()?.Packs.FirstOrDefault(p => p.Uuid.Equals(uuid, StringComparison.OrdinalIgnoreCase))?.Name
+        ?? PackUpdater.ReadCachedIndex(PackUpdater.Extras)?.Find(uuid)?.Name
         ?? uuid;
 
     private void BuildActivationRows()
