@@ -63,6 +63,9 @@ public class MinecraftLauncher
     /// back over ours on exit, and the write in between is what gives the closed process a moment
     /// to let go before the protocol starts a new one.</para>
     ///
+    /// <para>Packs set to activate on launch (<see cref="PackActivation"/>) are written in the
+    /// same gap, after any close and before the game starts, for the same reason.</para>
+    ///
     /// <para>An empty configured set is a deliberate choice, not an error: the user removed
     /// every row because they want the game launched with nothing touched. The plain protocol
     /// launch below is what that means, and it must not silently fall back to the defaults -
@@ -73,6 +76,9 @@ public class MinecraftLauncher
         var closeMessages = EnvironmentVariables.Persistent.CloseGameBeforeLaunch
             ? await CloseRunningGameAsync(isTargetingPreview)
             : new List<string>();
+
+        // Independent of launch options: an empty options set still activates packs.
+        closeMessages.AddRange(await PackActivation.ApplyConfiguredAsync(isTargetingPreview));
 
         var options = ParseOptions(EnvironmentVariables.Persistent.LaunchOptions);
 

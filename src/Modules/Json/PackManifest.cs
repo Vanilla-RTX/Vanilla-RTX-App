@@ -9,6 +9,9 @@ using System.Threading.Tasks;
 
 namespace Vanilla_RTX_App.Modules.Json;
 
+/// <summary>A subpack as a manifest declares it: the folder the game selects it by, and the name it shows.</summary>
+public sealed record PackSubpack(string FolderName, string Name);
+
 /// <summary>
 /// One entry in a manifest's <c>modules</c> array. <see cref="Node"/> is the live object, so a
 /// caller that needs to *write* (Alchitex rewriting a pack it just generated into) mutates it
@@ -170,6 +173,66 @@ public sealed class PackManifest
         : MinecraftJson.GetString(Header?["uuid"]);
 
     public string? HeaderName => MinecraftJson.GetString(Header?["name"]);
+
+    /// <summary>
+    /// The name the game shows: <see cref="HeaderName"/>, or - when that is the <c>pack.name</c>
+    /// placeholder - the value the pack's own <c>texts/*.lang</c> gives it (en_US first, then
+    /// en_GB, then any), with section-sign formatting stripped either way. Falls back to the raw
+    /// placeholder when no lang file defines it, so the result is never null for a named pack.
+    /// </summary>
+    public string? DisplayName
+    {
+        get
+        {
+            var raw = HeaderName;
+            if (raw is null) return null;
+            if (!raw.Equals("pack.name", StringComparison.OrdinalIgnoreCase) || SourcePath is null)
+                return Helpers.StripMinecraftFormatting(raw);
+
+            try
+            {
+                var texts = Path.Combine(Path.GetDirectoryName(SourcePath)!, "texts");
+                var langs = Directory.Exists(texts) ? Directory.GetFiles(texts, "*.lang") : Array.Empty<string>();
+                var lang = langs.FirstOrDefault(f => f.EndsWith("en_US.lang", StringComparison.OrdinalIgnoreCase))
+                        ?? langs.FirstOrDefault(f => f.EndsWith("en_GB.lang", StringComparison.OrdinalIgnoreCase))
+                        ?? langs.FirstOrDefault();
+                if (lang is not null)
+                {
+                    foreach (var line in File.ReadLines(lang))
+                    {
+                        var trimmed = line.Trim();
+                        if (!trimmed.StartsWith("pack.name=", StringComparison.OrdinalIgnoreCase)) continue;
+                        // A trailing "\t#" starts a comment in .lang files.
+                        var value = trimmed[(trimmed.IndexOf('=') + 1)..].Split('\t')[0].Trim();
+                        if (value.Length > 0) return Helpers.StripMinecraftFormatting(value);
+                    }
+                }
+            }
+            catch { }
+
+            return raw;
+        }
+    }
+
+    /// <summary>
+    /// The <c>subpacks</c> array, in file order. An entry without a <c>folder_name</c> can't be
+    /// selected and is dropped; one without a <c>name</c> is shown by its folder name.
+    /// </summary>
+    public IReadOnlyList<PackSubpack> Subpacks
+    {
+        get
+        {
+            var list = new List<PackSubpack>();
+            if (Root["subpacks"] is not JsonArray array) return list;
+            foreach (var entry in array)
+            {
+                var folder = MinecraftJson.GetString(entry?["folder_name"]);
+                if (string.IsNullOrEmpty(folder)) continue;
+                list.Add(new PackSubpack(folder, MinecraftJson.GetString(entry?["name"]) ?? folder));
+            }
+            return list;
+        }
+    }
 
     public string? HeaderDescription => MinecraftJson.GetString(Header?["description"]);
 

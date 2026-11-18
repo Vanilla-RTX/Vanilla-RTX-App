@@ -13,9 +13,6 @@ using Vanilla_RTX_App.Modules.Json;
 
 namespace Vanilla_RTX_App.Modules.PackUpdater;
 
-/// <summary>A subpack as its manifest declares it: the folder the game selects by, and the name it shows.</summary>
-public sealed record PackSubpack(string FolderName, string Name);
-
 /// <summary>
 /// One pack the Vanilla RTX Extras repository publishes, as its release index describes it.
 /// Everything needed to decide what to offer is here, so nothing is downloaded until the user

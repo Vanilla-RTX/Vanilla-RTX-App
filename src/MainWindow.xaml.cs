@@ -2456,11 +2456,6 @@ public sealed partial class MainWindow : Window
 So, dig more... the goal is to open up path to fix cpu side issues like flickering, unlock more capabilities,
 and get something like DLSS RR working
 
-- Figure a way to expose an option to auto-activate a Vanilla RTX pack on-launch.
-Maybe this:
-ticking its checkbox before launching the game also edits the thing that holds which packs are active.
-this may not be a great idea, but it is doable, and mostly stems from a curiosity to understand what file in user data saves this stuff.
-
 - need revamped store images like the 4.0 trailer thumbnail concept
 
 - Look into

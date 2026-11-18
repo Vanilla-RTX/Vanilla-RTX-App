@@ -78,6 +78,11 @@ public static class EnvironmentVariables
         // MinecraftLauncher.CloseRunningGameAsync for what qualifies and why nothing else does.
         public static bool CloseGameBeforeLaunch = Defaults.CloseGameBeforeLaunch;
 
+        // Whether a launch also activates PacksToActivate in the game's global pack list, and
+        // that list in PackActivation's uuid:subpack;uuid:subpack form - see PackActivation.
+        public static bool ActivatePacksOnLaunch = Defaults.ActivatePacksOnLaunch;
+        public static string PacksToActivate = Defaults.PacksToActivate;
+
         // Where the app goes for content it doesn't ship. Read these through Links, never
         // directly - that is what falls back to the built-in address when one has gone stale.
         public static string DocumentationUrl = Defaults.DocumentationUrl;
@@ -101,6 +106,11 @@ public static class EnvironmentVariables
         public static readonly string LaunchOptions = Modules.MinecraftLauncher.SerializeOptions(Modules.MinecraftLauncher.DefaultOptions);
 
         public const bool CloseGameBeforeLaunch = false;
+
+        public const bool ActivatePacksOnLaunch = false;
+
+        /// <summary>Serialized <see cref="Modules.PackActivation.DefaultEntries"/> - the three Vanilla RTX packs, highest priority first.</summary>
+        public static readonly string PacksToActivate = Modules.PackActivation.Serialize(Modules.PackActivation.DefaultEntries);
 
         // ── Addresses ────────────────────────────────────────────────────────
         // The four things the app fetches from somewhere the user might reasonably want

@@ -308,6 +308,8 @@ public sealed partial class SettingsOverlay : UserControl
 
             SuspendAnimationsSwitch.IsOn = Persistent.SuspendUIAnimations;
             CloseGameBeforeLaunchSwitch.IsOn = Persistent.CloseGameBeforeLaunch;
+            ActivatePacksSwitch.IsOn = Persistent.ActivatePacksOnLaunch;
+            RefreshActivationList();
 
             RefreshPaths();
             foreach (var row in _pathRows) ShowPathHint(row, rejection: null);

@@ -596,6 +596,85 @@
                                           IsTextScaleFactorEnabled="False" />
                         </Grid>
 
+                        <!-- Packs to activate on launch - see PackActivation. Rows are built in
+                             code, one per pack on the list, top = highest priority. -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0"
+                                        Margin="0,0,10,0"
+                                        VerticalAlignment="Center">
+                                <TextBlock Text="Activate packs on launch"
+                                           TextWrapping="Wrap"
+                                           IsTextScaleFactorEnabled="False" />
+                                <TextBlock Text="Activates the packs below, top one highest, in every account's global resource packs just before launching. Only the highest installed Vanilla RTX pack is activated, since they don't stack. Packs you activated in-game stay active beneath these."
+                                           Style="{StaticResource SettingsHintTextStyle}" />
+                            </StackPanel>
+
+                            <ToggleSwitch x:Name="ActivatePacksSwitch"
+                                          Grid.Column="1"
+                                          OnContent="On"
+                                          OffContent="Off"
+                                          VerticalAlignment="Center"
+                                          MinWidth="0"
+                                          Toggled="ActivatePacksSwitch_Toggled"
+                                          IsTextScaleFactorEnabled="False" />
+                        </Grid>
+
+                        <StackPanel x:Name="ActivationRows"
+                                    Spacing="6" />
+
+                        <TextBlock x:Name="ActivationEmptyText"
+                                   Visibility="Collapsed"
+                                   Style="{StaticResource SettingsHintTextStyle}"
+                                   Text="No packs - launching won't change which packs are active." />
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <DropDownButton x:Name="AddActivationPackButton"
+                                            Grid.Column="0"
+                                            IsTextScaleFactorEnabled="False"
+                                            ToolTipService.ToolTip="Add one of the packs installed for the edition the app is targeting.">
+                                <StackPanel Orientation="Horizontal"
+                                            Spacing="8">
+                                    <FontIcon Glyph="&#xE710;"
+                                              FontSize="14"
+                                              VerticalAlignment="Center" />
+                                    <TextBlock Text="Add pack"
+                                               VerticalAlignment="Center"
+                                               IsTextScaleFactorEnabled="False" />
+                                </StackPanel>
+                                <DropDownButton.Flyout>
+                                    <MenuFlyout x:Name="AddActivationPackFlyout"
+                                                Placement="BottomEdgeAlignedLeft"
+                                                Opening="AddActivationPackFlyout_Opening" />
+                                </DropDownButton.Flyout>
+                            </DropDownButton>
+                            <Button x:Name="ResetActivationPacksButton"
+                                    Grid.Column="2"
+                                    Style="{ThemeResource SubtleButtonStyle}"
+                                    Click="ResetActivationPacksButton_Click"
+                                    IsTextScaleFactorEnabled="False"
+                                    ToolTipService.ToolTip="Put the three Vanilla RTX packs back as the only packs on the list.">
+                                <StackPanel Orientation="Horizontal"
+                                            Spacing="8">
+                                    <FontIcon Glyph="&#xE777;"
+                                              FontSize="14"
+                                              VerticalAlignment="Center" />
+                                    <TextBlock Text="Defaults"
+                                               VerticalAlignment="Center"
+                                               IsTextScaleFactorEnabled="False" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+
                         <Border Style="{StaticResource SettingsSeparatorStyle}" />
 
                         <!-- ═══ Content sources ══════════════════════════════════════════
