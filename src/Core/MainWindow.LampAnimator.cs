@@ -13,6 +13,14 @@ namespace Vanilla_RTX_App.Core;
 
 /// <summary>
 /// Unified lamp animation system for both titlebar and splash screen contexts.
+///
+/// <para><b>Reversed</b> (<see cref="SetReversedAsync"/>) is the titlebar lamp's Preview mode:
+/// it rests dark instead of lit, and every pattern runs from that rest - a flash that would dip
+/// it lights it instead, a burst pops away from dark and back, the continuous blink settles dark,
+/// and the halo's spin favours the other direction. A super flash stays the brightest thing the
+/// lamp does either way, so "something arrived" still reads as arrival. Every path ends in the
+/// rest state through <see cref="RestOverlayOpacity"/> and <see cref="RestHaloOpacity"/>, so a
+/// new path only has to end there too.</para>
 /// </summary>
 public class LampAnimator
 {
@@ -32,6 +40,19 @@ public class LampAnimator
     private readonly double _defaultBaseOpacity = 1.0;
     private readonly double _defaultOverlayOpacity = 0.0;
     private readonly double _defaultSuperOpacity = 0.0;
+
+    /// <summary>The halo's opacity while the lamp is dark.</summary>
+    private const double DimHaloOpacity = 0.025;
+
+    private bool _reversed;
+
+    /// <summary>Overlay (the off image over the on one) at rest: hidden when lit, shown when reversed.</summary>
+    private double RestOverlayOpacity => _reversed ? 1.0 : _defaultOverlayOpacity;
+    private double RestHaloOpacity => _reversed ? DimHaloOpacity : _defaultHaloOpacity;
+
+    // The state a dimming flash moves to, which for a reversed lamp is lit.
+    private double AwayOverlayOpacity => _reversed ? _defaultOverlayOpacity : 1.0;
+    private double AwayHaloOpacity => _reversed ? _defaultHaloOpacity : DimHaloOpacity;
 
     private CancellationTokenSource? _blinkCts;
     private Task? _animationTask;
@@ -115,13 +136,57 @@ public class LampAnimator
     /// <summary>
     /// Initializes the animator by preloading images and setting special occasion textures.
     /// Call this immediately after construction to avoid delays on first animation.
+    /// Under the animation lock like everything else that initialises: run beside
+    /// <see cref="SetReversedAsync"/> without it, its last step - putting every opacity back to the
+    /// XAML defaults - can land after the reversed rest was applied and undo it.
     /// </summary>
     public async Task InitializeAsync()
     {
         if (_isInitialized)
             return;
 
-        await EnsureInitialized();
+        await _animationLock.WaitAsync();
+        try
+        {
+            await EnsureInitialized();
+        }
+        finally
+        {
+            _animationLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Switches between resting lit and resting dark. Waits for a single flash in progress, and
+    /// leaves a running continuous blink alone - it settles into whichever rest is current when it
+    /// stops. <paramref name="animate"/> false snaps, for <c>SuspendUIAnimations</c>.
+    /// </summary>
+    public async Task SetReversedAsync(bool reversed, bool animate)
+    {
+        await _animationLock.WaitAsync();
+        try
+        {
+            await EnsureInitialized();
+            if (_reversed == reversed) return;
+            _reversed = reversed;
+            if (_isBusy || _overlayImage == null) return;
+
+            // Slower than a flash: this is the lamp changing what it is, not reporting an event.
+            const double settleMs = 350;
+            if (!animate)
+            {
+                _overlayImage.Opacity = RestOverlayOpacity;
+                if (_haloImage != null) _haloImage.Opacity = RestHaloOpacity;
+                return;
+            }
+            await Task.WhenAll(
+                AnimateOpacity(_overlayImage, RestOverlayOpacity, settleMs),
+                _haloImage != null ? AnimateOpacity(_haloImage, RestHaloOpacity, settleMs) : Task.CompletedTask);
+        }
+        finally
+        {
+            _animationLock.Release();
+        }
     }
 
     /// <summary>
@@ -223,7 +288,7 @@ public class LampAnimator
                 if (!_isBusy)
                     return; // Already stopped
 
-                await SetupSteadyOnState(fadeAnimationMs);
+                await SetupRestState(fadeAnimationMs);
             }
         }
         finally
@@ -268,8 +333,9 @@ public class LampAnimator
     {
         if (_haloImage == null) return;
 
-        // Random chance of clockwise (+) or counter-clockwise (-)
+        // Random chance of clockwise (+) or counter-clockwise (-); a reversed lamp favours the other way.
         double sign = Random.Shared.NextDouble() < 0.67 ? 1.0 : -1.0;
+        if (_reversed) sign = -sign;
 
         _haloVelocity += sign * impulseMagnitude;
 
@@ -432,19 +498,19 @@ public class LampAnimator
         _isInitialized = true;
     }
 
-    private async Task SetupSteadyOnState(double fadeMs)
+    private async Task SetupRestState(double fadeMs)
     {
         await SetImageAsync(_baseImage, _onPath);
         _baseImage.Opacity = _defaultBaseOpacity;
 
         if (_overlayImage != null)
-            _overlayImage.Opacity = _defaultOverlayOpacity;
+            _overlayImage.Opacity = RestOverlayOpacity;
 
         if (_superImage != null)
             _superImage.Opacity = _defaultSuperOpacity;
 
         if (_haloImage != null)
-            await AnimateOpacity(_haloImage, _defaultHaloOpacity, fadeMs);
+            await AnimateOpacity(_haloImage, RestHaloOpacity, fadeMs);
     }
 
     private async Task<BitmapImage?> GetCachedImageAsync(string? path)
@@ -507,7 +573,7 @@ public class LampAnimator
 
         await Task.Delay((int)flashStart);
         await ExecuteSingleFlash(random, superFlashChance, fadeMs, (int)flashDuration, rotate: rotate);
-        await SetupSteadyOnState(fadeMs);
+        await SetupRestState(fadeMs);
     }
 
     private async Task ExecuteSingleFlash(Random random, double superFlashChance, double fadeMs, int? customDuration = null, bool rotate = false, double rapidFlashChance = 0.0)
@@ -561,9 +627,9 @@ public class LampAnimator
                 await SetImageAsync(_baseImage, _onPath);
                 _baseImage.Opacity = _defaultBaseOpacity;
                 if (_overlayImage != null)
-                    _overlayImage.Opacity = _defaultOverlayOpacity;
+                    _overlayImage.Opacity = RestOverlayOpacity;
                 if (_haloImage != null)
-                    await AnimateOpacity(_haloImage, _defaultHaloOpacity, fadeMs);
+                    await AnimateOpacity(_haloImage, RestHaloOpacity, fadeMs);
             }
         }
         else
@@ -587,19 +653,19 @@ public class LampAnimator
             else if (_context == LampContext.Titlebar && _overlayImage != null)
             {
                 _baseImage.Opacity = _defaultBaseOpacity;
-                _overlayImage.Opacity = 0.0;
+                _overlayImage.Opacity = RestOverlayOpacity;
 
                 var tasks = new[] {
-                    AnimateOpacity(_overlayImage, 1.0, fadeMs),
-                    _haloImage != null ? AnimateOpacity(_haloImage, 0.025, fadeMs) : Task.CompletedTask
+                    AnimateOpacity(_overlayImage, AwayOverlayOpacity, fadeMs),
+                    _haloImage != null ? AnimateOpacity(_haloImage, AwayHaloOpacity, fadeMs) : Task.CompletedTask
                 };
                 await Task.WhenAll(tasks);
                 await Task.Delay(flashDuration);
 
-                _overlayImage.Opacity = _defaultOverlayOpacity;
+                _overlayImage.Opacity = RestOverlayOpacity;
                 _baseImage.Opacity = _defaultBaseOpacity;
                 if (_haloImage != null)
-                    await AnimateOpacity(_haloImage, _defaultHaloOpacity, fadeMs);
+                    await AnimateOpacity(_haloImage, RestHaloOpacity, fadeMs);
             }
         }
     }
@@ -645,12 +711,12 @@ public class LampAnimator
             }
             else
             {
-                // Flash to OFF — halo drops to near zero instantly
+                // Flash away from rest - to dark, or to lit when reversed
                 if (_context == LampContext.Titlebar && _overlayImage != null)
                 {
                     await SetImageAsync(_baseImage, _onPath);
-                    _overlayImage.Opacity = 1.0;
-                    if (_haloImage != null) _haloImage.Opacity = 0.025;
+                    _overlayImage.Opacity = AwayOverlayOpacity;
+                    if (_haloImage != null) _haloImage.Opacity = AwayHaloOpacity;
                 }
                 else if (_context == LampContext.Splash && _superImage != null)
                 {
@@ -662,12 +728,12 @@ public class LampAnimator
 
             await Task.Delay(75, ct);
 
-            // Return to base ON state between pops — instant snap, no fade
+            // Return to rest between pops — instant snap, no fade
             if (_context == LampContext.Titlebar)
             {
                 await SetImageAsync(_baseImage, _onPath);
-                if (_overlayImage != null) _overlayImage.Opacity = _defaultOverlayOpacity;
-                if (_haloImage != null) _haloImage.Opacity = _defaultHaloOpacity;
+                if (_overlayImage != null) _overlayImage.Opacity = RestOverlayOpacity;
+                if (_haloImage != null) _haloImage.Opacity = RestHaloOpacity;
             }
             else if (_context == LampContext.Splash && _superImage != null)
             {
@@ -681,7 +747,7 @@ public class LampAnimator
 
         // Smooth settle after the burst is done
         if (_haloImage != null)
-            await AnimateOpacity(_haloImage, _defaultHaloOpacity, fadeMs, ct);
+            await AnimateOpacity(_haloImage, _context == LampContext.Titlebar ? RestHaloOpacity : _defaultHaloOpacity, fadeMs, ct);
     }
 
     private async Task BlinkLoop(CancellationToken token, double fadeMs, double initialDelayMs, double minDelayMs,
@@ -696,7 +762,7 @@ public class LampAnimator
             await SetImageAsync(_overlayImage, _offPath);
 
             _baseImage.Opacity = _defaultBaseOpacity;
-            _overlayImage.Opacity = _defaultOverlayOpacity;
+            _overlayImage.Opacity = RestOverlayOpacity;
 
             bool state = true;
             bool rampingUp = true;
@@ -802,7 +868,7 @@ public class LampAnimator
             }
             catch { }
 
-            await SetupSteadyOnState(fadeMs);
+            await SetupRestState(fadeMs);
             _isBusy = false;
         }
     }

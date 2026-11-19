@@ -1499,9 +1499,19 @@ public sealed partial class MainWindow : Window
     }
 
 
+    /// <summary>
+    /// The titlebar lamp rests dark while the app targets Preview and runs its patterns from
+    /// there (see <see cref="LampAnimator"/>) - a cue that says which game everything is pointed
+    /// at. Snaps rather than fades with animations suspended, since the rest state is a fact
+    /// rather than an animation and still has to be true.
+    /// </summary>
+    private void ApplyLampForEdition() =>
+        _ = _titlebarLampAnimator?.SetReversedAsync(IsTargetingPreview, animate: !SuspendUIAnimations);
+
     private void TargetPreviewToggle_Checked(object sender, RoutedEventArgs e)
     {
         IsTargetingPreview = true;
+        ApplyLampForEdition();
 
         ApplyTargetPreviewBevelColors(LeftEdgeOfTargetPreviewButton.ActualTheme);
 
@@ -1520,7 +1530,7 @@ public sealed partial class MainWindow : Window
     private void TargetPreviewToggle_Unchecked(object sender, RoutedEventArgs e)
     {
         IsTargetingPreview = false;
-        _ = BlinkingLamp(true, true, 0.0);
+        ApplyLampForEdition();
 
         ApplyTargetPreviewBevelColors(LeftEdgeOfTargetPreviewButton.ActualTheme);
 
@@ -2454,11 +2464,6 @@ public sealed partial class MainWindow : Window
 
 - need revamped store images like the 4.0 trailer thumbnail concept
 
-
-- Expand on the behavior of Lamp:
-Allow it to remain off, and perform its flashing patterns in reverse instead
-for instance, have Preview-enabled pages perform the flashes in reverse until closed!
-can become a helpful visual cue user can get used to if the user happens to be observant
 
 - restructure main window to be less sloppy and more correct whilst looking the same by the end.
 the layout works perfectly but is wrong in many spots, with many dumb margins

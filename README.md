@@ -92,7 +92,7 @@ Three buttons sit next to the app's name. Each opens a page:
 
 ## Preview
 
-The **Preview** toggle points the whole app at Minecraft Preview instead of the regular release: installs, tuning, launching, shader mods, LUTs and DLSS all target Preview while it's on. The cached files related to the two games are kept completely separate, including each one's backups of its original files.
+The **Preview** toggle points the whole app at Minecraft Preview instead of the regular release: installs, tuning, launching, shader mods, LUTs and DLSS all target Preview while it's on. The cached files related to the two games are kept completely separate, including each one's backups of its original files. While Preview is on, the lamp in the title bar rests dark and lights up where it would normally dim, so you can tell at a glance which game the app is pointed at.
 
 ## Log area, the lamp and the preview images
 
