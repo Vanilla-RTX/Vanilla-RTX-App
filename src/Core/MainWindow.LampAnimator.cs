@@ -171,8 +171,8 @@ public class LampAnimator
             _reversed = reversed;
             if (_isBusy || _overlayImage == null) return;
 
-            // Slower than a flash: this is the lamp changing what it is, not reporting an event.
-            const double settleMs = 350;
+            // A flash's own speed: anything slower reads as a fade rather than a lamp switching.
+            const double settleMs = 75;
             if (!animate)
             {
                 _overlayImage.Opacity = RestOverlayOpacity;

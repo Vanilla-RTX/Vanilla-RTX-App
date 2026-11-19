@@ -560,9 +560,11 @@
                             <Grid x:Name="ExtrasColumnHeadings"
                                   ColumnSpacing="16"
                                   Visibility="Collapsed">
+                                <!-- The same columns as each row in PackUpdaterOverlay.Extras.cs. -->
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="210" />
+                                    <ColumnDefinition Width="3*" />
+                                    <ColumnDefinition Width="2*"
+                                                      MinWidth="250" />
                                     <ColumnDefinition Width="120" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="Pack name and description"

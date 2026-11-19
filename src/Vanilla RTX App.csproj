@@ -114,7 +114,7 @@
     <Page Update="Modules\ShaderMods\ShaderModManagerOverlay.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Update="Modules\DLSS\DLSSManagerOverlay.xaml">
+    <Page Update="Modules\DLSS\DLSSSwapperOverlay.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Update="Modules\PackBrowser\PackBrowserOverlay.xaml">

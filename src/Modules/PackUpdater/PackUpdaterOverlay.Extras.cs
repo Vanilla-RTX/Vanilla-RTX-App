@@ -118,9 +118,12 @@ public sealed partial class PackUpdaterOverlay
     {
         var installed = InstalledCopy(pack);
 
+        // Name and status share the width 3:2, so a wider window widens both. Status has a floor,
+        // and below what it needs its lines wrap (VersionLine) rather than clip.
+        // ExtrasColumnHeadings in the XAML has to say the same.
         var row = new Grid { ColumnSpacing = 16, Padding = new Thickness(0, 10, 0, 10) };
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(210) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star), MinWidth = 250 });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
 
         var text = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
@@ -162,33 +165,51 @@ public sealed partial class PackUpdaterOverlay
             Style = (Style)Application.Current.Resources[installed is null || outdated ? "AccentButtonStyle" : "DefaultButtonStyle"],
             FontWeight = FontWeights.SemiBold,
             HorizontalAlignment = HorizontalAlignment.Stretch,
-            MinHeight = 36,
-            VerticalAlignment = VerticalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Stretch,
             IsTextScaleFactorEnabled = false,
         };
         ToolTipService.SetToolTip(button, PackUpdater.IsCached(PackUpdater.Extras, pack)
             ? "Installs from the copy the app already downloaded."
             : $"Downloads {FormatSize(pack.Asset.Size)} from the Vanilla RTX Extras repository.");
         button.Click += (_, _) => StartInstall(PackUpdater.Extras, new[] { pack.Uuid }, button);
-        Grid.SetColumn(button, 2);
-        row.Children.Add(button);
+
+        // The same lifted, shadowed frame the Vanilla RTX cards and Get all sit in.
+        var lift = new Grid
+        {
+            MinHeight = 36,
+            CornerRadius = new CornerRadius(6),
+            VerticalAlignment = VerticalAlignment.Center,
+            Translation = new System.Numerics.Vector3(0, 0, 12),
+            Shadow = new Microsoft.UI.Xaml.Media.ThemeShadow(),
+        };
+        lift.Children.Add(button);
+        Grid.SetColumn(lift, 2);
+        row.Children.Add(lift);
 
         _extraButtons[pack.Uuid] = button;
         return row;
     }
 
-    private static StackPanel VersionLine(string label, string value)
+    /// <summary>
+    /// A label and its value. A grid rather than a horizontal StackPanel, which measures its
+    /// children at infinite width and so can only ever clip a long value, never wrap it.
+    /// </summary>
+    private static Grid VersionLine(string label, string value)
     {
-        var line = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        var line = new Grid { ColumnSpacing = 6 };
+        line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        line.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         line.Children.Add(new TextBlock { Text = label, FontSize = 13, Opacity = 0.75, IsTextScaleFactorEnabled = false });
-        line.Children.Add(new TextBlock
+        var text = new TextBlock
         {
             Text = value,
             FontSize = 13,
             FontWeight = FontWeights.SemiBold,
-            TextTrimming = TextTrimming.CharacterEllipsis,
+            TextWrapping = TextWrapping.Wrap,
             IsTextScaleFactorEnabled = false,
-        });
+        };
+        Grid.SetColumn(text, 1);
+        line.Children.Add(text);
         return line;
     }
 

@@ -137,27 +137,6 @@ public static partial class Helpers
     }
 
     /// <summary>
-    /// Runs a PowerShell script elevated: one UAC prompt, Windows PowerShell by its full path (so
-    /// nothing on PATH can stand in for it), no profile, and the script's own exit code carried
-    /// back. True only for exit code 0. Shares the one-elevated-action flag with the file and
-    /// process helpers above.
-    /// </summary>
-    public static Task<bool> RunPowerShellWithElevation(string scriptPath, string logPrefix = "[Helpers]", string tempFilePrefix = "powershell")
-    {
-        var scriptLines = new List<string>
-        {
-            "@echo off",
-            $"\"{WindowsPowerShellPath}\" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"{scriptPath}\"",
-            "exit %ERRORLEVEL%"
-        };
-        return RunElevatedBatchAsync(scriptLines, logPrefix, tempFilePrefix);
-    }
-
-    /// <summary>Windows PowerShell 5.1, which every supported Windows ships; never whatever <c>powershell</c> resolves to on PATH.</summary>
-    public static string WindowsPowerShellPath =>
-        Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe");
-
-    /// <summary>
     /// Writes <paramref name="scriptLines"/> to a temp .bat and runs it in an elevated, hidden
     /// cmd, holding the process-wide one-elevated-action flag for the whole run, UAC prompt
     /// included. Returns true only for exit code 0; false for a refused overlap, a declined

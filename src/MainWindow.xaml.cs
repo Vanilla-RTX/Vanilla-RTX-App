@@ -1983,7 +1983,7 @@ public sealed partial class MainWindow : Window
     {
         string[] ToDisable = ["LaunchMinecraftButton", "TargetPreviewToggle", "LaunchDLSSSwapperButton", "ResetButton"];
 
-        OpenModule(() => new Modules.DLSS.DLSSManagerOverlay(), ToDisable, overlay =>
+        OpenModule(() => new Modules.DLSS.DLSSSwapperOverlay(), ToDisable, overlay =>
         {
             LogModuleResult(overlay, LogLevel.DLSS);
             _ = BlinkingLamp(true, true, overlay.OperationSuccessful ? 1.0 : 0.0);

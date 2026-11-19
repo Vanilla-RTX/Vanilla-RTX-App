@@ -19,7 +19,7 @@ namespace Vanilla_RTX_App.Modules.DLSS;
 /// One DLSS runtime sitting in the local cache. <see cref="Version"/> is whatever the file
 /// itself reports, verbatim - some builds report it comma-separated ("3,7,0,0"), which is
 /// why <see cref="DisplayVersion"/> exists and why nothing compares raw version strings
-/// without going through <see cref="DLSSManager.IsSupportedVersion"/> first.
+/// without going through <see cref="DLSSSwapper.IsSupportedVersion"/> first.
 /// </summary>
 internal sealed class DllData
 {
@@ -30,7 +30,7 @@ internal sealed class DllData
 }
 
 /// <summary>
-/// Everything the DLSS manager does to files: where the cache lives, what's in it, how a
+/// Everything the DLSS swapper does to files: where the cache lives, what's in it, how a
 /// .dll or .zip gets imported into it, and how one of them ends up in the game folder.
 ///
 /// <para><b>Why it's separate from the window.</b> None of this needs a UI - it is
@@ -42,7 +42,7 @@ internal sealed class DllData
 /// <para>The instance is bound to one Minecraft install by <see cref="TryAttach"/>; every
 /// method below is inert until that has succeeded.</para>
 /// </summary>
-internal sealed class DLSSManager
+internal sealed class DLSSSwapper
 {
     /// <summary>The game's own DLSS runtime - the file every swap overwrites.</summary>
     public const string GameDllFileName = "nvngx_dlss.dll";

@@ -1,4 +1,4 @@
-<overlays:ModuleOverlay x:Class="Vanilla_RTX_App.Modules.DLSS.DLSSManagerOverlay"
+<overlays:ModuleOverlay x:Class="Vanilla_RTX_App.Modules.DLSS.DLSSSwapperOverlay"
                         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                         xmlns:local="using:Vanilla_RTX_App.Modules.DLSS"
@@ -77,61 +77,6 @@
                                 Spacing="10"
                                 Margin="20,12,24,0" />
 
-                    <!-- NVIDIA driver settings: only on a machine NVAPI answers on. The rows are
-                         built from NvidiaDriverSettings.All - see BuildDriverSettingRows. -->
-                    <Border x:Name="DriverSettingsCard"
-                            Style="{StaticResource ThemedCardStyle}"
-                            Visibility="Collapsed"
-                            Margin="20,12,24,0"
-                            Padding="16,12,16,16"
-                            CornerRadius="8"
-                            BorderThickness="1">
-                        <StackPanel Spacing="10">
-                            <Grid ColumnSpacing="10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <FontIcon Glyph="&#xE7F4;"
-                                          FontSize="18"
-                                          VerticalAlignment="Center"
-                                          IsTextScaleFactorEnabled="False" />
-                                <TextBlock Grid.Column="1"
-                                           Text="NVIDIA driver settings"
-                                           FontSize="15"
-                                           FontWeight="SemiBold"
-                                           VerticalAlignment="Center"
-                                           IsTextScaleFactorEnabled="False" />
-                                <StackPanel Grid.Column="2"
-                                            Orientation="Horizontal"
-                                            Spacing="8"
-                                            VerticalAlignment="Center">
-                                    <ProgressRing x:Name="DriverSettingsBusy"
-                                                  Width="16"
-                                                  Height="16"
-                                                  IsActive="False"
-                                                  Visibility="Collapsed" />
-                                    <TextBlock x:Name="DriverSettingsStatus"
-                                               FontSize="12"
-                                               VerticalAlignment="Center"
-                                               TextWrapping="Wrap"
-                                               MaxWidth="360"
-                                               Style="{StaticResource ThemedSecondaryTextStyle}"
-                                               IsTextScaleFactorEnabled="False" />
-                                </StackPanel>
-                            </Grid>
-                            <TextBlock x:Name="DriverSettingsNote"
-                                       FontSize="12"
-                                       TextWrapping="Wrap"
-                                       Style="{StaticResource ThemedSecondaryTextStyle}"
-                                       IsTextScaleFactorEnabled="False" />
-                            <Grid x:Name="DriverSettingsRows"
-                                  ColumnSpacing="12"
-                                  Margin="0,2,0,0" />
-                        </StackPanel>
-                    </Border>
-
                     <StackPanel x:Name="DllListContainer"
                                 Spacing="12"
                                 Margin="20,12,24,0"
@@ -202,7 +147,7 @@
                                        IsTextScaleFactorEnabled="False" />
                         </StackPanel>
                         <StackPanel x:Name="NvidiaListContainer"
-                                    Spacing="6" />
+                                    Spacing="12" />
                     </StackPanel>
                 </StackPanel>
             </ScrollViewer>
@@ -298,7 +243,7 @@
                                IsHitTestVisible="False" />
 
                     <!-- Both the label and the tooltip name the address this actually opens,
-                         which is a setting - see DLSSManagerOverlay's constructor. -->
+                         which is a setting - see DLSSSwapperOverlay's constructor. -->
                     <HyperlinkButton x:Name="DownloadDllsButton"
                                      Grid.Column="2"
                                      HorizontalAlignment="Stretch"
@@ -320,7 +265,7 @@
                                           Margin="0,3,0,0"
                                           VerticalAlignment="Center"
                                           IsTextScaleFactorEnabled="False" />
-                                <TextBlock Text="Download DLSS files"
+                                <TextBlock Text="Download more DLSS files"
                                            FontWeight="SemiBold"
                                            FontSize="14"
                                            VerticalAlignment="Center"
