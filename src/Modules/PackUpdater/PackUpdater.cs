@@ -43,13 +43,10 @@ public sealed record ReleaseAsset(string File, long Size, string? Sha256);
 /// <summary>
 /// One pack a repository's release index describes. Everything needed to decide what to offer is
 /// here, so nothing is downloaded until the user asks for this pack specifically.
-/// <paramref name="WithoutEnhancements"/> is the build without the pack's enhancements, published
-/// only by repositories that build one.
 /// </summary>
 public sealed record ReleasePack(
     string Id,
     ReleaseAsset Asset,
-    ReleaseAsset? WithoutEnhancements,
     string Uuid,
     string? ModuleUuid,
     int[] Version,
@@ -59,9 +56,6 @@ public sealed record ReleasePack(
     IReadOnlyList<PackSubpack> Subpacks)
 {
     public string VersionDisplay => string.Join('.', Version);
-
-    /// <summary>The file to install: the plain build when enhancements are off and one exists, otherwise the main one.</summary>
-    public ReleaseAsset AssetFor(bool enhancements) => !enhancements && WithoutEnhancements is not null ? WithoutEnhancements : Asset;
 }
 
 /// <param name="Tag">The release the index belongs to. Download URLs are built against it, never against "latest", so a cached index keeps pointing at files that exist.</param>
@@ -91,8 +85,9 @@ public sealed record ReleaseRepository(string Name, string Url, ManagedAsset Ind
 /// <para><b>What is available comes from one file per repository, <c>index.json</c></b>, which
 /// their shared release workflow (<c>.github/workflows/pack_builder.py</c>) writes beside the
 /// .mcpacks of every release: per pack its asset name, size, sha256, header and module UUID,
-/// version, name, description, subpacks, and - where the repository builds one - the same three
-/// asset fields for a build without enhancements. It is read from
+/// version, name, description and subpacks. A pack developed with an <c>__enhancements</c>
+/// folder is published with it merged in, so what a release holds is exactly what gets installed.
+/// It is read from
 /// <c>releases/latest/download/index.json</c>, which redirects to the newest release's asset
 /// without the GitHub API, so the API's 60-an-hour unauthenticated limit never applies; the last
 /// hop answers <c>If-None-Match</c>, so an unchanged index costs a 304.</para>
@@ -261,7 +256,6 @@ public class PackUpdater
                 packs.Add(new ReleasePack(
                     id,
                     asset,
-                    ParseAsset(node?["without_enhancements"]),
                     uuid,
                     MinecraftJson.GetString(node?["module_uuid"]),
                     version,
@@ -387,20 +381,15 @@ public class PackUpdater
     }
 
     /// <summary>Whether installing <paramref name="pack"/> would come off the disk rather than the network.</summary>
-    public static bool IsCached(ReleaseRepository repo, ReleasePack pack, bool enhancements)
-        => CachedCopy(repo, pack.AssetFor(enhancements)) is not null;
+    public static bool IsCached(ReleaseRepository repo, ReleasePack pack)
+        => CachedCopy(repo, pack.Asset) is not null;
 
     /// <summary>Removes cached files the index no longer lists. Never throws.</summary>
     private static void PruneCache(ReleaseRepository repo, ReleaseIndex index)
     {
         if (CacheFolder(repo) is not { } folder || !Directory.Exists(folder)) return;
 
-        var keep = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var pack in index.Packs)
-        {
-            keep.Add(pack.Asset.File);
-            if (pack.WithoutEnhancements is { } w) keep.Add(w.File);
-        }
+        var keep = new HashSet<string>(index.Packs.Select(p => p.Asset.File), StringComparer.OrdinalIgnoreCase);
 
         try
         {
@@ -464,7 +453,7 @@ public class PackUpdater
             (PackType.VanillaRTXOpus, EnvironmentVariables.VanillaRTXOpusVersion),
         }.Where(p => !string.IsNullOrEmpty(p.Item2)).Select(p => p.Item1).ToList();
 
-        return installed.Count > 0 && installed.All(t => index.Find(Uuid(t)) is { } pack && IsCached(VanillaRtx, pack, enhancements: true));
+        return installed.Count > 0 && installed.All(t => index.Find(Uuid(t)) is { } pack && IsCached(VanillaRtx, pack));
     }
 
     /// <summary>Re-probes and raises <see cref="DeployableCacheChanged"/> only when the answer moved. Returns the answer.</summary>
@@ -523,15 +512,12 @@ public class PackUpdater
     /// Installs each pack in <paramref name="uuids"/> from <paramref name="repo"/>, in turn, and
     /// calls <paramref name="onStarting"/> as each one begins. The index is re-read once, first,
     /// ignoring its cooldown, and every pack is resolved against that answer; offline, the cached
-    /// index is used, so a cached pack still reinstalls. <paramref name="enhancements"/> picks the
-    /// build per pack where the repository publishes one without them. One pack failing doesn't
-    /// stop the rest.
+    /// index is used, so a cached pack still reinstalls. One pack failing doesn't stop the rest.
     /// </summary>
     /// <returns>The packs that installed and the ones that didn't. Both empty when another install was already running.</returns>
     public async Task<(List<ReleasePack> Installed, List<ReleasePack> Failed)> InstallAsync(
         ReleaseRepository repo,
         IReadOnlyList<string> uuids,
-        Func<ReleasePack, bool>? enhancements = null,
         Action<ReleasePack>? onStarting = null,
         CancellationToken cancellationToken = default)
     {
@@ -568,8 +554,7 @@ public class PackUpdater
                 _currentInstallingUuid = pack.Uuid;
                 onStarting?.Invoke(pack);
 
-                var withEnhancements = enhancements?.Invoke(pack) ?? true;
-                if (await InstallOneAsync(repo, index, pack, withEnhancements, cancellationToken))
+                if (await InstallOneAsync(repo, index, pack, cancellationToken))
                     installed.Add(pack);
                 else
                     failed.Add(pack);
@@ -585,12 +570,12 @@ public class PackUpdater
         return (installed, failed);
     }
 
-    private async Task<bool> InstallOneAsync(ReleaseRepository repo, ReleaseIndex index, ReleasePack pack, bool enhancements, CancellationToken cancellationToken)
+    private async Task<bool> InstallOneAsync(ReleaseRepository repo, ReleaseIndex index, ReleasePack pack, CancellationToken cancellationToken)
     {
         try
         {
             Trace.WriteLine($"🔄 Installing {pack.Name} {pack.VersionDisplay}...");
-            var asset = pack.AssetFor(enhancements);
+            var asset = pack.Asset;
 
             var path = CachedCopy(repo, asset);
             if (path is not null)
@@ -605,11 +590,11 @@ public class PackUpdater
                 if (path is null)
                 {
                     var (fresh, _) = await GetIndexAsync(repo, force: true, cancellationToken: cancellationToken);
-                    if (fresh?.Find(pack.Uuid) is { } moved && (fresh.Tag != index.Tag || moved.AssetFor(enhancements).File != asset.File))
+                    if (fresh?.Find(pack.Uuid) is { } moved && (fresh.Tag != index.Tag || moved.Asset.File != asset.File))
                     {
                         Trace.WriteLine($"[PackUpdater] {pack.Name} moved to {fresh.Tag}, retrying.");
                         pack = moved;
-                        asset = moved.AssetFor(enhancements);
+                        asset = moved.Asset;
                         path = CachedCopy(repo, asset) ?? await DownloadToCacheAsync(repo, fresh.Tag, asset, cancellationToken);
                     }
                 }

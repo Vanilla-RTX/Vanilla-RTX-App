@@ -166,7 +166,7 @@ public sealed partial class PackUpdaterOverlay
             VerticalAlignment = VerticalAlignment.Center,
             IsTextScaleFactorEnabled = false,
         };
-        ToolTipService.SetToolTip(button, PackUpdater.IsCached(PackUpdater.Extras, pack, enhancements: true)
+        ToolTipService.SetToolTip(button, PackUpdater.IsCached(PackUpdater.Extras, pack)
             ? "Installs from the copy the app already downloaded."
             : $"Downloads {FormatSize(pack.Asset.Size)} from the Vanilla RTX Extras repository.");
         button.Click += (_, _) => StartInstall(PackUpdater.Extras, new[] { pack.Uuid }, button);
@@ -209,7 +209,7 @@ public sealed partial class PackUpdaterOverlay
         }
 
         // What still has to come over the network; cached packs install off the disk.
-        var download = toGet.Where(p => !PackUpdater.IsCached(PackUpdater.Extras, p, enhancements: true)).Sum(p => p.Asset.Size);
+        var download = toGet.Where(p => !PackUpdater.IsCached(PackUpdater.Extras, p)).Sum(p => p.Asset.Size);
         var size = download > 0 ? $" ({FormatSize(download)})" : "";
         ExtrasGetAllButton.Content = missing > 0 ? $"Get all{size}" : $"Update all{size}";
         ExtrasGetAllButton.IsEnabled = !_updater.IsInstallationInProgress();

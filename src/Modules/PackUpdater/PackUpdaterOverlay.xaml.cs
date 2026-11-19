@@ -286,11 +286,29 @@ public sealed partial class PackUpdaterOverlay : ModuleOverlay
 
     // ======================= Vanilla RTX cards =======================
 
-    private IEnumerable<(PackType Type, Button Button, ToggleSwitch Toggle, TextBlock Installed, TextBlock Available, ProgressRing Loading, string? InstalledVersion)> VanillaCards()
+    private IEnumerable<(PackType Type, Button Button, TextBlock Size, TextBlock Installed, TextBlock Available, ProgressRing Loading, string? InstalledVersion)> VanillaCards()
     {
-        yield return (PackType.VanillaRTX, VanillaRTX_InstallButton, VanillaRTX_EnhancementsToggle, VanillaRTX_InstalledVersion, VanillaRTX_AvailableVersion, VanillaRTX_AvailableLoading, VanillaRTXVersion);
-        yield return (PackType.VanillaRTXNormals, VanillaRTXNormals_InstallButton, VanillaRTXNormals_EnhancementsToggle, VanillaRTXNormals_InstalledVersion, VanillaRTXNormals_AvailableVersion, VanillaRTXNormals_AvailableLoading, VanillaRTXNormalsVersion);
-        yield return (PackType.VanillaRTXOpus, VanillaRTXOpus_InstallButton, VanillaRTXOpus_EnhancementsToggle, VanillaRTXOpus_InstalledVersion, VanillaRTXOpus_AvailableVersion, VanillaRTXOpus_AvailableLoading, VanillaRTXOpusVersion);
+        yield return (PackType.VanillaRTX, VanillaRTX_InstallButton, VanillaRTX_InstallSize, VanillaRTX_InstalledVersion, VanillaRTX_AvailableVersion, VanillaRTX_AvailableLoading, VanillaRTXVersion);
+        yield return (PackType.VanillaRTXNormals, VanillaRTXNormals_InstallButton, VanillaRTXNormals_InstallSize, VanillaRTXNormals_InstalledVersion, VanillaRTXNormals_AvailableVersion, VanillaRTXNormals_AvailableLoading, VanillaRTXNormalsVersion);
+        yield return (PackType.VanillaRTXOpus, VanillaRTXOpus_InstallButton, VanillaRTXOpus_InstallSize, VanillaRTXOpus_InstalledVersion, VanillaRTXOpus_AvailableVersion, VanillaRTXOpus_AvailableLoading, VanillaRTXOpusVersion);
+    }
+
+    /// <summary>
+    /// What an install button says. A Vanilla RTX card's button holds a label and a size line, an
+    /// extra's holds plain text; the installing animation and the verb it picks go through these
+    /// two so either kind works.
+    /// </summary>
+    private static string LabelOf(Button? button)
+        => button?.Content is Panel panel && panel.Children.Count > 0 && panel.Children[0] is TextBlock label
+            ? label.Text
+            : button?.Content as string ?? "";
+
+    private static void SetLabel(Button button, string text)
+    {
+        if (button.Content is Panel panel && panel.Children.Count > 0 && panel.Children[0] is TextBlock label)
+            label.Text = text;
+        else
+            button.Content = text;
     }
 
     private void UpdateInstalledVersionDisplays()
@@ -341,33 +359,34 @@ public sealed partial class PackUpdaterOverlay : ModuleOverlay
                 : installed == pack.VersionDisplay ? $"{pack.VersionDisplay} (You're up-to-date!)" : pack.VersionDisplay;
 
             var outdated = pack is not null && PackUpdater.IsNewer(installed, pack.VersionDisplay);
-            card.Button.Content = string.IsNullOrEmpty(installed) ? "Install" : outdated ? "Update" : "Reinstall";
+            SetLabel(card.Button, string.IsNullOrEmpty(installed) ? "Install" : outdated ? "Update" : "Reinstall");
             card.Button.Style = (Style)Application.Current.Resources[string.IsNullOrEmpty(installed) || outdated ? "AccentButtonStyle" : "DefaultButtonStyle"];
             card.Button.IsEnabled = pack is not null && !busy;
-            card.Toggle.IsEnabled = !busy && pack?.WithoutEnhancements is not null;
+
+            // The size shows whenever pressing the button downloads. A copy already in the package
+            // cache - which is every reinstall, and an install after deleting a pack - downloads
+            // nothing, and a size there would promise a download that never happens.
+            var cached = pack is not null && PackUpdater.IsCached(PackUpdater.VanillaRtx, pack);
+            card.Size.Text = pack is null ? "" : FormatSize(pack.Asset.Size);
+            card.Size.Visibility = pack is not null && !cached ? Visibility.Visible : Visibility.Collapsed;
 
             if (pack is not null)
             {
-                var asset = pack.AssetFor(card.Toggle.IsOn);
-                ToolTipService.SetToolTip(card.Button, PackUpdater.IsCached(PackUpdater.VanillaRtx, pack, card.Toggle.IsOn)
+                ToolTipService.SetToolTip(card.Button, cached
                     ? "Installs from the copy the app already downloaded."
-                    : $"Downloads {FormatSize(asset.Size)} from the Vanilla RTX repository.");
+                    : $"Downloads {FormatSize(pack.Asset.Size)} from the Vanilla RTX repository.");
             }
         }
     }
 
     // ======================= Installing =======================
 
-    /// <summary>
-    /// Installs packs from one repository and repaints everything afterwards. The enhancements
-    /// choice is read per pack: a Vanilla RTX pack follows its card's toggle, an extra always gets
-    /// the full build.
-    /// </summary>
+    /// <summary>Installs packs from one repository and repaints everything afterwards.</summary>
     private async void StartInstall(ReleaseRepository repo, IReadOnlyList<string> uuids, Button? clicked)
     {
         if (uuids.Count == 0 || _updater.IsInstallationInProgress()) return;
 
-        var label = clicked?.Content as string ?? "";
+        var label = LabelOf(clicked);
         _installVerb = label.StartsWith("Update") ? "Updating" : label.StartsWith("Reinstall") ? "Reinstalling" : "Installing";
 
         DisableAllInstallButtons();
@@ -379,9 +398,7 @@ public sealed partial class PackUpdaterOverlay : ModuleOverlay
 
         try
         {
-            var toggles = VanillaCards().ToDictionary(c => PackUpdater.Uuid(c.Type), c => c.Toggle.IsOn, StringComparer.OrdinalIgnoreCase);
-            var (installed, failed) = await _updater.InstallAsync(repo, uuids,
-                pack => !toggles.TryGetValue(pack.Uuid, out var on) || on);
+            var (installed, failed) = await _updater.InstallAsync(repo, uuids);
 
             if (installed.Count > 0)
                 MainWindow.Log($"Installed {string.Join(", ", installed.Select(p => $"{p.Name} {p.VersionDisplay}"))}.", MainWindow.LogLevel.Package);
@@ -409,10 +426,7 @@ public sealed partial class PackUpdaterOverlay : ModuleOverlay
     private void DisableAllInstallButtons()
     {
         foreach (var card in VanillaCards())
-        {
             card.Button.IsEnabled = false;
-            card.Toggle.IsEnabled = false;
-        }
         SetExtrasButtonsEnabled(false);
     }
 
@@ -434,7 +448,7 @@ public sealed partial class PackUpdaterOverlay : ModuleOverlay
         {
             _animationDots = (_animationDots + 1) % 4;
             if (ButtonFor(_updater.CurrentlyInstallingUuid) is { } button)
-                button.Content = _installVerb + new string('.', _animationDots);
+                SetLabel(button, _installVerb + new string('.', _animationDots));
         };
         _installingAnimationTimer.Start();
     }

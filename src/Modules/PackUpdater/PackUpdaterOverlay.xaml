@@ -140,42 +140,38 @@
                                                    Visibility="Collapsed" />
                                     </StackPanel>
 
-                                    <!-- Controls Row -->
-                                    <Grid Margin="0,16,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="8" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-
-                                        <!-- Enhancement Toggle -->
-                                        <ToggleSwitch x:Name="VanillaRTXNormals_EnhancementsToggle"
-                                                      Grid.Column="0"
-                                                      Header="Enhancements"
-                                                      IsOn="True"
-                                                      ToolTipService.ToolTip="Enables deployment of enhancements for this resource pack. This fixes numerous rendering errors &amp; incompatibilities of vanilla features and resources with ray tracing and enhances various other resources such as particles for ray tracing.
-                                                       &#x0a;&#x0a;Enhancements are generally classified as slightly non-vanilla changes and are developed separately for Vanilla RTX resource packs, the files are then merged into the base pack for public releases or during installation if this toggle is left On.
-                                                       &#x0a;&#x0a;For more details, check Vanilla RTX download pages - It is generally recommended that you keep this enabled, unless it causes issues with another add-on or resource pack you're using or you have a specific reason to."
-                                                      IsTextScaleFactorEnabled="False" />
-
-                                        <!-- Install Button -->
-                                        <Grid Grid.Column="2"
-                                              MinWidth="120"
-                                              MinHeight="60"
-                                              CornerRadius="6"
-                                              Translation="0,0,12">
-                                            <Button x:Name="VanillaRTXNormals_InstallButton"
-                                                    Content="Install"
-                                                    FontWeight="SemiBold"
-                                                    Style="{ThemeResource AccentButtonStyle}"
-                                                    HorizontalAlignment="Stretch"
-                                                    VerticalAlignment="Stretch"
-                                                    IsEnabled="False"
-                                                    IsTextScaleFactorEnabled="False" />
-                                            <Grid.Shadow>
-                                                <ThemeShadow />
-                                            </Grid.Shadow>
-                                        </Grid>
+                                    <!-- Install button: the whole width, with the download size under the verb whenever
+                                         pressing it would download (PaintVanillaCards). -->
+                                    <Grid Margin="0,16,0,0"
+                                          MinHeight="60"
+                                          CornerRadius="6"
+                                          Translation="0,0,12">
+                                        <Button x:Name="VanillaRTXNormals_InstallButton"
+                                                Style="{ThemeResource AccentButtonStyle}"
+                                                HorizontalAlignment="Stretch"
+                                                VerticalAlignment="Stretch"
+                                                HorizontalContentAlignment="Center"
+                                                IsEnabled="False"
+                                                IsTextScaleFactorEnabled="False">
+                                            <StackPanel HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        Spacing="1">
+                                                <TextBlock x:Name="VanillaRTXNormals_InstallLabel"
+                                                           Text="Install"
+                                                           FontWeight="SemiBold"
+                                                           HorizontalAlignment="Center"
+                                                           IsTextScaleFactorEnabled="False" />
+                                                <TextBlock x:Name="VanillaRTXNormals_InstallSize"
+                                                           FontSize="12"
+                                                           Opacity="0.75"
+                                                           HorizontalAlignment="Center"
+                                                           Visibility="Collapsed"
+                                                           IsTextScaleFactorEnabled="False" />
+                                            </StackPanel>
+                                        </Button>
+                                        <Grid.Shadow>
+                                            <ThemeShadow />
+                                        </Grid.Shadow>
                                     </Grid>
                                 </StackPanel>
                             </Grid>
@@ -294,42 +290,38 @@
                                                    Visibility="Collapsed" />
                                     </StackPanel>
 
-                                    <!-- Controls Row -->
-                                    <Grid Margin="0,16,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="8" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-
-                                        <!-- Enhancement Toggle -->
-                                        <ToggleSwitch x:Name="VanillaRTX_EnhancementsToggle"
-                                                      Grid.Column="0"
-                                                      Header="Enhancements"
-                                                      IsOn="True"
-                                                      ToolTipService.ToolTip="Enables deployment of enhancements for this resource pack. This fixes numerous rendering errors &amp; incompatibilities of vanilla features and resources with ray tracing and enhances various other resources such as particles for ray tracing.
-                                                       &#x0a;&#x0a;Enhancements are generally classified as slightly non-vanilla changes and are developed separately for Vanilla RTX resource packs, the files are then merged into the base pack for public releases or during installation if this toggle is left On.
-                                                       &#x0a;&#x0a;For more details, check Vanilla RTX download pages - It is generally recommended that you keep this enabled, unless it causes issues with another add-on or resource pack you're using or you have a specific reason to."
-                                                      IsTextScaleFactorEnabled="False" />
-
-                                        <!-- Install Button -->
-                                        <Grid Grid.Column="2"
-                                              MinWidth="120"
-                                              MinHeight="60"
-                                              CornerRadius="6"
-                                              Translation="0,0,12">
-                                            <Button x:Name="VanillaRTX_InstallButton"
-                                                    Content="Install"
-                                                    FontWeight="SemiBold"
-                                                    Style="{ThemeResource AccentButtonStyle}"
-                                                    HorizontalAlignment="Stretch"
-                                                    VerticalAlignment="Stretch"
-                                                    IsEnabled="False"
-                                                    IsTextScaleFactorEnabled="False" />
-                                            <Grid.Shadow>
-                                                <ThemeShadow />
-                                            </Grid.Shadow>
-                                        </Grid>
+                                    <!-- Install button: the whole width, with the download size under the verb whenever
+                                         pressing it would download (PaintVanillaCards). -->
+                                    <Grid Margin="0,16,0,0"
+                                          MinHeight="60"
+                                          CornerRadius="6"
+                                          Translation="0,0,12">
+                                        <Button x:Name="VanillaRTX_InstallButton"
+                                                Style="{ThemeResource AccentButtonStyle}"
+                                                HorizontalAlignment="Stretch"
+                                                VerticalAlignment="Stretch"
+                                                HorizontalContentAlignment="Center"
+                                                IsEnabled="False"
+                                                IsTextScaleFactorEnabled="False">
+                                            <StackPanel HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        Spacing="1">
+                                                <TextBlock x:Name="VanillaRTX_InstallLabel"
+                                                           Text="Install"
+                                                           FontWeight="SemiBold"
+                                                           HorizontalAlignment="Center"
+                                                           IsTextScaleFactorEnabled="False" />
+                                                <TextBlock x:Name="VanillaRTX_InstallSize"
+                                                           FontSize="12"
+                                                           Opacity="0.75"
+                                                           HorizontalAlignment="Center"
+                                                           Visibility="Collapsed"
+                                                           IsTextScaleFactorEnabled="False" />
+                                            </StackPanel>
+                                        </Button>
+                                        <Grid.Shadow>
+                                            <ThemeShadow />
+                                        </Grid.Shadow>
                                     </Grid>
                                 </StackPanel>
                             </Grid>
@@ -446,42 +438,38 @@
                                                    Visibility="Collapsed" />
                                     </StackPanel>
 
-                                    <!-- Controls Row -->
-                                    <Grid Margin="0,16,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="8" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-
-                                        <!-- Enhancement Toggle -->
-                                        <ToggleSwitch x:Name="VanillaRTXOpus_EnhancementsToggle"
-                                                      Grid.Column="0"
-                                                      Header="Enhancements"
-                                                      IsOn="True"
-                                                      ToolTipService.ToolTip="Enables deployment of enhancements for this resource pack. This fixes numerous rendering errors &amp; incompatibilities of vanilla features and resources with ray tracing and enhances various other resources such as particles for ray tracing.
-                                                       &#x0a;&#x0a;Enhancements are generally classified as slightly non-vanilla changes and are developed separately for Vanilla RTX resource packs, the files are then merged into the base pack for public releases or during installation if this toggle is left On.
-                                                       &#x0a;&#x0a;For more details, check Vanilla RTX download pages - It is generally recommended that you keep this enabled, unless it causes issues with another add-on or resource pack you're using or you have a specific reason to."
-                                                      IsTextScaleFactorEnabled="False" />
-
-                                        <!-- Install Button -->
-                                        <Grid Grid.Column="2"
-                                              MinWidth="120"
-                                              MinHeight="60"
-                                              CornerRadius="6"
-                                              Translation="0,0,12">
-                                            <Button x:Name="VanillaRTXOpus_InstallButton"
-                                                    Content="Install"
-                                                    FontWeight="SemiBold"
-                                                    Style="{ThemeResource AccentButtonStyle}"
-                                                    HorizontalAlignment="Stretch"
-                                                    VerticalAlignment="Stretch"
-                                                    IsEnabled="False"
-                                                    IsTextScaleFactorEnabled="False" />
-                                            <Grid.Shadow>
-                                                <ThemeShadow />
-                                            </Grid.Shadow>
-                                        </Grid>
+                                    <!-- Install button: the whole width, with the download size under the verb whenever
+                                         pressing it would download (PaintVanillaCards). -->
+                                    <Grid Margin="0,16,0,0"
+                                          MinHeight="60"
+                                          CornerRadius="6"
+                                          Translation="0,0,12">
+                                        <Button x:Name="VanillaRTXOpus_InstallButton"
+                                                Style="{ThemeResource AccentButtonStyle}"
+                                                HorizontalAlignment="Stretch"
+                                                VerticalAlignment="Stretch"
+                                                HorizontalContentAlignment="Center"
+                                                IsEnabled="False"
+                                                IsTextScaleFactorEnabled="False">
+                                            <StackPanel HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        Spacing="1">
+                                                <TextBlock x:Name="VanillaRTXOpus_InstallLabel"
+                                                           Text="Install"
+                                                           FontWeight="SemiBold"
+                                                           HorizontalAlignment="Center"
+                                                           IsTextScaleFactorEnabled="False" />
+                                                <TextBlock x:Name="VanillaRTXOpus_InstallSize"
+                                                           FontSize="12"
+                                                           Opacity="0.75"
+                                                           HorizontalAlignment="Center"
+                                                           Visibility="Collapsed"
+                                                           IsTextScaleFactorEnabled="False" />
+                                            </StackPanel>
+                                        </Button>
+                                        <Grid.Shadow>
+                                            <ThemeShadow />
+                                        </Grid.Shadow>
                                     </Grid>
                                 </StackPanel>
                             </Grid>

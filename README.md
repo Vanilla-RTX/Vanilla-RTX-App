@@ -117,7 +117,7 @@ For each pack you'll see the version **Installed** and the version **Available**
 - **Update** - a newer version is available.
 - **Reinstall** - you're up to date. Use it to put a pack back to its original state, for example after tuning.
 
-The **Enhancements** toggle (on by default) adds the pack's enhancements - fixes for many rendering errors and incompatibilities with ray tracing, and improvements to things like particles. They're classified as mildly non-vanilla changes, which is why you can turn them off - for instance if they clash with another pack you use.
+When pressing the button will download, it shows how much under its label.
 
 Below them, **Vanilla RTX Extras** lists every add-on and extension from the [Vanilla RTX Extras repository](https://github.com/Vanilla-RTX/Vanilla-RTX-Extras) - Glowing Ores, Clear Water, Clear Glass, Perfect Mirrors, Chemistry RTX, Creative RTX, Everwinter and the rest - each with its own **Installed** and **Available** version and the same Install / Update / Reinstall button. **Get all** installs everything you don't have and updates everything that's out of date in one go, and shows how much that will download. Extras are add-ons: activate them **above** one of the three main packs in-game.
 
@@ -128,7 +128,7 @@ The **refresh** button in the title bar checks everything again: it rescans the 
 > - The `available` versions are remembered for a few minutes rather than asked for every time. Installing always asks the repository directly first, whatever the page shows, so an install never deploys a version that has just been superseded moments ago.
 > - Every pack downloads on its own, and downloads stay cached, so a reinstall is instant until a newer version comes out. The **Get latest RTX packs** button's icon in the main menu tells you which to expect: a sync icon when a click can install straight from the cache, and a cloud when it will download.
 > - The log tells you once per session when an update is waiting.
-> - Installing Clear Water doesn't fetch Creative RTX's 70 MB. Extras come with their enhancements already included, which is why they have no toggle.
+> - Installing Clear Water doesn't fetch Creative RTX's 70 MB.
 > - The cards at the bottom link to each family of extras' download pages, where you can read more about them.
 > - An install keeps running if you close this page, and the page shows its progress again when you come back. This was worth mentioning because other features in the app tend to terminate if you close their page.
 
