@@ -2460,11 +2460,6 @@ Allow it to remain off, and perform its flashing patterns in reverse instead
 for instance, have Preview-enabled pages perform the flashes in reverse until closed!
 can become a helpful visual cue user can get used to if the user happens to be observant
 
->> Add a BetterRTX-like lut preset, can get the looks 80% there! call it a joke name like ButterRTX -- or have ButterRTX turn the world yellow for fun... so two presets out of this idea.
-its just an edit of Gamescom iirc that looked a lot like BetterRTX 1.4.4 default
-weaker sun/skylight was a part of it that made the sun texture look a lot more similar
-diminished highlights around the sun sprite, etc...
-
 - restructure main window to be less sloppy and more correct whilst looking the same by the end.
 the layout works perfectly but is wrong in many spots, with many dumb margins
 
