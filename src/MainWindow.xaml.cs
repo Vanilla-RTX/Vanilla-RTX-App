@@ -2508,12 +2508,5 @@ having to continously click in and out to tune packs is annoying
 It makes sense both ways
 Moving the "Export" and "Delete" buttons to select other packs menu like that one 3.2 concept image also works well
 
-- Expose ALLLLLLLL of app's internal variables and constants, let them be adjustable
-in a "see more" section of the settings, of course, hidden away from the casual user.
-All of alchitex, tuner, and more, all variables that don't change during runtime, constants.
-Especially focus on the useful ones
-More urls
-more magic numbers
-
 - i18n, once all english texts are definitely settled and you're not making any more changes, right?! This isn't really something you can commit to.
  */
