@@ -9,6 +9,7 @@ using Microsoft.UI;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using Vanilla_RTX_App.Core;
 using Vanilla_RTX_App.Core.Overlays;
@@ -19,16 +20,21 @@ using static Vanilla_RTX_App.Core.EnvironmentVariables;
 namespace Vanilla_RTX_App.Modules.DLSS;
 
 /// <summary>
-/// The DLSS swapper's window: chrome, the version list it draws, drag/drop and the file
-/// pickers. Everything it does to actual files - where the cache is, what's in it, how a
-/// .dll or .zip gets into it, and the elevated swap itself - lives in <see cref="DLSSSwapper"/>.
-/// This holds one and renders it.
+/// The DLSS manager's window: the NVIDIA driver settings card, the cached version list, the
+/// builds NVIDIA's update server offers beyond it, drag/drop and the file pickers. Everything it
+/// does to actual files - where the cache is, what's in it, how a .dll or .zip gets into it, the
+/// elevated swap, and the download from NVIDIA - lives in <see cref="DLSSManager"/>; the driver
+/// profile in <see cref="NvidiaDriverSettings"/>. This holds both and renders them.
+///
+/// <para>Both NVIDIA halves are optional by construction: the driver card only appears where
+/// NVAPI answers, and the NVIDIA list only adds rows - a machine without an NVIDIA GPU, or a
+/// server that stops answering, leaves exactly the manager that existed without them.</para>
 /// </summary>
-public sealed partial class DLSSSwapperOverlay : ModuleOverlay
+public sealed partial class DLSSManagerOverlay : ModuleOverlay
 {
     private bool _isClosing;
 
-    private readonly DLSSSwapper _swapper = new();
+    private readonly DLSSManager _manager = new();
     private CancellationTokenSource? _scanCancellationTokenSource;
 
     /// <summary>
@@ -38,21 +44,40 @@ public sealed partial class DLSSSwapperOverlay : ModuleOverlay
     /// </summary>
     private bool _swapInProgress;
 
+    /// <summary>The edition this module opened under, held for its lifetime (CLAUDE.md 2d).</summary>
+    private readonly bool _isPreview = Persistent.IsTargetingPreview;
 
-    public DLSSSwapperOverlay()
+    /// <summary>Cancelled when the module closes: the NVIDIA listing and any download from it end with it.</summary>
+    private readonly CancellationTokenSource _lifetime = new();
+
+    /// <summary>The attached edition's <c>Minecraft.Windows.exe</c>, which the driver matches its profile by.</summary>
+    private string? _exePath;
+
+    private bool _driverWriteInProgress;
+
+    /// <summary>The last listing from NVIDIA's server: null until it answers, or when it couldn't be reached.</summary>
+    private IReadOnlyList<NvidiaDll>? _nvidiaBuilds;
+    private bool _nvidiaListed;
+    private bool _nvidiaDownloadInProgress;
+
+    /// <summary>Everything done while open, so the report on close covers a swap, a download and a driver change alike.</summary>
+    private readonly List<string> _done = new();
+
+
+    public DLSSManagerOverlay()
     {
         this.InitializeComponent();
         PrepareContent();
 
         ShowBrowseTarget();
 
-        this.Loaded += DLSSSwapperOverlay_Loaded;
+        this.Loaded += DLSSManagerOverlay_Loaded;
     }
-    private async void DLSSSwapperOverlay_Loaded(object sender, RoutedEventArgs e)
+    private async void DLSSManagerOverlay_Loaded(object sender, RoutedEventArgs e)
     {
         try
         {
-            this.Loaded -= DLSSSwapperOverlay_Loaded;
+            this.Loaded -= DLSSManagerOverlay_Loaded;
 
             if (_isClosing) return;
 
@@ -61,7 +86,7 @@ public sealed partial class DLSSSwapperOverlay : ModuleOverlay
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"[DLSSSwapper] The _Loaded Event Crashed: {ex.Message}");
+            Trace.WriteLine($"[DLSSManager] The _Loaded Event Crashed: {ex.Message}");
             return;
         }
     }
@@ -71,12 +96,21 @@ public sealed partial class DLSSSwapperOverlay : ModuleOverlay
         if (_isClosing) return;
         _isClosing = true;
 
-        this.Loaded -= DLSSSwapperOverlay_Loaded;
+        this.Loaded -= DLSSManagerOverlay_Loaded;
 
         _scanCancellationTokenSource?.Cancel();
         _scanCancellationTokenSource?.Dispose();
+        _lifetime.Cancel();
 
         WebImportOverlay.CloseIfOpen();
+    }
+
+    private void Report(string done)
+    {
+        _done.Add(done);
+        OperationSuccessful = true;
+        var said = string.Join(", ", _done);
+        StatusMessage = char.ToUpperInvariant(said[0]) + said[1..];
     }
 
     // ======================= Initialization =======================
@@ -140,30 +174,30 @@ public sealed partial class DLSSSwapperOverlay : ModuleOverlay
 
     private async Task ContinueInitializationWithPath(string minecraftPath)
     {
-        if (!_swapper.TryAttach(minecraftPath))
+        if (!_manager.TryAttach(minecraftPath))
         {
             StatusMessage = "Could not establish cache folder";
             this.Close();
             return;
         }
 
-        if (!_swapper.GameDllExists)
+        if (!_manager.GameDllExists)
         {
-            Trace.WriteLine($"[DLSS] ⚠ DLSS file not found at: {_swapper.GameDllPath}");
+            Trace.WriteLine($"[DLSS] ⚠ DLSS file not found at: {_manager.GameDllPath}");
 
-            var cachedDlls = _swapper.CachedDllPathsByNewest();
+            var cachedDlls = _manager.CachedDllPathsByNewest();
 
             if (cachedDlls.Count > 0)
             {
                 var repairDll = cachedDlls[0];
                 Trace.WriteLine($"[DLSS] 🔧 Attempting to repair with: {repairDll}");
 
-                var repairSuccess = await _swapper.InstallAsync(repairDll);
+                var repairSuccess = await _manager.InstallAsync(repairDll);
 
                 if (repairSuccess)
                 {
                     Trace.WriteLine("[DLSS] ✓ Game repaired successfully");
-                    await _swapper.CacheInstalledDllAsync();
+                    await _manager.CacheInstalledDllAsync();
                 }
                 else
                 {
@@ -177,7 +211,7 @@ public sealed partial class DLSSSwapperOverlay : ModuleOverlay
         }
         else
         {
-            await _swapper.CacheInstalledDllAsync();
+            await _manager.CacheInstalledDllAsync();
         }
 
         await LoadDllsAsync();
@@ -188,6 +222,10 @@ public sealed partial class DLSSSwapperOverlay : ModuleOverlay
         DLSSInfoPanel.Visibility = DLSSInfoPanel.Children.Count > 0
             ? Visibility.Visible
             : Visibility.Collapsed;
+
+        _exePath = NvidiaDriverSettings.ExecutableIn(minecraftPath);
+        _ = LoadDriverSettingsAsync();
+        _ = LoadNvidiaBuildsAsync();
     }
 
     private async void ManualSelectionButton_Click(object sender, RoutedEventArgs e)
@@ -224,17 +262,17 @@ public sealed partial class DLSSSwapperOverlay : ModuleOverlay
         {
             if (!IsCalledByAddDLSSVersion)
             {
-                await _swapper.RemoveUnsupportedFromCacheAsync();
+                await _manager.RemoveUnsupportedFromCacheAsync();
             }
 
             DllListContainer.Children.Clear();
 
-            var dlls = _swapper.ListCachedVersions();
+            var dlls = _manager.ListCachedVersions();
 
             if (dlls.Count == 0)
             {
                 EmptyStatePanel.Visibility = Visibility.Visible;
-                EmptyStateText.Text = "No DLSS versions imported yet. Download nvngx_dlss.dll files and import them here.";
+                EmptyStateText.Text = "No DLSS versions yet. Get one from NVIDIA below, or download nvngx_dlss.dll files and import them here.";
             }
             else
             {
@@ -245,6 +283,7 @@ public sealed partial class DLSSSwapperOverlay : ModuleOverlay
             }
 
             Trace.WriteLine("[DLSS] DLL loading complete");
+            ShowNvidiaBuilds();
         }
         catch (Exception ex)
         {
@@ -256,8 +295,8 @@ public sealed partial class DLSSSwapperOverlay : ModuleOverlay
 
     private FrameworkElement CreateDllButton(DllData dll)
     {
-        bool isCurrentVersion = dll.Version == _swapper.InstalledVersion;
-        bool isTooOld = !DLSSSwapper.IsSupportedVersion(dll.Version);
+        bool isCurrentVersion = dll.Version == _manager.InstalledVersion;
+        bool isTooOld = !DLSSManager.IsSupportedVersion(dll.Version);
 
         // Decided up front so the button's own corner radius, margin and shadow can be set
         // correctly the first time - see the split-button wrapping at the bottom of this method.
@@ -475,7 +514,7 @@ public sealed partial class DLSSSwapperOverlay : ModuleOverlay
     {
         if (sender is Button button && button.Tag is DllData dllData)
         {
-            if (_swapper.DeleteCachedVersion(dllData))
+            if (_manager.DeleteCachedVersion(dllData))
                 await LoadDllsAsync();
         }
     }
@@ -616,9 +655,9 @@ public sealed partial class DLSSSwapperOverlay : ModuleOverlay
         foreach (var path in candidates)
         {
             if (path.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-                await _swapper.ImportZipAsync(path);
+                await _manager.ImportZipAsync(path);
             else
-                await _swapper.ImportDllAsync(path);
+                await _manager.ImportDllAsync(path);
         }
 
         await LoadDllsAsync(true);
@@ -629,7 +668,7 @@ public sealed partial class DLSSSwapperOverlay : ModuleOverlay
         if (sender is not Button button || button.Tag is not DllData dllData)
             return;
 
-        if (dllData.Version == _swapper.InstalledVersion)
+        if (dllData.Version == _manager.InstalledVersion)
             return;
 
         // A swap is an elevated file copy: it writes a batch script, raises a UAC prompt and
@@ -651,7 +690,7 @@ public sealed partial class DLSSSwapperOverlay : ModuleOverlay
         {
             SetVersionListBusy(true);
 
-            var success = await _swapper.InstallAsync(dllData.FilePath);
+            var success = await _manager.InstallAsync(dllData.FilePath);
 
             // The elevated replace has been through either way by here - see the same call in
             // the shader mod and LUT installs.
@@ -659,10 +698,9 @@ public sealed partial class DLSSSwapperOverlay : ModuleOverlay
 
             if (success)
             {
-                OperationSuccessful = true;
-                StatusMessage = $"Swapped to DLSS {dllData.DisplayVersion}";
+                Report($"Swapped to DLSS {dllData.DisplayVersion}");
 
-                await _swapper.CacheInstalledDllAsync();
+                await _manager.CacheInstalledDllAsync();
                 await LoadDllsAsync();
             }
         }
@@ -693,4 +731,312 @@ public sealed partial class DLSSSwapperOverlay : ModuleOverlay
         DllListContainer.IsHitTestVisible = !busy;
         DllListContainer.Opacity = busy ? 0.5 : 1.0;
     }
+
+    // ======================= NVIDIA driver settings =======================
+
+    private async Task LoadDriverSettingsAsync()
+    {
+        try
+        {
+            // The first touch loads nvapi64.dll and initialises NVAPI - not work for the UI thread.
+            if (_exePath is null || !await Task.Run(() => NvidiaDriverSettings.IsAvailable) || _isClosing) return;
+
+            var state = await NvidiaDriverSettings.ReadAsync(_exePath);
+            if (_isClosing || state is null) return;
+
+            var shared = false;
+            if (state.ProfileName is not null && OtherEditionInstallPath() is { } other)
+                shared = (await NvidiaDriverSettings.ReadAsync(NvidiaDriverSettings.ExecutableIn(other)))?.ProfileName == state.ProfileName;
+            if (_isClosing) return;
+
+            DriverSettingsNote.Text = DescribeProfile(state, shared);
+            BuildDriverSettingRows(state);
+            DriverSettingsCard.Visibility = Visibility.Visible;
+        }
+        catch (Exception ex)
+        {
+            Trace.WriteLine($"[DLSS] [Driver] Couldn't show the driver settings: {ex.Message}");
+        }
+    }
+
+    private string? OtherEditionInstallPath()
+    {
+        var path = _isPreview ? Persistent.MinecraftInstallPath : Persistent.MinecraftPreviewInstallPath;
+        return !string.IsNullOrEmpty(path) && Directory.Exists(path) ? path : null;
+    }
+
+    private string DescribeProfile(DriverProfileState state, bool shared)
+    {
+        var edition = _isPreview ? "Minecraft Preview" : "Minecraft";
+        var where = state.ProfileName is null
+            ? $"NVIDIA's driver has no profile for {edition} yet - the first change here creates one."
+            : shared
+                ? $"Minecraft and Minecraft Preview both run under NVIDIA's \"{state.ProfileName}\" profile, so these apply to both."
+                : $"Saved in NVIDIA's \"{state.ProfileName}\" profile, the one {edition} runs under.";
+        return where + " Changes take effect the next time the game starts, and saving one may ask for administrator permission.";
+    }
+
+    /// <summary>
+    /// One column per setting: its name, a dropdown of its choices with the current one checked,
+    /// and what it does. A profile holding something none of the choices write reads "Set
+    /// elsewhere" rather than pretending to be one of them.
+    /// </summary>
+    private void BuildDriverSettingRows(DriverProfileState state)
+    {
+        DriverSettingsRows.Children.Clear();
+        DriverSettingsRows.ColumnDefinitions.Clear();
+
+        var column = 0;
+        foreach (var setting in NvidiaDriverSettings.All)
+        {
+            DriverSettingsRows.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            state.Current.TryGetValue(setting, out var current);
+
+            var flyout = new MenuFlyout { Placement = FlyoutPlacementMode.BottomEdgeAlignedLeft };
+            foreach (var choice in setting.Choices)
+            {
+                var item = new RadioMenuFlyoutItem { Text = choice.Label, GroupName = setting.Title, IsChecked = choice == current };
+                item.Click += (_, _) => ApplyDriverChoice(setting, choice);
+                flyout.Items.Add(item);
+            }
+
+            var dropDown = new DropDownButton
+            {
+                Content = current?.Label ?? "Set elsewhere",
+                Flyout = flyout,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Left,
+                IsTextScaleFactorEnabled = false
+            };
+            if (current is null)
+                ToolTipService.SetToolTip(dropDown, "Set to something this list doesn't offer, in the NVIDIA app or NVIDIA Profile Inspector. Picking one here replaces it.");
+
+            var cell = new StackPanel { Spacing = 6 };
+            cell.Children.Add(new TextBlock
+            {
+                Text = setting.Title,
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                IsTextScaleFactorEnabled = false
+            });
+            cell.Children.Add(dropDown);
+            cell.Children.Add(new TextBlock
+            {
+                Text = setting.Description,
+                FontSize = 12,
+                TextWrapping = TextWrapping.Wrap,
+                Style = (Style)Application.Current.Resources["ThemedSecondaryTextStyle"],
+                IsTextScaleFactorEnabled = false
+            });
+
+            Grid.SetColumn(cell, column++);
+            DriverSettingsRows.Children.Add(cell);
+        }
+    }
+
+    /// <summary>
+    /// Writes one choice and redraws the card from what the profile says afterwards - the read
+    /// back is the only judge of whether it took (see <see cref="NvidiaDriverSettings.ApplyAsync"/>).
+    /// One write at a time: a second could raise a second UAC prompt behind the first.
+    /// </summary>
+    private async void ApplyDriverChoice(DriverSetting setting, DriverChoice choice)
+    {
+        if (_exePath is null || _driverWriteInProgress) return;
+
+        _driverWriteInProgress = true;
+        try
+        {
+            SetDriverSettingsBusy(true);
+            DriverSettingsStatus.Text = "Saving...";
+
+            var (saved, problem) = await NvidiaDriverSettings.ApplyAsync(_exePath, setting, choice);
+            if (_isClosing) return;
+
+            _ = Host.BlinkingLamp(true, true, saved ? 1.0 : 0.0, 1.0);
+            DriverSettingsStatus.Text = saved ? $"{setting.Title}: {choice.Label}" : $"Couldn't save - {problem}";
+            if (saved) Report($"set {setting.Title} to {choice.Label}");
+        }
+        catch (Exception ex)
+        {
+            Trace.WriteLine($"[DLSS] [Driver] Applying {setting.Title} failed: {ex.Message}");
+            DriverSettingsStatus.Text = "Couldn't save";
+        }
+        finally
+        {
+            _driverWriteInProgress = false;
+            SetDriverSettingsBusy(false);
+            if (!_isClosing) await LoadDriverSettingsAsync();
+        }
+    }
+
+    /// <summary>The same container-level grey-out as <see cref="SetVersionListBusy"/>, and for the same reason: the rows are rebuilt after every write.</summary>
+    private void SetDriverSettingsBusy(bool busy)
+    {
+        DriverSettingsRows.IsHitTestVisible = !busy;
+        DriverSettingsRows.Opacity = busy ? 0.5 : 1.0;
+        DriverSettingsBusy.IsActive = busy;
+        DriverSettingsBusy.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    // ======================= Builds from NVIDIA =======================
+
+    private async Task LoadNvidiaBuildsAsync()
+    {
+        NvidiaSection.Visibility = Visibility.Visible;
+        try
+        {
+            _nvidiaBuilds = await DLSSManager.ListNvidiaVersionsAsync(_lifetime.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (Exception ex)
+        {
+            Trace.WriteLine($"[DLSS] [NVIDIA] Listing failed: {ex.Message}");
+        }
+
+        if (_isClosing) return;
+        _nvidiaListed = true;
+        ShowNvidiaBuilds();
+    }
+
+    /// <summary>
+    /// Redraws the NVIDIA rows from the last listing against what the cache holds now - so a
+    /// version imported, downloaded or deleted any other way appears or disappears here too.
+    /// No network: the listing is only asked for once per open.
+    /// </summary>
+    private void ShowNvidiaBuilds()
+    {
+        if (!_nvidiaListed || _isClosing) return;
+
+        NvidiaListContainer.Children.Clear();
+        NvidiaLoading.IsActive = false;
+        NvidiaLoading.Visibility = Visibility.Collapsed;
+
+        if (_nvidiaBuilds is null)
+        {
+            NvidiaStatusPanel.Visibility = Visibility.Visible;
+            NvidiaStatusText.Text = "Couldn't reach NVIDIA's update server. Download DLSS files still works.";
+            return;
+        }
+
+        var missing = _manager.NotYetCached(_nvidiaBuilds);
+        if (missing.Count == 0)
+        {
+            NvidiaStatusPanel.Visibility = Visibility.Visible;
+            NvidiaStatusText.Text = "You have every version NVIDIA's update server offers.";
+            return;
+        }
+
+        NvidiaStatusPanel.Visibility = Visibility.Collapsed;
+        foreach (var dll in missing)
+            NvidiaListContainer.Children.Add(CreateNvidiaRow(dll));
+    }
+
+    /// <summary>A lighter row than a cached version's: shorter, no shadow, and a size where the path would be.</summary>
+    private FrameworkElement CreateNvidiaRow(NvidiaDll dll)
+    {
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(56) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(8) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var icon = new FontIcon
+        {
+            Glyph = "\uE896",
+            FontSize = 20,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            IsTextScaleFactorEnabled = false
+        };
+        grid.Children.Add(icon);
+
+        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        text.Children.Add(new TextBlock
+        {
+            Text = $"DLSS {dll.DisplayVersion}",
+            FontWeight = FontWeights.SemiBold,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            IsTextScaleFactorEnabled = false
+        });
+        var subtitle = new TextBlock
+        {
+            Text = "Click to download from NVIDIA",
+            FontSize = 12,
+            Opacity = 0.75,
+            TextWrapping = TextWrapping.Wrap,
+            IsTextScaleFactorEnabled = false
+        };
+        text.Children.Add(subtitle);
+        Grid.SetColumn(text, 2);
+        grid.Children.Add(text);
+
+        var size = new TextBlock
+        {
+            Text = FormatSize(dll.Size),
+            FontSize = 12,
+            Opacity = 0.75,
+            VerticalAlignment = VerticalAlignment.Center,
+            IsTextScaleFactorEnabled = false
+        };
+        Grid.SetColumn(size, 3);
+        grid.Children.Add(size);
+
+        var button = new Button
+        {
+            Content = grid,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Padding = new Thickness(0, 0, 16, 0),
+            MinHeight = 56,
+            CornerRadius = new CornerRadius(5),
+            BorderThickness = new Thickness(0),
+            IsTextScaleFactorEnabled = false
+        };
+        ToolTipService.SetToolTip(button, $"Downloads DLSS {dll.DisplayVersion} from NVIDIA's own update server into your collection. It isn't installed until you pick it above.");
+        button.Click += async (_, _) => await DownloadNvidiaBuildAsync(dll, subtitle);
+        return button;
+    }
+
+    private async Task DownloadNvidiaBuildAsync(NvidiaDll dll, TextBlock subtitle)
+    {
+        if (_nvidiaDownloadInProgress) return;
+
+        _nvidiaDownloadInProgress = true;
+        try
+        {
+            NvidiaListContainer.IsHitTestVisible = false;
+            subtitle.Text = "Downloading from NVIDIA...";
+            var progress = new Progress<double>(p => subtitle.Text = $"Downloading from NVIDIA... {p:P0}");
+
+            var problem = await _manager.DownloadNvidiaVersionAsync(dll, progress, _lifetime.Token);
+            if (_isClosing) return;
+
+            _ = Host.BlinkingLamp(true, true, problem is null ? 1.0 : 0.0, 1.0);
+            if (problem is null)
+            {
+                Report($"added DLSS {dll.DisplayVersion} from NVIDIA");
+                await LoadDllsAsync(true);
+            }
+            else
+            {
+                subtitle.Text = $"Couldn't add it: {problem}. Click to try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Trace.WriteLine($"[DLSS] [NVIDIA] Download of {dll.DisplayVersion} failed: {ex.Message}");
+            if (!_isClosing) subtitle.Text = "Couldn't add it. Click to try again.";
+        }
+        finally
+        {
+            _nvidiaDownloadInProgress = false;
+            NvidiaListContainer.IsHitTestVisible = true;
+        }
+    }
+
+    private static string FormatSize(long bytes)
+        => bytes >= 1024 * 1024 ? $"{bytes / (1024.0 * 1024.0):0.#} MB" : $"{Math.Max(1, bytes / 1024)} KB";
 }

@@ -130,7 +130,7 @@ public static class EnvironmentVariables
         /// <summary>The markdown the titlebar's Bugs button renders.</summary>
         public const string BugTrackerUrl = "https://github.com/vanilla-rtx/Minecraft-RTX-Bug-Tracking/blob/master/README.md";
 
-        /// <summary>Where the DLSS swapper's in-app browser goes to download runtimes.</summary>
+        /// <summary>Where the DLSS manager's in-app browser goes to download runtimes.</summary>
         public const string DlssProviderUrl = "https://www.techpowerup.com/download/nvidia-dlss-dll";
 
         /// <summary>Where the shader mod manager's in-app browser goes to build a custom BetterRTX preset.</summary>

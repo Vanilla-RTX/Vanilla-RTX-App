@@ -1973,7 +1973,7 @@ public sealed partial class MainWindow : Window
     {
         string[] ToDisable = ["LaunchMinecraftButton", "TargetPreviewToggle", "LaunchDLSSSwapperButton", "ResetButton"];
 
-        OpenModule(() => new Modules.DLSS.DLSSSwapperOverlay(), ToDisable, overlay =>
+        OpenModule(() => new Modules.DLSS.DLSSManagerOverlay(), ToDisable, overlay =>
         {
             LogModuleResult(overlay, LogLevel.DLSS);
             _ = BlinkingLamp(true, true, overlay.OperationSuccessful ? 1.0 : 0.0);
@@ -2451,11 +2451,6 @@ public sealed partial class MainWindow : Window
 }
 
 /* ### BACKLOG/TODO OF HIGHCORTISOLSOFTWARE LLC (STRICTLY CONFIDENTIAL)
-
-- DLSS Swapper -> DLSS manager (researched, see CLAUDE.md 8.14):
-list DLLs straight from NVIDIA's NGX update bucket like the shader mod manager lists presets,
-then prototype preset override + Minecraft RTX render resolution through the driver profile (NVAPI DRS).
-RR/Reflex/FG need code in the game - at most offer ChungusWare as an opt-in third-party install.
 
 - need revamped store images like the 4.0 trailer thumbnail concept
 

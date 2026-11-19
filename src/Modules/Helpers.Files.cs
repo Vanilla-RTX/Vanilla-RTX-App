@@ -137,6 +137,27 @@ public static partial class Helpers
     }
 
     /// <summary>
+    /// Runs a PowerShell script elevated: one UAC prompt, Windows PowerShell by its full path (so
+    /// nothing on PATH can stand in for it), no profile, and the script's own exit code carried
+    /// back. True only for exit code 0. Shares the one-elevated-action flag with the file and
+    /// process helpers above.
+    /// </summary>
+    public static Task<bool> RunPowerShellWithElevation(string scriptPath, string logPrefix = "[Helpers]", string tempFilePrefix = "powershell")
+    {
+        var scriptLines = new List<string>
+        {
+            "@echo off",
+            $"\"{WindowsPowerShellPath}\" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"{scriptPath}\"",
+            "exit %ERRORLEVEL%"
+        };
+        return RunElevatedBatchAsync(scriptLines, logPrefix, tempFilePrefix);
+    }
+
+    /// <summary>Windows PowerShell 5.1, which every supported Windows ships; never whatever <c>powershell</c> resolves to on PATH.</summary>
+    public static string WindowsPowerShellPath =>
+        Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe");
+
+    /// <summary>
     /// Writes <paramref name="scriptLines"/> to a temp .bat and runs it in an elevated, hidden
     /// cmd, holding the process-wide one-elevated-action flag for the whole run, UAC prompt
     /// included. Returns true only for exit code 0; false for a refused overlap, a declined
@@ -350,6 +371,96 @@ public static partial class Helpers
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern uint GetFinalPathNameByHandleW(SafeFileHandle hFile, [Out] char[] lpszFilePath,
         uint cchFilePath, uint dwFlags);
+
+    /// <summary>
+    /// Whether <paramref name="path"/> carries an Authenticode signature Windows trusts, from a
+    /// certificate whose organisation is <paramref name="organization"/>. Revocation isn't checked:
+    /// this runs on a file just downloaded over HTTPS from the signer's own server, and a
+    /// revocation lookup is a network round trip to a third party that can hang for its whole
+    /// timeout. Never throws.
+    /// </summary>
+    public static bool IsAuthenticodeSignedBy(string path, string organization)
+    {
+        var filePath = Marshal.StringToHGlobalUni(path);
+        var fileInfo = new WinTrustFileInfo
+        {
+            cbStruct = (uint)Marshal.SizeOf<WinTrustFileInfo>(),
+            pcwszFilePath = filePath
+        };
+        var fileInfoHandle = GCHandle.Alloc(fileInfo, GCHandleType.Pinned);
+        var data = new WinTrustData
+        {
+            cbStruct = (uint)Marshal.SizeOf<WinTrustData>(),
+            dwUIChoice = 2,                  // WTD_UI_NONE
+            fdwRevocationChecks = 0,         // WTD_REVOKE_NONE
+            dwUnionChoice = 1,               // WTD_CHOICE_FILE
+            pFile = fileInfoHandle.AddrOfPinnedObject(),
+            dwStateAction = 1,               // WTD_STATEACTION_VERIFY
+            dwProvFlags = 0x10               // WTD_REVOCATION_CHECK_NONE
+        };
+        var action = new Guid("00AAC56B-CD44-11d0-8CC2-00C04FC295EE"); // WINTRUST_ACTION_GENERIC_VERIFY_V2
+
+        try
+        {
+            var trust = WinVerifyTrust(IntPtr.Zero, ref action, ref data);
+            data.dwStateAction = 2;          // WTD_STATEACTION_CLOSE, releasing what the verify held
+            WinVerifyTrust(IntPtr.Zero, ref action, ref data);
+
+            if (trust != 0)
+            {
+                Trace.WriteLine($"[Signature] {Path.GetFileName(path)} isn't trusted (0x{trust:X8})");
+                return false;
+            }
+
+            using var signer = System.Security.Cryptography.X509Certificates.X509Certificate.CreateFromSignedFile(path);
+            var matches = signer.Subject.Contains($"O={organization}", StringComparison.OrdinalIgnoreCase)
+                || signer.Subject.Contains($"O=\"{organization}\"", StringComparison.OrdinalIgnoreCase);
+            if (!matches)
+                Trace.WriteLine($"[Signature] {Path.GetFileName(path)} is signed by {signer.Subject}, not {organization}");
+            return matches;
+        }
+        catch (Exception ex)
+        {
+            Trace.WriteLine($"[Signature] Checking {Path.GetFileName(path)} failed: {ex.Message}");
+            return false;
+        }
+        finally
+        {
+            fileInfoHandle.Free();
+            Marshal.FreeHGlobal(filePath);
+        }
+    }
+
+    // WINTRUST_FILE_INFO and WINTRUST_DATA, blittable so they marshal without help under trimming.
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WinTrustFileInfo
+    {
+        public uint cbStruct;
+        public IntPtr pcwszFilePath;
+        public IntPtr hFile;
+        public IntPtr pgKnownSubject;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WinTrustData
+    {
+        public uint cbStruct;
+        public IntPtr pPolicyCallbackData;
+        public IntPtr pSIPClientData;
+        public uint dwUIChoice;
+        public uint fdwRevocationChecks;
+        public uint dwUnionChoice;
+        public IntPtr pFile;
+        public uint dwStateAction;
+        public IntPtr hWVTStateData;
+        public IntPtr pwszURLReference;
+        public uint dwProvFlags;
+        public uint dwUIContext;
+        public IntPtr pSignatureSettings;
+    }
+
+    [DllImport("wintrust.dll", ExactSpelling = true)]
+    private static extern int WinVerifyTrust(IntPtr hwnd, ref Guid pgActionID, ref WinTrustData pWVTData);
 
 
     /// <summary>

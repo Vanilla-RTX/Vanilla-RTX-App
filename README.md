@@ -1,7 +1,7 @@
 # Vanilla RTX App
 Everything you need to play Minecraft with ray tracing at its best and unlock its full potential, in one place.
 
-Install and update the Vanilla RTX resource packs, give ordinary texture packs RTX support with RTX Reactor, tune any ray-traced pack to your taste, install shader mods like Supervanilla RTX and BetterRTX, swap DLSS versions, launch the game with ray tracing already switched on, and much more...  
+Install and update the Vanilla RTX resource packs, give ordinary texture packs RTX support with RTX Reactor, tune any ray-traced pack to your taste, install shader mods like Supervanilla RTX and BetterRTX, manage DLSS versions and NVIDIA's driver options, launch the game with ray tracing already switched on, and much more...  
 The Vanilla RTX App ensures ray tracing is accessible and frictionless to new and experienced players.
 
 <!-- Microsoft Store badge -->
@@ -37,7 +37,7 @@ The Vanilla RTX App ensures ray tracing is accessible and frictionless to new an
 - [Tuning packs](#tuning-packs)
 - [RTX Reactor](#rtx-reactor)
 - [Shader mod manager](#shader-mod-manager)
-- [DLSS swapper](#dlss-swapper)
+- [DLSS manager](#dlss-manager)
 - [RTX LUT manager](#rtx-lut-manager)
 - [Launch Minecraft RTX](#launch-minecraft-rtx)
 - [Opening files with the app](#opening-files-with-the-app)
@@ -68,7 +68,7 @@ You now have ray tracing set up properly, with the latest [Vanilla RTX](https://
 Features split into two main groups by what they touch:
 
 - **Your packs and user data** - installing Vanilla RTX, importing or choosing packs to tuning them, RTX Reactor, and launching the game. These work on the resource packs in Minecraft's user data folder.
-- **Your game installations** - the shader mod manager, the RTX LUT manager and the DLSS swapper. These replace files inside Minecraft itself, and each keeps a backup of your original files so you can always go back.
+- **Your game installations** - the shader mod manager, the RTX LUT manager and the DLSS manager. These replace files inside Minecraft itself, and each keeps a backup of your original files so you can always go back.
 
 > The app detects both Minecraft installations and their user data locations automatically. If it ever fails to, see [Troubleshooting](#troubleshooting). You may also manually select other paths through [Settings](#settings).
 
@@ -286,15 +286,24 @@ It's a safety net, not a guarantee:
 
 If a preset makes the game crash, roll back to Default RTX. You can use the [RTX LUT manager](#rtx-lut-manager) to give Minecraft RTX a different look in the meantime.
 
-# DLSS swapper
+# DLSS manager
 
-Keeps your collection of DLSS versions and swaps the one Minecraft uses.
+Keeps your collection of DLSS versions, swaps the one Minecraft uses, and sets NVIDIA's driver options for the game.
 
 - The version your game has now is added to the collection automatically, so you can always go back to it. It's highlighted in the list.
 - Click any version to swap to it.
+- **More versions from NVIDIA** - below your collection, every DLSS version NVIDIA's own update server offers that you don't have yet. Click one to download it into your collection; it's checked against NVIDIA's signature first. If the server can't be reached, everything else works as usual.
 - **Add DLSS files** - add `nvngx_dlss.dll` files, or `.zip` archives containing any number of them, by browsing or dragging onto the page. Versions older than 2.0 aren't supported and are removed.
 - **Download DLSS files** - opens a DLSS download page inside the app (TechPowerUp by default; you can change it in [Settings](#settings)). Download what you want, then click **Done** and the files are imported automatically. You can also open the page in your normal browser and add the files yourself.
 - Versions you don't need can be deleted from the collection, except the one currently in use.
+
+On a PC with an NVIDIA graphics card, **NVIDIA driver settings** at the top set three of the driver's options for Minecraft - the same ones the NVIDIA app and NVIDIA Profile Inspector change:
+
+- **DLSS preset** - which DLSS model the game uses: **Latest**, or a specific preset. **Game decides** leaves it to the game.
+- **Low Latency Mode** - Off, On or Ultra. NVIDIA says it has no effect on DirectX 12 games, and ray tracing always runs on DirectX 12.
+- **Smooth Motion** - the driver's own frame generation, for GeForce RTX 40 and 50 series cards.
+
+**Driver default** hands a setting back to whatever NVIDIA or your global driver settings say. Release and Preview share NVIDIA's Minecraft profile, so a change applies to both, and it takes effect the next time the game starts. Saving may ask for administrator permission.
 
 # RTX LUT manager
 
@@ -350,7 +359,7 @@ Type **`vanillartx`** into Win+R or a terminal to start the app.
 | `vanillartx://packbrowser` | Select other packs |
 | `vanillartx://rtxreactor` | RTX Reactor |
 | `vanillartx://shadermods` | Shader mod manager (`vanillartx://betterrtx` still works too) |
-| `vanillartx://dlss` | DLSS swapper |
+| `vanillartx://dlss` | DLSS manager |
 | `vanillartx://lut` | RTX LUT manager |
 | `vanillartx://settings` | Settings |
 | `vanillartx://help` | This page - add a section to jump to it, e.g. `vanillartx://help/rtx-reactor` |
@@ -410,7 +419,7 @@ At the very bottom are links to **[this repo](https://github.com/vanilla-rtx/Van
 
 The app finds your game and your user data on its own and for almost everyone both will succeed silently, but if it does not, and you use a feature that needs them, the app tries to guide you to point it to the correct locations:
 
-**The game:** the app asks Windows where Minecraft is installed and follows that to the real files, wherever you installed them. If that fails, it searches the usual locations on every drive, then the whole system, usually succeeding in under a minute. If it still can't, it asks you: pick the folder containing `Minecraft.Windows.exe`, or the folder one level above it. You can also set either game's location manually in Settings, under **Game installations**. The shader mod manager, the LUT manager and the DLSS swapper need this.
+**The game:** the app asks Windows where Minecraft is installed and follows that to the real files, wherever you installed them. If that fails, it searches the usual locations on every drive, then the whole system, usually succeeding in under a minute. If it still can't, it asks you: pick the folder containing `Minecraft.Windows.exe`, or the folder one level above it. You can also set either game's location manually in Settings, under **Game installations**. The shader mod manager, the LUT manager and the DLSS manager need this.
 
 **User data:** this folder only exists once you've played the game at least once. If it can't be found, the **Select other packs** button temporarily turns into a highlighted **Locate user data** button. Click it and pick the folder named `Minecraft Bedrock` (or `Minecraft Bedrock Preview`), the one with a `Users` folder inside, usually under `%appdata%`. If it isn't there, you may be using an unofficial launcher that keeps it elsewhere. You can also set it in Settings, under **Game user data**. Pack selection, tuning, installing, importing, exporting, RTX Reactor and the Launch button all need this.
 

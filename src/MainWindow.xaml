@@ -1283,7 +1283,8 @@
                         </StackPanel>
                     </Button>
 
-                    <!-- DLSS Swapper -->
+                    <!-- DLSS manager. The x:Name keeps its old spelling: # SuspendControls lines in the
+                         announcements file target controls by name. -->
                     <Button x:Name="LaunchDLSSSwapperButton"
                             Click="LaunchDLSSSwapperButton_Click"
                             Grid.Row="2"
@@ -1294,14 +1295,14 @@
                             BorderThickness="0"
                             FontWeight="SemiBold"
                             IsTextScaleFactorEnabled="False"
-                            ToolTipService.ToolTip="Import various DLSS versions that you want, and quickly swap between them.">
+                            ToolTipService.ToolTip="Collect DLSS versions, from NVIDIA or anywhere else, swap between them, and set NVIDIA's driver options for Minecraft.">
                         <StackPanel Orientation="Horizontal"
                                     HorizontalAlignment="Center">
                             <FontIcon Glyph="&#xE81E;"
                                       FontSize="18"
                                       Margin="0,0,8,0"
                                       VerticalAlignment="Center" />
-                            <TextBlock Text="DLSS swapper"
+                            <TextBlock Text="DLSS manager"
                                        VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>

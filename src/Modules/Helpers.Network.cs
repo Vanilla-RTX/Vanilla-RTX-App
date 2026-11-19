@@ -281,6 +281,9 @@ public static partial class Helpers
     /// comes back on the result for the caller to store once it has committed the file
     /// (<see cref="SetValidator"/>); this method never stores it itself, because the download
     /// landing in the Downloads folder is not the same event as the caller adopting it.</para>
+    ///
+    /// <para><paramref name="progress"/> receives 0-1 as the body arrives, when the server sends
+    /// a length, at most once per percent.</para>
     /// </summary>
     public static async Task<DownloadResult> Download(
             string url,
@@ -288,7 +291,8 @@ public static partial class Helpers
             HttpClient? httpClient = null,
             TimeSpan? timeout = null,
             bool quiet = false,
-            bool conditional = false)
+            bool conditional = false,
+            IProgress<double>? progress = null)
     {
         // Background callers (AssetUpdater) download things the user never asked for and
         // shouldn't have to read about; everything else keeps reporting to the UI log.
@@ -412,6 +416,7 @@ public static partial class Helpers
                 long totalRead = 0;
                 int read;
                 double lastLoggedProgress = 0;
+                var lastReportedPercent = -1;
                 var lastLoggedMB = 0;
 
                 while ((read = await contentStream.ReadAsync(buffer.AsMemory(0, buffer.Length), token)) > 0)
@@ -422,11 +427,16 @@ public static partial class Helpers
 
                     if (totalBytes.HasValue)
                     {
-                        var progress = (double)totalRead / totalBytes.Value * 100;
-                        if (progress - lastLoggedProgress >= 10 || progress >= 100)
+                        var percent = (double)totalRead / totalBytes.Value * 100;
+                        if (progress is not null && (int)percent != lastReportedPercent)
                         {
-                            lastLoggedProgress = progress;
-                            Report($"Download Progress: {progress:0}%", LogLevel.Informational);
+                            lastReportedPercent = (int)percent;
+                            progress.Report(Math.Min(1.0, percent / 100));
+                        }
+                        if (percent - lastLoggedProgress >= 10 || percent >= 100)
+                        {
+                            lastLoggedProgress = percent;
+                            Report($"Download Progress: {percent:0}%", LogLevel.Informational);
                         }
                     }
                     else

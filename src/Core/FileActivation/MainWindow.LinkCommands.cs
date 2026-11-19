@@ -59,7 +59,7 @@ public sealed partial class MainWindow
         ["shadermods"] = new("Shader mod manager", w => w.LaunchShaderModManagerButton, typeof(Modules.ShaderMods.ShaderModManagerOverlay)),
         ["supervanilla"] = new("Shader mod manager", w => w.LaunchShaderModManagerButton, typeof(Modules.ShaderMods.ShaderModManagerOverlay)),
         ["betterrtx"] = new("Shader mod manager", w => w.LaunchShaderModManagerButton, typeof(Modules.ShaderMods.ShaderModManagerOverlay)),
-        ["dlss"] = new("DLSS swapper", w => w.LaunchDLSSSwapperButton, typeof(Modules.DLSS.DLSSSwapperOverlay)),
+        ["dlss"] = new("DLSS manager", w => w.LaunchDLSSSwapperButton, typeof(Modules.DLSS.DLSSManagerOverlay)),
         ["lut"] = new("RTX LUT manager", w => w.LaunchLUTManagerButton, typeof(Modules.LUT.LUTManagerOverlay)),
     };
 
