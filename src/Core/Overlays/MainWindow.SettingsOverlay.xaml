@@ -603,7 +603,11 @@
                                 BorderThickness="1"
                                 CornerRadius="6"
                                 Padding="12,10,12,10"
-                                Margin="0,8,0,0">
+                                Margin="0,8,0,0"
+                                Translation="0,0,32">
+                            <Border.Shadow>
+                                <ThemeShadow />
+                            </Border.Shadow>
                             <StackPanel Spacing="8">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -684,25 +688,33 @@
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <DropDownButton x:Name="AddActivationPackButton"
-                                                    Grid.Column="0"
-                                                    IsTextScaleFactorEnabled="False"
-                                                    ToolTipService.ToolTip="Add one of the packs installed for the edition the app is targeting.">
-                                        <StackPanel Orientation="Horizontal"
-                                                    Spacing="8">
-                                            <FontIcon Glyph="&#xE710;"
-                                                      FontSize="14"
-                                                      VerticalAlignment="Center" />
-                                            <TextBlock Text="Add pack"
-                                                       VerticalAlignment="Center"
-                                                       IsTextScaleFactorEnabled="False" />
-                                        </StackPanel>
-                                        <DropDownButton.Flyout>
-                                            <MenuFlyout x:Name="AddActivationPackFlyout"
-                                                        Placement="BottomEdgeAlignedLeft"
-                                                        Opening="AddActivationPackFlyout_Opening" />
-                                        </DropDownButton.Flyout>
-                                    </DropDownButton>
+                                    <!-- Lifted by a wrapper: the XBF compiler doesn't know Translation on a
+                                         DropDownButton. -->
+                                    <Grid Grid.Column="0"
+                                          CornerRadius="4"
+                                          Translation="0,0,32">
+                                        <Grid.Shadow>
+                                            <ThemeShadow />
+                                        </Grid.Shadow>
+                                        <DropDownButton x:Name="AddActivationPackButton"
+                                                        IsTextScaleFactorEnabled="False"
+                                                        ToolTipService.ToolTip="Add one of the packs installed for the edition the app is targeting.">
+                                            <StackPanel Orientation="Horizontal"
+                                                        Spacing="8">
+                                                <FontIcon Glyph="&#xE710;"
+                                                          FontSize="14"
+                                                          VerticalAlignment="Center" />
+                                                <TextBlock Text="Add pack"
+                                                           VerticalAlignment="Center"
+                                                           IsTextScaleFactorEnabled="False" />
+                                            </StackPanel>
+                                            <DropDownButton.Flyout>
+                                                <MenuFlyout x:Name="AddActivationPackFlyout"
+                                                            Placement="BottomEdgeAlignedLeft"
+                                                            Opening="AddActivationPackFlyout_Opening" />
+                                            </DropDownButton.Flyout>
+                                        </DropDownButton>
+                                    </Grid>
                                     <Button x:Name="ResetActivationPacksButton"
                                             Grid.Column="2"
                                             Style="{ThemeResource SubtleButtonStyle}"

@@ -62,12 +62,47 @@ public sealed partial class SettingsOverlay
         var activated = new HashSet<string>(resolved.Select(r => r.Pack.Uuid), StringComparer.OrdinalIgnoreCase);
         var activatedBase = resolved.FirstOrDefault(r => PackActivation.IsBasePack(r.Pack.Uuid)).Pack;
 
+        _subpackComboWidth = WidestSubpackComboWidth();
+
         ActivationRows.Items.Clear();
         for (var i = 0; i < _activationEntries.Count; i++)
             ActivationRows.Items.Add(BuildActivationRow(i, activated, activatedBase));
 
         ActivationRows.Visibility = _activationEntries.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
         ActivationEmptyText.Visibility = _activationEntries.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>One width for every row's subpack dropdown, so they line up whatever each holds.</summary>
+    private double _subpackComboWidth;
+
+    private static List<(string Value, string Label)> SubpackOptions(InstalledPack pack)
+    {
+        var options = new List<(string Value, string Label)> { (PackActivation.PackDefault, "Pack default") };
+        if (PackActivation.HasBasePackSubpacks(pack))
+            options.Add((PackActivation.MatchBasePack, "Match base pack"));
+        options.AddRange(pack.Subpacks.Select(s => (s.FolderName, s.Name)));
+        return options;
+    }
+
+    /// <summary>
+    /// The width the longest label any listed pack offers needs: its text measured at the
+    /// dropdown's font size, plus the box's padding and chevron. Capped, so one pack with a very
+    /// long subpack name can't push every row's name into an ellipsis.
+    /// </summary>
+    private double WidestSubpackComboWidth()
+    {
+        const double chrome = 56, floor = 150, cap = 260;
+        var widest = 0.0;
+        foreach (var label in _activationEntries
+            .Select(e => Installed(e.Uuid))
+            .Where(p => p is { Subpacks.Count: > 0 })
+            .SelectMany(p => SubpackOptions(p!).Select(o => o.Label)))
+        {
+            var probe = new TextBlock { Text = label, FontSize = 14, IsTextScaleFactorEnabled = false };
+            probe.Measure(new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
+            widest = Math.Max(widest, probe.DesiredSize.Width);
+        }
+        return Math.Clamp(Math.Ceiling(widest + chrome), floor, cap);
     }
 
     private Grid BuildActivationRow(int index, HashSet<string> activated, InstalledPack? activatedBase)
@@ -106,16 +141,14 @@ public sealed partial class SettingsOverlay
 
         if (pack is { Subpacks.Count: > 0 })
         {
-            var options = new List<(string Value, string Label)> { (PackActivation.PackDefault, "Pack default") };
-            if (PackActivation.HasBasePackSubpacks(pack))
-                options.Add((PackActivation.MatchBasePack, "Match base pack"));
-            options.AddRange(pack.Subpacks.Select(s => (s.FolderName, s.Name)));
+            var options = SubpackOptions(pack);
 
             var combo = new ComboBox
             {
-                MinWidth = 150,
-                MaxWidth = 190,
+                Width = _subpackComboWidth,
                 VerticalAlignment = VerticalAlignment.Center,
+                Translation = new System.Numerics.Vector3(0, 0, 24),
+                Shadow = new Microsoft.UI.Xaml.Media.ThemeShadow(),
                 IsTextScaleFactorEnabled = false,
                 ItemsSource = options.Select(o => o.Label).ToList(),
                 SelectedIndex = Math.Max(0, options.FindIndex(o => o.Value == entry.Subpack)),
@@ -225,7 +258,8 @@ public sealed partial class SettingsOverlay
             item.Click += (_, _) =>
             {
                 var subpack = PackActivation.HasBasePackSubpacks(pack) ? PackActivation.MatchBasePack : PackActivation.PackDefault;
-                _activationEntries.Add(new ActivationEntry(pack.Uuid, subpack));
+                // On top: the newest addition is usually the one the user wants to win.
+                _activationEntries.Insert(0, new ActivationEntry(pack.Uuid, subpack));
                 CommitActivation(rebuild: true);
             };
             AddActivationPackFlyout.Items.Add(item);
