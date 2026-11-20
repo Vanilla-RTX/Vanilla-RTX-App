@@ -98,7 +98,7 @@ public sealed partial class PackUpdaterOverlay
         }
 
         var built = _extrasIndex.BuiltUtc?.ToLocalTime().ToString("d MMMM yyyy") ?? _extrasIndex.Tag;
-        ExtrasBuildText.Text = $"Add-ons and extensions from the latest automated build, {built}. {_extrasIndex.Packs.Count} packs.";
+        ExtrasBuildText.Text = $"Add-ons and extensions from the latest build, {built}. {_extrasIndex.Packs.Count} packs.";
 
         var first = true;
         foreach (var pack in OrderedExtras())
@@ -122,8 +122,8 @@ public sealed partial class PackUpdaterOverlay
         // and below what it needs its lines wrap (VersionLine) rather than clip.
         // ExtrasColumnHeadings in the XAML has to say the same.
         var row = new Grid { ColumnSpacing = 16, Padding = new Thickness(0, 10, 0, 10) };
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3, GridUnitType.Star) });
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star), MinWidth = 250 });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(5, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3, GridUnitType.Star), MinWidth = 150 });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
 
         var text = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };

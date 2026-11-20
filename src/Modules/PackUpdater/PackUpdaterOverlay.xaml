@@ -562,8 +562,8 @@
                                   Visibility="Collapsed">
                                 <!-- The same columns as each row in PackUpdaterOverlay.Extras.cs. -->
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="3*" />
-                                    <ColumnDefinition Width="2*"
+                                    <ColumnDefinition Width="5*" />
+                                    <ColumnDefinition Width="3*"
                                                       MinWidth="250" />
                                     <ColumnDefinition Width="120" />
                                 </Grid.ColumnDefinitions>

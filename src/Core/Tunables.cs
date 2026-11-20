@@ -82,7 +82,7 @@ public static class Tunables
     private const string NormalMaps = "RTX Reactor - normal maps";
     private const string Heightmaps = "RTX Reactor - heightmaps";
     private const string Choosing = "RTX Reactor - which secondary PBR";
-    private const string Recursion = "RTX Reactor - recursive MER passes";
+    private const string Recursion = "RTX Reactor - recursive MERS passes";
     private const string WaterGlass = "RTX Reactor - water and glass";
     private const string Network = "Downloads and launching";
 

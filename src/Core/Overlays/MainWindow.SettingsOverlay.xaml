@@ -621,7 +621,7 @@
                                         <TextBlock Text="Activate packs on launch"
                                                    Style="{StaticResource SettingsItemLabelStyle}"
                                                    TextWrapping="Wrap" />
-                                        <TextBlock Text="Activates these packs as global resource packs in every account just before launching. The top pack takes priority; drag to reorder. Only the highest installed Vanilla RTX pack is activated, since they don't stack - faded rows won't be activated."
+                                        <TextBlock Text="Activates these packs as global resource packs in every account just before launching. The top pack takes priority; drag to reorder. Only the highest ordered Vanilla RTX variant is activated, since the three are mutually exclusive."
                                                    Style="{StaticResource SettingsHintTextStyle}" />
                                     </StackPanel>
 
@@ -643,7 +643,7 @@
                                     <StackPanel Grid.Column="0"
                                                 Margin="0,0,10,0"
                                                 VerticalAlignment="Center">
-                                        <TextBlock Text="Place above packs activated in-game"
+                                        <TextBlock Text="Place above packs already-activated packs"
                                                    TextWrapping="Wrap"
                                                    IsTextScaleFactorEnabled="False" />
                                         <TextBlock Text="Off puts this list beneath whatever you activated yourself instead, so your own packs keep priority."
@@ -819,7 +819,7 @@
                                 </StackPanel>
                             </Button>
                             <TextBlock Style="{StaticResource SettingsHintTextStyle}"
-                                       Text="Where the app gets some of its content, and the numbers it normally decides for itself. Changing these can make things worse, and every one can be put back." />
+                                       Text="Where the app gets some of its content and other internal variables. Changing these can break things, tweak only if you know what you're doing." />
                         </StackPanel>
 
                         <StackPanel x:Name="AdvancedPanel"

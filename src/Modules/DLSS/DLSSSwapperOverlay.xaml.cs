@@ -758,7 +758,7 @@ public sealed partial class DLSSSwapperOverlay : ModuleOverlay
         if (_nvidiaBuilds is null)
         {
             NvidiaStatusPanel.Visibility = Visibility.Visible;
-            NvidiaStatusText.Text = "Couldn't reach NVIDIA's update server. Download DLSS files still works.";
+            NvidiaStatusText.Text = "Couldn't reach NVIDIA's update server. Try importing manually or through the bottom right button.";
             return;
         }
 
