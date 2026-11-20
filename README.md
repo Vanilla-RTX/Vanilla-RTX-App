@@ -305,8 +305,7 @@ Pick a preset from the dropdown to see a preview, then click **Install**.
 
 - **Default** - a backup of your game's own files, taken the first time you open this manager. Always there to roll back to.
 - **Default (MCPE-138222 Fix)** - same as the default look, with a corrected sky texture (Fixes [MCPE-138222](https://bugs.mojang.com/browse/MCPE/issues/MCPE-138222))
-- **BetterRTX Lookalike** - Gamescom 2019 with a weaker sun and sky light and a softer glow along the horizon, close to the look of BetterRTX's default preset.
-- **ButterRTX** - the whole world in butter yellow. For fun.
+- **ButterRTX** - the whole world in buttery yellow. For fun.
 - **Gamescom 2019 Demo V2** - recreates the look of Minecraft RTX's early public demos; a good alternative to the default.
 - **Gaming** - its own sky, water, underwater light and color grading.
 - **Inverted Day-Night Cycle** - day becomes night, and night becomes day.
